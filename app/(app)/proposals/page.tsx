@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Search, Sparkles, PenLine, Eye, ArrowUpDown, Download } from "lucide-react";
+import { Plus, Search, Sparkles, PenLine, Eye, ArrowUpDown, Download, Link2 } from "lucide-react";
 import { Sparkline } from "@/components/app/charts";
 import { StatusPill, ClientAvatar, Checkbox } from "@/components/app/proposal-bits";
 import { AiDraftDialog } from "@/components/app/ai-draft-dialog";
@@ -105,7 +105,10 @@ export default function ProposalsPage() {
             <Sparkles className="h-4 w-4 text-primary" />
             {lang === "tr" ? "AI ile yaz" : "Draft with AI"}
           </button>
-          <button className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90">
+          <button
+            onClick={() => setAiOpen(true)}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
+          >
             <Plus className="h-4 w-4" />
             {lang === "tr" ? "Yeni teklif" : "New proposal"}
           </button>
@@ -209,14 +212,35 @@ export default function ProposalsPage() {
                   </td>
                   <td className="py-3 pr-4 text-right">
                     {realIds.has(row.id) && (
-                      <a
-                        href={`/api/proposals/${row.id}/pdf`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                        title={lang === "tr" ? "PDF olarak indir" : "Download as PDF"}
-                      >
-                        <Download className="h-3.5 w-3.5" />
-                      </a>
+                      <div className="flex items-center justify-end gap-1">
+                        <a
+                          href={`/p/${row.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (row.status === "draft") {
+                              fetch(`/api/proposals/${row.id}`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ status: "sent" }),
+                              }).then(loadReal);
+                            }
+                          }}
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                          title={lang === "tr" ? "Müşteri linkini aç" : "Open client link"}
+                        >
+                          <Link2 className="h-3.5 w-3.5" />
+                        </a>
+                        <a
+                          href={`/api/proposals/${row.id}/pdf`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                          title={lang === "tr" ? "PDF olarak indir" : "Download as PDF"}
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </a>
+                      </div>
                     )}
                   </td>
                 </tr>

@@ -4,7 +4,7 @@ import { getAuthedUser } from "@/lib/supabase/auth-user";
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const { title, client, value, sections, lineItems, contractText } = body;
+  const { title, client, value, sections, lineItems, contractText, paymentLink } = body;
 
   const user = await getAuthedUser(req);
   if (!user) return NextResponse.json({ error: "Giriş yapmalısın." }, { status: 401 });
@@ -44,6 +44,7 @@ export async function POST(req: Request) {
       sections: sections || [],
       line_items: lineItems || [],
       contract_text: contractText || null,
+      payment_link: paymentLink || null,
     })
     .select("id")
     .single();

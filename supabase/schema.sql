@@ -59,6 +59,8 @@ create table if not exists proposals (
   sections jsonb not null default '[]'::jsonb,
   line_items jsonb not null default '[]'::jsonb,
   contract_text text,
+  payment_link text,
+  signed_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -105,3 +107,7 @@ create policy "own clients" on clients for all using (company_id = auth_company_
 create policy "own proposals" on proposals for all using (company_id = auth_company_id());
 create policy "own usage" on ai_usage for all using (company_id = auth_company_id());
 create policy "own profile" on profiles for select using (id = auth.uid());
+
+-- If you already ran this schema before payment_link/signed_at existed, run just this:
+-- alter table proposals add column if not exists payment_link text;
+-- alter table proposals add column if not exists signed_at timestamptz;

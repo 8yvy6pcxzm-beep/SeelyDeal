@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Sparkles, X, Send, Loader2, Check, Link2 } from "lucide-react";
+import { Sparkles, X, Send, Loader2, Check, Link2, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLang } from "@/components/i18n/language-provider";
@@ -25,6 +25,7 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
   const [showWebsiteField, setShowWebsiteField] = useState(false);
   const [loading, setLoading] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [paymentLink, setPaymentLink] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
@@ -70,7 +71,7 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
     const res = await fetch("/api/proposals", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(draft),
+      body: JSON.stringify({ ...draft, paymentLink: paymentLink.trim() || undefined }),
     });
     setLoading(false);
     if (res.ok) {
@@ -82,6 +83,7 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
   function reset() {
     setMessages([]);
     setDraft(null);
+    setPaymentLink("");
     setSaved(false);
     setError(null);
     setWebsiteUrl("");
@@ -162,6 +164,27 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
                   <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{draft.contractText}</p>
                 </div>
               )}
+              <div>
+                <label className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <CreditCard className="h-3.5 w-3.5" />
+                  {lang === "tr" ? "Ödeme Yöntemi (opsiyonel)" : "Payment Method (optional)"}
+                </label>
+                <Input
+                  value={paymentLink}
+                  onChange={(e) => setPaymentLink(e.target.value)}
+                  placeholder={
+                    lang === "tr"
+                      ? "Ödeme linki (Ruul, Stripe, iyzico) ya da IBAN"
+                      : "Payment link (Ruul, Stripe, iyzico) or IBAN"
+                  }
+                  className="text-sm"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {lang === "tr"
+                    ? "Müşteri imzaladığında buraya yönlendirilir."
+                    : "The client is redirected here once they sign."}
+                </p>
+              </div>
               <Button onClick={saveDraft} disabled={loading} className="w-full gap-2">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                 {lang === "tr" ? "Teklife ekle" : "Add to proposals"}
