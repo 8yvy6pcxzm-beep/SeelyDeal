@@ -10,24 +10,74 @@ import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { LanguageToggle } from "@/components/ui/language-toggle";
+import { createClient } from "@/lib/supabase/client";
 
 /**
- * Login / signup with a DEMO BYPASS. Supabase isn't connected in this kit, so
- * submitting (or "Continue with demo") just drops you into the live demo
- * dashboard. Wire Supabase via /setup to make these forms do real auth.
+ * Login / signup with real Supabase Auth, plus a demo bypass ("Continue with
+ * demo") that skips straight to the live demo dashboard for prospects trying
+ * the product without an account.
  */
 export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
   const { ui, t, lang } = useLang();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  function enter(e?: React.FormEvent) {
+  const isLogin = mode === "login";
+
+  function enterDemo(e?: React.FormEvent) {
     e?.preventDefault();
     setLoading(true);
     setTimeout(() => router.push("/dashboard"), 450);
   }
 
-  const isLogin = mode === "login";
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    setNotice(null);
+    setLoading(true);
+
+    const form = new FormData(e.currentTarget);
+    const email = String(form.get("email") || "");
+    const password = String(form.get("password") || "");
+    const name = String(form.get("name") || "");
+
+    const supabase = createClient();
+
+    if (isLogin) {
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) {
+        setError(signInError.message);
+        setLoading(false);
+        return;
+      }
+      router.push("/dashboard");
+      return;
+    }
+
+    const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
+    if (signUpError) {
+      setError(signUpError.message);
+      setLoading(false);
+      return;
+    }
+
+    if (!data.session) {
+      // Email confirmation is required before a session exists.
+      setNotice(lang === "tr" ? "Hesabını onaylamak için e-postana gönderdiğimiz linke tıkla." : "Check your email to confirm your account.");
+      setLoading(false);
+      return;
+    }
+
+    await fetch("/api/auth/complete-signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: data.user?.id, email, companyName: name }),
+    });
+
+    router.push("/dashboard");
+  }
   const stats = appConfig.marketing.stats.slice(0, 3);
 
   return (
@@ -88,12 +138,12 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
             </h2>
           </div>
 
-          {/* Social (decorative in demo) */}
+          {/* Social (decorative — drop into the demo dashboard) */}
           <div className="grid grid-cols-2 gap-3">
-            <Button variant="outline" onClick={enter} className="gap-2">
+            <Button variant="outline" onClick={enterDemo} className="gap-2">
               <GoogleGlyph /> Google
             </Button>
-            <Button variant="outline" onClick={enter} className="gap-2">
+            <Button variant="outline" onClick={enterDemo} className="gap-2">
               <GithubGlyph /> GitHub
             </Button>
           </div>
@@ -104,21 +154,23 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
             <span className="h-px flex-1 bg-border" />
           </div>
 
-          <form onSubmit={enter} className="space-y-4">
+          <form onSubmit={submit} className="space-y-4">
             {!isLogin && (
               <div className="space-y-1.5">
-                <Label htmlFor="name">{ui.fullName}</Label>
-                <Input id="name" name="name" placeholder={lang === "tr" ? "Adın Soyadın" : "Jane Doe"} />
+                <Label htmlFor="name">{lang === "tr" ? "Şirket adı" : "Company name"}</Label>
+                <Input id="name" name="name" placeholder={lang === "tr" ? "İşletmenin adı" : "Your business name"} />
               </div>
             )}
             <div className="space-y-1.5">
               <Label htmlFor="email">{ui.email}</Label>
-              <Input id="email" name="email" type="email" placeholder="you@company.com" defaultValue="demo@demo.app" />
+              <Input id="email" name="email" type="email" placeholder="you@company.com" required />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="password">{ui.password}</Label>
-              <Input id="password" name="password" type="password" placeholder="••••••••" defaultValue="demodemo" />
+              <Input id="password" name="password" type="password" placeholder="••••••••" required minLength={6} />
             </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            {notice && <p className="text-sm text-success">{notice}</p>}
             <Button type="submit" disabled={loading} className="w-full gap-2">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {isLogin ? ui.signIn : ui.getStarted}
@@ -127,7 +179,7 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
           </form>
 
           <button
-            onClick={enter}
+            onClick={enterDemo}
             className="w-full rounded-lg border border-dashed border-border py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary cursor-pointer"
           >
             {ui.continueDemo} →

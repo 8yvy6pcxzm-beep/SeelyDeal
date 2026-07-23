@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Plus, Search, Sparkles, PenLine, Eye, ArrowUpDown } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Plus, Search, Sparkles, PenLine, Eye, ArrowUpDown, Download } from "lucide-react";
 import { Sparkline } from "@/components/app/charts";
 import { StatusPill, ClientAvatar, Checkbox } from "@/components/app/proposal-bits";
+import { AiDraftDialog } from "@/components/app/ai-draft-dialog";
 import { useLang } from "@/components/i18n/language-provider";
 import { cn, formatUsd } from "@/lib/utils";
 import { proposals, pipeline, type ProposalStatus } from "@/lib/demo/data";
@@ -27,10 +28,48 @@ export default function ProposalsPage() {
   const { t, lang } = useLang();
   const [filter, setFilter] = useState<ProposalStatus | "all">("all");
   const [query, setQuery] = useState("");
+  const [aiOpen, setAiOpen] = useState(false);
+  const [realRows, setRealRows] = useState<typeof proposals>([]);
+
+  async function loadReal() {
+    try {
+      const res = await fetch("/api/proposals");
+      const data = await res.json();
+      const mapped = (data.proposals ?? []).map((p: any, i: number) => ({
+        id: p.id,
+        number: `AI-${String(i + 1).padStart(4, "0")}`,
+        title: { tr: p.title, en: p.title },
+        client: p.clients?.name ?? "—",
+        clientEmail: "",
+        clientInitials: (p.clients?.name ?? "?").slice(0, 2).toUpperCase(),
+        value: Number(p.value) || 0,
+        status: p.status,
+        sentDate: null,
+        views: 0,
+        spark: [0, 0, 0, 0, 0, 0, 0],
+        signed: p.status === "accepted",
+        viewSummary: { tr: "", en: "" },
+        sections: p.sections ?? [],
+        timeline: [],
+        lineItems: p.line_items ?? [],
+        template: { tr: "AI taslağı", en: "AI draft" },
+      }));
+      setRealRows(mapped);
+    } catch {
+      setRealRows([]);
+    }
+  }
+
+  useEffect(() => {
+    loadReal();
+  }, []);
+
+  const allProposals = useMemo(() => [...realRows, ...proposals], [realRows]);
+  const realIds = useMemo(() => new Set(realRows.map((r) => r.id)), [realRows]);
 
   const rows = useMemo(
     () =>
-      proposals.filter((p) => {
+      allProposals.filter((p) => {
         const okStatus = filter === "all" || p.status === filter;
         const okQuery =
           !query ||
@@ -39,7 +78,7 @@ export default function ProposalsPage() {
           p.number.toLowerCase().includes(query.toLowerCase());
         return okStatus && okQuery;
       }),
-    [filter, query, t],
+    [allProposals, filter, query, t],
   );
 
   const totalValue = rows.reduce((s, p) => s + p.value, 0);
@@ -59,7 +98,10 @@ export default function ProposalsPage() {
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          <button className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-card px-3.5 text-[13px] font-medium text-foreground shadow-pill transition-colors hover:bg-muted">
+          <button
+            onClick={() => setAiOpen(true)}
+            className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-card px-3.5 text-[13px] font-medium text-foreground shadow-pill transition-colors hover:bg-muted"
+          >
             <Sparkles className="h-4 w-4 text-primary" />
             {lang === "tr" ? "AI ile yaz" : "Draft with AI"}
           </button>
@@ -128,6 +170,7 @@ export default function ProposalsPage() {
                 <th className="label-mono py-2.5 font-medium text-muted-foreground">{lang === "tr" ? "Gönderim" : "Sent"}</th>
                 <th className="label-mono py-2.5 text-center font-medium text-muted-foreground">{lang === "tr" ? "Görüntüleme" : "Views"}</th>
                 <th className="label-mono py-2.5 pr-4 text-right font-medium text-muted-foreground">{lang === "tr" ? "Değer" : "Value"}</th>
+                <th className="label-mono w-10 py-2.5 pr-4"></th>
               </tr>
             </thead>
             <tbody>
@@ -164,11 +207,23 @@ export default function ProposalsPage() {
                   <td className="py-3 pr-4 text-right">
                     <p className="tnum font-semibold">{formatUsd(row.value)}</p>
                   </td>
+                  <td className="py-3 pr-4 text-right">
+                    {realIds.has(row.id) && (
+                      <a
+                        href={`/api/proposals/${row.id}/pdf`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                        title={lang === "tr" ? "PDF olarak indir" : "Download as PDF"}
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                      </a>
+                    )}
+                  </td>
                 </tr>
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
+                  <td colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
                     {lang === "tr" ? "Bu filtreyle teklif yok." : "No proposals match this filter."}
                   </td>
                 </tr>
@@ -183,6 +238,7 @@ export default function ProposalsPage() {
                   <td className="py-3 pr-4 text-right">
                     <span className="tnum text-[13px] font-bold">{formatUsd(totalValue)}</span>
                   </td>
+                  <td></td>
                 </tr>
               </tfoot>
             )}
@@ -194,6 +250,8 @@ export default function ProposalsPage() {
         <Eye className="h-3.5 w-3.5" />
         {lang === "tr" ? "Bir satıra tıkla — panelden detay sürgüsünü aç." : "Row detail drawer lives on the Dashboard cockpit."}
       </p>
+
+      <AiDraftDialog open={aiOpen} onClose={() => setAiOpen(false)} onSaved={loadReal} />
     </div>
   );
 }
