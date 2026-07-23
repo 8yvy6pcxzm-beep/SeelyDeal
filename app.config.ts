@@ -45,6 +45,8 @@ export interface Stat {
 export interface PricingTier {
   name: string;
   price: string;
+  monthlyPrice?: string;
+  annualOnly?: boolean;
   period?: L;
   tagline: L;
   features: L[];
@@ -102,7 +104,7 @@ export const appConfig: AppConfig = {
     tr: "Güzel, etkileşimli satış teklifleri ve fiyat tekliflerini AI ile dakikalar içinde hazırla, gönder, görüntülenmelerini izle ve e-imza ile kapat. Taslaktan imzaya kadar her şey tek panelde.",
     en: "Build beautiful, interactive sales proposals and quotes in minutes with AI, send them, track every view, and close with e-signature. From draft to signature, all in one panel.",
   },
-  domain: "tender.deals",
+  domain: "seelydeal.seelynow.com",
   logoText: "S",
   accentName: "violet",
 
@@ -137,9 +139,9 @@ export const appConfig: AppConfig = {
       { value: "100%", label: { tr: "izlenebilir", en: "trackable" } },
     ],
     pricing: [
-      { name: "Solo", price: "$0", period: { tr: "/ay", en: "/mo" }, tagline: { tr: "İlk tekliflerini gönder.", en: "Send your first proposals." }, features: [{ tr: "Ayda 3 aktif teklif", en: "3 active proposals/mo" }, { tr: "AI taslak (sınırlı)", en: "AI drafting (limited)" }, { tr: "Görüntüleme takibi", en: "View tracking" }, { tr: "E-imza", en: "E-signature" }], cta: { tr: "Başla", en: "Get started" } },
-      { name: "Studio", price: "$39", period: { tr: "/koltuk/ay", en: "/seat/mo" }, tagline: { tr: "Büyüyen satış ekipleri için.", en: "For growing sales teams." }, features: [{ tr: "Sınırsız teklif", en: "Unlimited proposals" }, { tr: "Sınırsız AI taslak", en: "Unlimited AI drafting" }, { tr: "Etkileşimli fiyatlandırma & ödeme", en: "Interactive pricing & payments" }, { tr: "Şablon kütüphanesi & marka", en: "Template library & branding" }, { tr: "Analitik & hatırlatmalar", en: "Analytics & reminders" }], cta: { tr: "Ücretsiz dene", en: "Start free trial" }, featured: true },
-      { name: "Scale", price: "Custom", tagline: { tr: "Kurumsal satış ekipleri için.", en: "For enterprise sales orgs." }, features: [{ tr: "Studio'daki her şey", en: "Everything in Studio" }, { tr: "Onay akışları & roller", en: "Approval flows & roles" }, { tr: "CRM & Salesforce entegrasyonu", en: "CRM & Salesforce sync" }, { tr: "SSO, SAML & denetim kaydı", en: "SSO, SAML & audit log" }, { tr: "Özel hesap yöneticisi", en: "Dedicated manager" }], cta: { tr: "Satışa ulaş", en: "Contact sales" } },
+      { name: "Starter", price: "$25", monthlyPrice: "$39", period: { tr: "/kullanıcı/ay", en: "/user/mo" }, tagline: { tr: "Küçük ekipler ve bireysel kullanım için.", en: "For small teams and individuals." }, features: [{ tr: "Temel özellikler", en: "Essential features" }, { tr: "AI ile teklif yazımı", en: "AI proposal drafting" }, { tr: "E-imza", en: "E-signature" }, { tr: "Analitik", en: "Analytics" }, { tr: "Ödeme tahsilatı", en: "Payment collection" }, { tr: "CRM entegrasyonları", en: "CRM integrations" }, { tr: "API erişimi (kullanım ücretine tabi)", en: "API access (usage costs apply)" }], cta: { tr: "Ücretsiz dene", en: "Start free trial" } },
+      { name: "Growth", price: "$45", annualOnly: true, period: { tr: "/kullanıcı/ay", en: "/user/mo" }, tagline: { tr: "Daha az efor ile daha fazlasını yapmak isteyen ekipler için. Min. 5 kullanıcı.", en: "For teams that want to do more with less effort. Min. 5 users." }, features: [{ tr: "Starter'daki her şey, ayrıca...", en: "Everything on Starter plus..." }, { tr: "Özel Başarı Yöneticisi", en: "Dedicated Customer Success Manager" }, { tr: "Otomasyonlar", en: "Automations" }, { tr: "Özel marka", en: "Custom branding" }, { tr: "Kimlik doğrulama", en: "Identity verification" }, { tr: "Gelişmiş raporlama", en: "Enhanced reporting" }, { tr: "Şablon düzeyinde ayarlar", en: "Template-level settings" }], cta: { tr: "Demo rezervasyonu", en: "Book a demo" }, featured: true },
+      { name: "Scale", price: "$65", annualOnly: true, period: { tr: "/kullanıcı/ay", en: "/user/mo" }, tagline: { tr: "Daha fazlasını yöneten, daha hızlı ilerleyen ekipler için. Min. 10 kullanıcı.", en: "For teams managing more, moving faster. Min. 10 users." }, features: [{ tr: "Growth'taki her şey, ayrıca...", en: "Everything on Growth plus..." }, { tr: "Salesforce entegrasyonu", en: "Salesforce integration" }, { tr: "Koşullu içerik", en: "Conditional content" }, { tr: "Takım düzeyinde izinler", en: "Team-level permissions" }, { tr: "Sohbet desteği", en: "Chat support" }, { tr: "Premium tasarım hizmetleri", en: "Premium design services" }, { tr: "Gelişmiş API desteği", en: "Enhanced API support" }], cta: { tr: "Demo rezervasyonu", en: "Book a demo" } },
     ],
     faq: [
       { q: { tr: "Tender bir teklifi nasıl yazıyor?", en: "How does Tender draft a proposal?" }, a: { tr: "Bir şablon seç ve birkaç satırlık brief gir — müşteri, kapsam, bütçe. AI kapak, kapsam, fiyat tablosu ve şartları markanın sesiyle yazar; sen son rötuşu yaparsın.", en: "Pick a template and enter a short brief — client, scope, budget. The AI writes the cover, scope, pricing table and terms in your brand voice; you do the final polish." } },

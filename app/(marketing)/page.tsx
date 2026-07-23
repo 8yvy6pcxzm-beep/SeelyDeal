@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import {
   ArrowRight,
   Check,
@@ -92,7 +93,7 @@ const TESTIMONIALS: { quote: L; name: string; role: L; initials: string; metric:
   { quote: { tr: "Analitik panosu hangi şablonun kapandığını gösteriyor. Artık tahmin etmiyoruz, ölçüyoruz.", en: "The analytics show which template closes. We don't guess anymore, we measure." }, name: "Diego Santos", role: { tr: "Gelir · Harvest", en: "Revenue · Harvest" }, initials: "DS", metric: { tr: "%47 kazanma", en: "47% win rate" } },
 ];
 
-/* Who Tender is for — use-case cards. */
+/* Who SeelyDeal is for — use-case cards. */
 const USE_CASES: { icon: string; title: L; body: L }[] = [
   { icon: "palette", title: { tr: "Ajanslar & stüdyolar", en: "Agencies & studios" }, body: { tr: "Markaya uygun, etkileşimli teklifleri dakikalar içinde gönder; her görüntülenmeyi izle.", en: "Send on-brand, interactive proposals in minutes and track every view." } },
   { icon: "code", title: { tr: "Yazılım & danışmanlık", en: "Software & consulting" }, body: { tr: "Kapsam, kilometre taşları ve fiyatlandırmayı tek bir imzalanabilir belgede topla.", en: "Bundle scope, milestones and pricing into one signable document." } },
@@ -150,6 +151,7 @@ export default function LandingPage() {
   const { t, lang } = useLang();
   const m = appConfig.marketing;
   const tt = (v: L) => v[lang];
+  const [annual, setAnnual] = useState(true);
 
   const sectionCopy = {
     demoTitle: { tr: "Müşteri gibi dene", en: "Try it like a client" } as L,
@@ -158,7 +160,7 @@ export default function LandingPage() {
     featuresSub: { tr: "Taslaktan imzaya, takipten ödemeye — tek panel.", en: "From draft to signature, tracking to payment — in one panel." } as L,
     howTitle: { tr: "Beş adımda kapanan teklif", en: "A closed deal in five steps" } as L,
     howSub: { tr: "Şablon seç, AI yazsın, gönder, izle, imzala.", en: "Pick a template, let AI draft, send, track, sign." } as L,
-    useCasesTitle: { tr: "Tender kimler için?", en: "Who Tender is for" } as L,
+    useCasesTitle: { tr: "SeelyDeal kimler için?", en: "Who SeelyDeal is for" } as L,
     useCasesSub: { tr: "Teklif gönderen her ekip için güzel bir akış.", en: "A beautiful flow for every team that sends proposals." } as L,
     deepTitle: { tr: "Taslaktan imzaya", en: "From draft to signature" } as L,
     deepSub: { tr: "Üç katman, tek panel: yaz, fiyatla, izle ve kapat.", en: "Three layers, one panel: draft, price, track and close." } as L,
@@ -166,13 +168,17 @@ export default function LandingPage() {
     trackSub: { tr: "Kim açtı, hangi bölümde ne kadar kaldı, hangi cihazdan — hepsi canlı.", en: "Who opened it, time on each section, on what device — all live." } as L,
     integrationsTitle: { tr: "Sevdiğin araçlarla çalışır", en: "Works with the tools you love" } as L,
     integrationsSub: { tr: "Supabase, Dropbox Sign, Stripe ve Anthropic'i dakikalar içinde bağla.", en: "Wire Supabase, Dropbox Sign, Stripe and Anthropic in minutes." } as L,
-    compareTitle: { tr: "Neden Tender?", en: "Why Tender?" } as L,
+    compareTitle: { tr: "Neden SeelyDeal?", en: "Why SeelyDeal?" } as L,
     compareSub: { tr: "Word/PDF ve genel araçlarla karşılaştır.", en: "Compared to Word/PDF and generic tools." } as L,
-    testimonialsTitle: { tr: "Satış ekipleri Tender'ı seviyor", en: "Sales teams love Tender" } as L,
+    testimonialsTitle: { tr: "Satış ekipleri SeelyDeal'ı seviyor", en: "Sales teams love SeelyDeal" } as L,
     testimonialsSub: { tr: "Daha hızlı, daha güzel teklif gönderen ekiplerden.", en: "From teams sending faster, more beautiful proposals." } as L,
     pricingTitle: { tr: "Basit, koltuk-bazlı fiyatlandırma", en: "Simple, seat-based pricing" } as L,
-    pricingSub: { tr: "Ücretsiz başla. Ekibin büyüdükçe öde.", en: "Start free. Pay as your team grows." } as L,
+    pricingSub: { tr: "İçerikle başla, otomasyonla büyüt.", en: "Start with content and scale with automation." } as L,
     popular: { tr: "En popüler", en: "Most popular" } as L,
+    billingMonthly: { tr: "Aylık", en: "Monthly" } as L,
+    billingAnnual: { tr: "Yıllık", en: "Annual" } as L,
+    billingSave: { tr: "%36 tasarruf", en: "Save 36%" } as L,
+    annualOnlyNote: { tr: "Sadece yıllık faturalandırma", en: "Annual billing only" } as L,
     faqTitle: { tr: "Sıkça sorulanlar", en: "Frequently asked" } as L,
     faqSub: { tr: "Cevabını bulamadın mı? Ekibimize yaz.", en: "Can't find an answer? Reach our team." } as L,
     ctaTitle: { tr: "Bir sonraki teklifini bugün kazan", en: "Win your next proposal today" } as L,
@@ -652,8 +658,8 @@ export default function LandingPage() {
               <Quote className="h-7 w-7 text-white/40" />
               <blockquote className="mt-4 font-display text-2xl font-semibold leading-snug tracking-tight">
                 {lang === "tr"
-                  ? "Tender'a geçtikten sonraki çeyrekte kazanma oranımız %35 arttı ve teklif yazma süremiz dörtte bire düştü."
-                  : "In the quarter after switching to Tender, our win rate climbed 35% and our proposal time dropped to a quarter."}
+                  ? "SeelyDeal'a geçtikten sonraki çeyrekte kazanma oranımız %35 arttı ve teklif yazma süremiz dörtte bire düştü."
+                  : "In the quarter after switching to SeelyDeal, our win rate climbed 35% and our proposal time dropped to a quarter."}
               </blockquote>
               <figcaption className="mt-6 flex items-center gap-3 border-t border-white/20 pt-5">
                 <span className="grid h-11 w-11 place-items-center rounded-full bg-white/15 text-sm font-bold">MG</span>
@@ -695,7 +701,37 @@ export default function LandingPage() {
             <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">{tt(sectionCopy.pricingTitle)}</h2>
             <p className="mt-3 text-muted-foreground">{tt(sectionCopy.pricingSub)}</p>
           </div>
-          <div className="mt-12 grid gap-5 lg:grid-cols-3">
+
+          <div className="mt-8 flex items-center justify-center gap-3">
+            <span className={cn("text-sm font-medium", !annual && "text-foreground", annual && "text-muted-foreground")}>
+              {tt(sectionCopy.billingMonthly)}
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={annual}
+              onClick={() => setAnnual((v) => !v)}
+              className={cn(
+                "relative h-6 w-11 shrink-0 rounded-full transition-colors",
+                annual ? "bg-primary" : "bg-muted-foreground/30",
+              )}
+            >
+              <span
+                className={cn(
+                  "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-soft transition-transform",
+                  annual ? "translate-x-[22px]" : "translate-x-0.5",
+                )}
+              />
+            </button>
+            <span className={cn("text-sm font-medium", annual && "text-foreground", !annual && "text-muted-foreground")}>
+              {tt(sectionCopy.billingAnnual)}
+            </span>
+            <span className="ml-1 rounded-full bg-success/12 px-2 py-0.5 text-xs font-semibold text-success">
+              {tt(sectionCopy.billingSave)}
+            </span>
+          </div>
+
+          <div className="mt-10 grid gap-5 lg:grid-cols-3">
             {m.pricing.map((tier) => (
               <div
                 key={tier.name}
@@ -712,9 +748,14 @@ export default function LandingPage() {
                 )}
                 <h3 className="font-semibold tracking-tight">{tier.name}</h3>
                 <div className="mt-2 flex items-baseline gap-1">
-                  <span className="font-display text-4xl font-bold tracking-tight">{tier.price}</span>
+                  <span className="font-display text-4xl font-bold tracking-tight">
+                    {annual || tier.annualOnly ? tier.price : tier.monthlyPrice ?? tier.price}
+                  </span>
                   {tier.period && <span className="text-sm text-muted-foreground">{t(tier.period)}</span>}
                 </div>
+                {tier.annualOnly && (
+                  <p className="mt-1 text-xs font-medium text-muted-foreground">{tt(sectionCopy.annualOnlyNote)}</p>
+                )}
                 <p className="mt-1.5 text-sm text-muted-foreground">{t(tier.tagline)}</p>
                 <ul className="mt-6 flex-1 space-y-3 text-sm">
                   {tier.features.map((f) => (
