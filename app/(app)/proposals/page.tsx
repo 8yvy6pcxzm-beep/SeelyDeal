@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Search, Sparkles, PenLine, Eye, ArrowUpDown, Download, Link2 } from "lucide-react";
+import { Plus, Search, Sparkles, PenLine, Eye, ArrowUpDown, Download, Link2, Settings2 } from "lucide-react";
 import { Sparkline } from "@/components/app/charts";
 import { StatusPill, ClientAvatar, Checkbox } from "@/components/app/proposal-bits";
 import { AiDraftDialog } from "@/components/app/ai-draft-dialog";
+import { EditProposalDialog } from "@/components/app/edit-proposal-dialog";
 import { useLang } from "@/components/i18n/language-provider";
 import { cn, formatUsd } from "@/lib/utils";
 import { proposals, pipeline, type ProposalStatus } from "@/lib/demo/data";
@@ -29,6 +30,7 @@ export default function ProposalsPage() {
   const [filter, setFilter] = useState<ProposalStatus | "all">("all");
   const [query, setQuery] = useState("");
   const [aiOpen, setAiOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [realRows, setRealRows] = useState<typeof proposals>([]);
 
   async function loadReal() {
@@ -213,6 +215,16 @@ export default function ProposalsPage() {
                   <td className="py-3 pr-4 text-right">
                     {realIds.has(row.id) && (
                       <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingId(row.id);
+                          }}
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                          title={lang === "tr" ? "Düzenle" : "Edit"}
+                        >
+                          <Settings2 className="h-3.5 w-3.5" />
+                        </button>
                         <a
                           href={`/p/${row.id}`}
                           target="_blank"
@@ -276,6 +288,7 @@ export default function ProposalsPage() {
       </p>
 
       <AiDraftDialog open={aiOpen} onClose={() => setAiOpen(false)} onSaved={loadReal} />
+      <EditProposalDialog proposalId={editingId} onClose={() => setEditingId(null)} onSaved={loadReal} />
     </div>
   );
 }

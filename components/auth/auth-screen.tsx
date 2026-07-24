@@ -46,12 +46,28 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
     const supabase = createClient();
 
     if (isLogin) {
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (signInError) {
         setError(signInError.message);
         setLoading(false);
         return;
       }
+
+      // Covers accounts confirmed after signup (email confirmation required),
+      // whose company/profile row was never created since signup returned no session.
+      const completeRes = await fetch("/api/auth/complete-signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: signInData.user?.id, email }),
+      });
+
+      if (!completeRes.ok) {
+        const body = await completeRes.json().catch(() => null);
+        setError(body?.error || (lang === "tr" ? "Hesap kurulumu tamamlanamadı." : "Couldn't finish setting up your account."));
+        setLoading(false);
+        return;
+      }
+
       router.push("/dashboard");
       return;
     }
@@ -70,11 +86,18 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
       return;
     }
 
-    await fetch("/api/auth/complete-signup", {
+    const completeRes = await fetch("/api/auth/complete-signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId: data.user?.id, email, companyName: name }),
     });
+
+    if (!completeRes.ok) {
+      const body = await completeRes.json().catch(() => null);
+      setError(body?.error || (lang === "tr" ? "Hesap oluşturulurken bir şeyler ters gitti." : "Something went wrong setting up your account."));
+      setLoading(false);
+      return;
+    }
 
     router.push("/dashboard");
   }

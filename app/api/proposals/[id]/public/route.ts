@@ -8,7 +8,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const service = createServiceClient();
   const { data: proposal } = await service
     .from("proposals")
-    .select("id, title, status, value, sections, line_items, contract_text, signed_at, clients(name)")
+    .select(
+      "id, title, status, value, sections, line_items, contract_text, signed_at, signed_by_name, billing_options, selected_billing, intro_text, about_text, client_contact, next_steps, valid_days, created_at, clients(name), companies(name, logo_url, primary_color, email)",
+    )
     .eq("id", id)
     .maybeSingle();
 

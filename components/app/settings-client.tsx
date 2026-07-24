@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { Icon } from "@/components/ui/icon";
 import { useLang } from "@/components/i18n/language-provider";
+import { ApiKeySection } from "@/components/app/api-key-section";
 
 export function SettingsClient({ connected }: { connected: Record<string, boolean> }) {
   const { t, ui } = useLang();
@@ -68,6 +69,8 @@ export function SettingsClient({ connected }: { connected: Record<string, boolea
           ))}
         </CardContent>
       </Card>
+
+      <ApiKeySection />
 
       <div className="flex justify-end">
         <Button>{ui.saveChanges}</Button>

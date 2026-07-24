@@ -73,6 +73,7 @@ export interface AppConfig {
   tagline: L;
   description: L;
   domain: string;
+  contactEmail: string;
   logoText: string;
   accentName: string;
   marketing: {
@@ -94,6 +95,9 @@ export interface AppConfig {
   integrations: Integration[];
 }
 
+/** Pay-to-continue pack once a company's monthly AI draft quota runs out. */
+export const aiOveragePack = { extraDrafts: 25, price: 150 };
+
 export const appConfig: AppConfig = {
   name: "SeelyDeal",
   tagline: {
@@ -105,6 +109,7 @@ export const appConfig: AppConfig = {
     en: "Build beautiful, interactive sales proposals and quotes in minutes with AI, send them, track every view, and close with e-signature. From draft to signature, all in one panel.",
   },
   domain: "seelydeal.seelynow.com",
+  contactEmail: "akyuzelif@seelynow.ink",
   logoText: "S",
   accentName: "violet",
 
@@ -140,7 +145,7 @@ export const appConfig: AppConfig = {
     ],
     pricing: [
       { name: "Starter", price: "$25", monthlyPrice: "$39", period: { tr: "/kullanıcı/ay", en: "/user/mo" }, tagline: { tr: "Küçük ekipler ve bireysel kullanım için.", en: "For small teams and individuals." }, features: [{ tr: "Temel özellikler", en: "Essential features" }, { tr: "AI ile teklif yazımı", en: "AI proposal drafting" }, { tr: "E-imza", en: "E-signature" }, { tr: "Analitik", en: "Analytics" }, { tr: "Ödeme tahsilatı", en: "Payment collection" }, { tr: "HubSpot, Zoho ve Pipedrive entegrasyonları", en: "HubSpot, Zoho & Pipedrive integrations" }, { tr: "API erişimi (kullanım ücretine tabi)", en: "API access (usage costs apply)" }], cta: { tr: "Ücretsiz dene", en: "Start free trial" } },
-      { name: "Growth", price: "$45", annualOnly: true, period: { tr: "/kullanıcı/ay", en: "/user/mo" }, tagline: { tr: "Daha az efor ile daha fazlasını yapmak isteyen ekipler için. Min. 5 kullanıcı.", en: "For teams that want to do more with less effort. Min. 5 users." }, features: [{ tr: "Starter'daki her şey, ayrıca...", en: "Everything on Starter plus..." }, { tr: "Özel Başarı Yöneticisi", en: "Dedicated Customer Success Manager" }, { tr: "Otomasyonlar", en: "Automations" }, { tr: "Özel marka", en: "Custom branding" }, { tr: "Kimlik doğrulama", en: "Identity verification" }, { tr: "Gelişmiş raporlama", en: "Enhanced reporting" }, { tr: "Şablon düzeyinde ayarlar", en: "Template-level settings" }, { tr: "API erişimi (kullanım ücretine tabi)", en: "API access (usage costs apply)" }], cta: { tr: "Demo rezervasyonu", en: "Book a demo" }, featured: true },
+      { name: "Growth", price: "$45", annualOnly: true, period: { tr: "/kullanıcı/ay", en: "/user/mo" }, tagline: { tr: "Daha az efor ile daha fazlasını yapmak isteyen ekipler için. Min. 5 kullanıcı.", en: "For teams that want to do more with less effort. Min. 5 users." }, features: [{ tr: "Starter'daki her şey, ayrıca...", en: "Everything on Starter plus..." }, { tr: "Otomasyonlar", en: "Automations" }, { tr: "Özel marka", en: "Custom branding" }, { tr: "Kimlik doğrulama", en: "Identity verification" }, { tr: "Gelişmiş raporlama", en: "Enhanced reporting" }, { tr: "Şablon düzeyinde ayarlar", en: "Template-level settings" }, { tr: "API erişimi (kullanım ücretine tabi)", en: "API access (usage costs apply)" }], cta: { tr: "Demo rezervasyonu", en: "Book a demo" }, featured: true },
       { name: "Scale", price: "$65", annualOnly: true, period: { tr: "/kullanıcı/ay", en: "/user/mo" }, tagline: { tr: "Daha fazlasını yöneten, daha hızlı ilerleyen ekipler için. Min. 10 kullanıcı.", en: "For teams managing more, moving faster. Min. 10 users." }, features: [{ tr: "Growth'taki her şey, ayrıca...", en: "Everything on Growth plus..." }, { tr: "Salesforce entegrasyonu", en: "Salesforce integration" }, { tr: "Koşullu içerik", en: "Conditional content" }, { tr: "Smart Proposal Engine", en: "Smart Proposal Engine" }, { tr: "AI Prefill", en: "AI Prefill" }, { tr: "Premium tasarım hizmetleri", en: "Premium design services" }, { tr: "Takım düzeyinde izinler", en: "Team-level permissions" }, { tr: "Sohbet desteği", en: "Chat support" }, { tr: "API erişimi (kullanım ücretine tabi)", en: "API access (usage costs apply)" }, { tr: "Gelişmiş API desteği", en: "Enhanced API support" }, { tr: "Yıllık doküman otomasyon kredisi yenilemesi", en: "Annual document automation credit renewal" }], cta: { tr: "Demo rezervasyonu", en: "Book a demo" } },
     ],
     faq: [
@@ -169,7 +174,7 @@ export const appConfig: AppConfig = {
     {
       label: { tr: "Yönetim", en: "Management" },
       items: [
-        { label: { tr: "Analitik", en: "Analytics" }, href: "/analytics", icon: "chart-no-axes-column", muted: true },
+        { label: { tr: "Analitik", en: "Analytics" }, href: "/analytics", icon: "chart-no-axes-column" },
         { label: { tr: "İmzalar", en: "Signatures" }, href: "/signatures", icon: "pen-line", muted: true },
         { label: { tr: "Şirket profili", en: "Company profile" }, href: "/team", icon: "user-plus" },
         { label: { tr: "Entegrasyonlar", en: "Integrations" }, href: "/settings", icon: "plug" },

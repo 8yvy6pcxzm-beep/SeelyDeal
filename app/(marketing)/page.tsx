@@ -22,6 +22,7 @@ import {
 import appConfig from "@/app.config";
 import { Icon } from "@/components/ui/icon";
 import { SignDemo } from "@/components/marketing/sign-demo";
+import { DemoRequestDialog } from "@/components/marketing/demo-request-dialog";
 import { ProductPreview, CompanyMark } from "@/components/marketing/marks";
 import { useLang } from "@/components/i18n/language-provider";
 import { cn } from "@/lib/utils";
@@ -152,6 +153,7 @@ export default function LandingPage() {
   const m = appConfig.marketing;
   const tt = (v: L) => v[lang];
   const [annual, setAnnual] = useState(true);
+  const [demoTier, setDemoTier] = useState<string | null>(null);
 
   const sectionCopy = {
     demoTitle: { tr: "Müşteri gibi dene", en: "Try it like a client" } as L,
@@ -718,8 +720,8 @@ export default function LandingPage() {
             >
               <span
                 className={cn(
-                  "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-soft transition-transform",
-                  annual ? "translate-x-[22px]" : "translate-x-0.5",
+                  "absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-soft transition-transform",
+                  annual ? "translate-x-5" : "translate-x-0",
                 )}
               />
             </button>
@@ -767,17 +769,31 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <Link
-                  href="/signup"
-                  className={cn(
-                    "mt-7 inline-flex h-11 items-center justify-center rounded-xl text-sm font-semibold transition-all",
-                    tier.featured
-                      ? "bg-primary text-primary-foreground shadow-glow hover:opacity-90"
-                      : "border border-border bg-card text-foreground hover:bg-muted",
-                  )}
-                >
-                  {t(tier.cta)}
-                </Link>
+                {tier.annualOnly ? (
+                  <button
+                    onClick={() => setDemoTier(tier.name)}
+                    className={cn(
+                      "mt-7 inline-flex h-11 items-center justify-center rounded-xl text-sm font-semibold transition-all",
+                      tier.featured
+                        ? "bg-primary text-primary-foreground shadow-glow hover:opacity-90"
+                        : "border border-border bg-card text-foreground hover:bg-muted",
+                    )}
+                  >
+                    {t(tier.cta)}
+                  </button>
+                ) : (
+                  <Link
+                    href="/signup"
+                    className={cn(
+                      "mt-7 inline-flex h-11 items-center justify-center rounded-xl text-sm font-semibold transition-all",
+                      tier.featured
+                        ? "bg-primary text-primary-foreground shadow-glow hover:opacity-90"
+                        : "border border-border bg-card text-foreground hover:bg-muted",
+                    )}
+                  >
+                    {t(tier.cta)}
+                  </Link>
+                )}
               </div>
             ))}
           </div>
@@ -834,6 +850,8 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {demoTier && <DemoRequestDialog tier={demoTier} onClose={() => setDemoTier(null)} />}
     </>
   );
 }

@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Sparkline, AcceptanceChart, WinGauge } from "@/components/app/charts";
 import { StatusPill, ClientAvatar, Checkbox, STATUS_META } from "@/components/app/proposal-bits";
+import { AiDraftDialog } from "@/components/app/ai-draft-dialog";
 import { useLang } from "@/components/i18n/language-provider";
 import { cn, formatUsd, formatRelative } from "@/lib/utils";
 import {
@@ -76,6 +77,7 @@ export default function DashboardPage() {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>("p1");
   const [drawerOpen, setDrawerOpen] = useState(true);
+  const [aiOpen, setAiOpen] = useState(false);
   // The pricing table in the builder preview is live: toggling optional line
   // items + changing quantities recomputes the total.
   const [items, setItems] = useState(() => proposals[0].lineItems.map((l) => ({ ...l })));
@@ -118,11 +120,17 @@ export default function DashboardPage() {
               </p>
             </div>
             <div className="ml-auto flex items-center gap-2">
-              <button className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-card px-3.5 text-[13px] font-medium text-foreground shadow-pill transition-colors hover:bg-muted">
+              <button
+                onClick={() => setAiOpen(true)}
+                className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-card px-3.5 text-[13px] font-medium text-foreground shadow-pill transition-colors hover:bg-muted"
+              >
                 <Sparkles className="h-4 w-4 text-primary" />
                 {lang === "tr" ? "AI ile yaz" : "Draft with AI"}
               </button>
-              <button className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90">
+              <button
+                onClick={() => setAiOpen(true)}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
+              >
                 <Plus className="h-4 w-4" />
                 {lang === "tr" ? "Yeni teklif" : "New proposal"}
               </button>
@@ -703,6 +711,8 @@ export default function DashboardPage() {
           </aside>
         )}
       </div>
+
+      <AiDraftDialog open={aiOpen} onClose={() => setAiOpen(false)} onSaved={() => {}} />
     </div>
   );
 }

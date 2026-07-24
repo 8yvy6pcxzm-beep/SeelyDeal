@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { useLang } from "@/components/i18n/language-provider";
+import { aiOveragePack } from "@/app.config";
 
 type Company = {
   id: string;
@@ -15,6 +16,7 @@ type Company = {
   primary_color: string | null;
   font: string | null;
   email: string | null;
+  overage_link: string | null;
 };
 
 type TeamMember = {
@@ -53,6 +55,9 @@ export function CompanyProfileClient() {
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [docs, setDocs] = useState<CompanyDocument[]>([]);
   const [saving, setSaving] = useState(false);
+  const [aiUsage, setAiUsage] = useState(0);
+  const [crediting, setCrediting] = useState(false);
+  const month = new Date().toISOString().slice(0, 7);
 
   useEffect(() => {
     (async () => {
@@ -74,18 +79,36 @@ export function CompanyProfileClient() {
         return;
       }
 
-      const [{ data: companyRow }, { data: teamRows }, { data: docRows }] = await Promise.all([
+      const [{ data: companyRow }, { data: teamRows }, { data: docRows }, { data: usageRow }] = await Promise.all([
         supabase.from("companies").select("*").eq("id", profile.company_id).single(),
         supabase.from("team_members").select("*").eq("company_id", profile.company_id).order("created_at"),
         supabase.from("company_documents").select("*").eq("company_id", profile.company_id).order("created_at"),
+        supabase
+          .from("ai_usage")
+          .select("count")
+          .eq("company_id", profile.company_id)
+          .eq("month", new Date().toISOString().slice(0, 7))
+          .maybeSingle(),
       ]);
 
       setCompany(companyRow);
       setTeam(teamRows ?? []);
       setDocs(docRows ?? []);
+      setAiUsage(usageRow?.count ?? 0);
       setLoading(false);
     })();
   }, []);
+
+  async function creditOverage() {
+    if (!company) return;
+    setCrediting(true);
+    const nextCount = Math.max(0, aiUsage - aiOveragePack.extraDrafts);
+    await supabase
+      .from("ai_usage")
+      .upsert({ company_id: company.id, month, count: nextCount }, { onConflict: "company_id,month" });
+    setAiUsage(nextCount);
+    setCrediting(false);
+  }
 
   async function saveCompany() {
     if (!company) return;
@@ -98,6 +121,7 @@ export function CompanyProfileClient() {
         primary_color: company.primary_color,
         font: company.font,
         email: company.email,
+        overage_link: company.overage_link,
       })
       .eq("id", company.id);
     setSaving(false);
@@ -113,8 +137,11 @@ export function CompanyProfileClient() {
     if (data) setTeam((t) => [...t, data]);
   }
 
-  async function updateTeamMember(id: string, patch: Partial<TeamMember>) {
+  function setTeamMemberLocal(id: string, patch: Partial<TeamMember>) {
     setTeam((t) => t.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+  }
+
+  async function persistTeamMember(id: string, patch: Partial<TeamMember>) {
     await supabase.from("team_members").update(patch).eq("id", id);
   }
 
@@ -138,8 +165,11 @@ export function CompanyProfileClient() {
     if (data) setDocs((d) => [...d, data]);
   }
 
-  async function updateDocument(id: string, patch: Partial<CompanyDocument>) {
+  function setDocumentLocal(id: string, patch: Partial<CompanyDocument>) {
     setDocs((d) => d.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  }
+
+  async function persistDocument(id: string, patch: Partial<CompanyDocument>) {
     await supabase.from("company_documents").update(patch).eq("id", id);
   }
 
@@ -207,6 +237,32 @@ export function CompanyProfileClient() {
             <Label>{lang === "tr" ? "Yazı tipi" : "Font"}</Label>
             <Input value={company.font ?? ""} onChange={(e) => setCompany({ ...company, font: e.target.value })} placeholder="Inter" />
           </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>{lang === "tr" ? "Aşım ödeme linki (Ruul)" : "Overage payment link (Ruul)"}</Label>
+            <Input
+              value={company.overage_link ?? ""}
+              onChange={(e) => setCompany({ ...company, overage_link: e.target.value })}
+              placeholder="https://ruul.io/…"
+            />
+            <p className="text-xs text-muted-foreground">
+              {lang === "tr"
+                ? "Aylık AI teklif hakkı dolduğunda kullanıcıya gösterilen ödeme linki."
+                : "Shown to the user once their monthly AI draft quota runs out."}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 p-3 sm:col-span-2">
+            <p className="text-xs text-muted-foreground">
+              {lang === "tr"
+                ? `Bu ay kullanılan AI teklif sayısı: ${aiUsage}`
+                : `AI drafts used this month: ${aiUsage}`}
+            </p>
+            <Button variant="outline" size="sm" onClick={creditOverage} disabled={crediting} className="ml-auto gap-1.5">
+              {crediting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              {lang === "tr"
+                ? `Ödeme onaylandı — +${aiOveragePack.extraDrafts} hak tanı`
+                : `Payment confirmed — grant +${aiOveragePack.extraDrafts}`}
+            </Button>
+          </div>
           <div className="sm:col-span-2">
             <Button onClick={saveCompany} disabled={saving} className="gap-2">
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -236,15 +292,26 @@ export function CompanyProfileClient() {
           )}
           {team.map((m) => (
             <div key={m.id} className="grid grid-cols-1 gap-2 rounded-lg border border-border p-3 sm:grid-cols-[1fr_1fr_auto]">
-              <Input value={m.name} onChange={(e) => updateTeamMember(m.id, { name: e.target.value })} placeholder={lang === "tr" ? "İsim" : "Name"} />
-              <Input value={m.title ?? ""} onChange={(e) => updateTeamMember(m.id, { title: e.target.value })} placeholder={lang === "tr" ? "Ünvan" : "Title"} />
+              <Input
+                value={m.name}
+                onChange={(e) => setTeamMemberLocal(m.id, { name: e.target.value })}
+                onBlur={(e) => persistTeamMember(m.id, { name: e.target.value })}
+                placeholder={lang === "tr" ? "İsim" : "Name"}
+              />
+              <Input
+                value={m.title ?? ""}
+                onChange={(e) => setTeamMemberLocal(m.id, { title: e.target.value })}
+                onBlur={(e) => persistTeamMember(m.id, { title: e.target.value })}
+                placeholder={lang === "tr" ? "Ünvan" : "Title"}
+              />
               <Button variant="outline" size="icon" onClick={() => removeTeamMember(m.id)}>
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
               <Input
                 className="sm:col-span-3"
                 value={m.photo_url ?? ""}
-                onChange={(e) => updateTeamMember(m.id, { photo_url: e.target.value })}
+                onChange={(e) => setTeamMemberLocal(m.id, { photo_url: e.target.value })}
+                onBlur={(e) => persistTeamMember(m.id, { photo_url: e.target.value })}
                 placeholder={lang === "tr" ? "Fotoğraf URL" : "Photo URL"}
               />
             </div>
@@ -278,7 +345,11 @@ export function CompanyProfileClient() {
                 <select
                   className={textareaClass("h-9 w-auto")}
                   value={d.type}
-                  onChange={(e) => updateDocument(d.id, { type: e.target.value as CompanyDocument["type"] })}
+                  onChange={(e) => {
+                    const type = e.target.value as CompanyDocument["type"];
+                    setDocumentLocal(d.id, { type });
+                    persistDocument(d.id, { type });
+                  }}
                 >
                   {DOC_TYPES.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -289,7 +360,8 @@ export function CompanyProfileClient() {
                 <Input
                   className="flex-1"
                   value={d.title}
-                  onChange={(e) => updateDocument(d.id, { title: e.target.value })}
+                  onChange={(e) => setDocumentLocal(d.id, { title: e.target.value })}
+                  onBlur={(e) => persistDocument(d.id, { title: e.target.value })}
                   placeholder={lang === "tr" ? "Başlık" : "Title"}
                 />
                 <Button variant="outline" size="icon" onClick={() => removeDocument(d.id)}>
@@ -299,7 +371,8 @@ export function CompanyProfileClient() {
               <textarea
                 className={textareaClass("min-h-32")}
                 value={d.content}
-                onChange={(e) => updateDocument(d.id, { content: e.target.value })}
+                onChange={(e) => setDocumentLocal(d.id, { content: e.target.value })}
+                onBlur={(e) => persistDocument(d.id, { content: e.target.value })}
                 placeholder={lang === "tr" ? "Metni buraya yapıştır…" : "Paste the text here…"}
               />
             </div>
