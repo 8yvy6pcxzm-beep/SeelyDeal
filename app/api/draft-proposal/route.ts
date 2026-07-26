@@ -33,7 +33,7 @@ export async function POST(req: Request) {
   const [{ data: company }, { data: team }, { data: docs }] = await Promise.all([
     service.from("companies").select("*").eq("id", profile.company_id).single(),
     service.from("team_members").select("name, title").eq("company_id", profile.company_id),
-    service.from("company_documents").select("type, title, content").eq("company_id", profile.company_id),
+    service.from("company_documents").select("type, title, content, is_default_template").eq("company_id", profile.company_id),
   ]);
 
   // Enforce the plan's monthly AI draft limit.
@@ -67,9 +67,14 @@ export async function POST(req: Request) {
       : `\n\nNot: verilen web sitesi (${websiteUrl}) çekilemedi — kullanıcıya bilgiyi manuel anlatmasını iste.`;
   }
 
+  type Doc = { type: string; title: string; content: string; is_default_template: boolean };
   const docsBlock = (docs ?? [])
-    .map((d: { type: string; title: string; content: string }) => `- [${d.type}] "${d.title}":\n${d.content}`)
+    .map((d: Doc) => `- [${d.type}] "${d.title}":\n${d.content}`)
     .join("\n\n");
+
+  const defaultTemplate: Doc | undefined =
+    (docs ?? []).find((d: Doc) => d.type === "proposal_template" && d.is_default_template) ??
+    (docs ?? []).find((d: Doc) => d.type === "proposal_template");
 
   const pricingBlock = appConfig.marketing.pricing
     .map((p) => `${p.name}: ${p.price}${p.period ? p.period.tr : ""} — ${p.features.map((f) => f.tr).join(", ")}`)
@@ -93,9 +98,10 @@ KURALLAR:
 - Kullanıcı bir kalemi "opsiyonel" veya "ek hizmet" olarak belirtirse, o kalemi \`optional: true\` yap (müşteri bunu teklifi görüntülerken açıp kapatabilir). \`included\` alanı, opsiyonel kalemin varsayılan olarak işaretli gelip gelmeyeceğini belirtir (belirtilmediyse false).
 - Kullanıcı "aylık veya yıllık" gibi müşterinin ikisinden birini seçeceği farklı fiyatlı ödeme sıklığı/paket seçenekleri isterse, bunları \`billingOptions\` dizisine yaz (her biri ayrı fiyat, müşteri teklifi imzalamadan önce birini seçer). Bu, tekil kalemlerden farklıdır — kalemler teklife toplam olarak eklenir/çıkarılır, billingOptions ise birbirini DIŞLAYAN seçeneklerdir (biri seçilir, diğerleri değil).
 - Teklifi SADE mi yoksa DETAYLI mı hazırlayacağına karar verirken şu sırayla ilerle:
-  1. Kullanıcı açıkça "sade/basit hazırla" veya "detaylı hazırla" derse, DOĞRUDAN onu uygula — bu her zaman en öncelikli kuraldır, başka hiçbir ipucuna bakma.
-  2. Kullanıcı DOKÜMAN KÜTÜPHANESİ'nden bir "teklif formatı" şablonu kullanmanı istediyse, o şablonun yapısını birebir takip et.
-  3. Yukarıdakilerin hiçbiri yoksa kendin karar ver: kullanıcı muhatabın adı/unvanı/adresi gibi bilgiler verdiyse, resmi bir üslup kullandıysa veya "resmi teklif", "sözleşme gibi olsun" dediyse → DETAYLI hazırla ve \`introText\`, \`aboutText\`, \`clientContact\`, \`nextSteps\`, \`validDays\` alanlarını da doldur. Kullanıcı sadece hızlıca kapsam + fiyat istediyse, muhatap hakkında bilgi vermediyse → SADE hazırla, bu alanları boş/undefined bırak, sadece title/client/value/sections/lineItems/billingOptions/contractText doldur.
+  1. Kullanıcı açıkça "sade/basit hazırla" derse, DOĞRUDAN onu uygula (SADE) — bu her zaman en öncelikli kuraldır, başka hiçbir ipucuna bakma.
+  2. Kullanıcı DOKÜMAN KÜTÜPHANESİ'nden belirli bir "teklif formatı" adı verip onu istediyse, o şablonun yapısını birebir takip et (DETAYLI).
+  3. Aksi belirtilmedikçe, aşağıda VARSAYILAN TEKLİF ŞABLONU verilmişse onu KULLANMAK ZORUNLUSUN: serbest/improvize nesir yazma, şablonun bölüm sırasını ve başlıklarını birebir takip et (Ön Yazı → Hakkımızda → Taraflar → Hizmet Kapsamı → Paket/Ücret → Sözleşme Koşulları → Sonraki Adımlar gibi) ve \`introText\`, \`aboutText\`, \`clientContact\`, \`nextSteps\`, \`validDays\` alanlarını doldur (DETAYLI). Kullanıcı "sade" demediği sürece bunu atlama.
+  4. VARSAYILAN TEKLİF ŞABLONU yoksa kendin karar ver: kullanıcı muhatabın adı/unvanı/adresi gibi bilgiler verdiyse, resmi bir üslup kullandıysa veya "resmi teklif", "sözleşme gibi olsun" dediyse → DETAYLI hazırla ve \`introText\`, \`aboutText\`, \`clientContact\`, \`nextSteps\`, \`validDays\` alanlarını da doldur. Kullanıcı sadece hızlıca kapsam + fiyat istediyse, muhatap hakkında bilgi vermediyse → SADE hazırla, bu alanları boş/undefined bırak, sadece title/client/value/sections/lineItems/billingOptions/contractText doldur.
   - \`introText\`: "Sayın [muhatap adı]," ile başlayan, görüşmeyi hatırlatan, 2-3 cümlelik resmi ama sıcak bir ön yazı.
   - \`aboutText\`: Şirketin ne iş yaptığını anlatan kısa bir "hakkımızda" paragrafı (şirket bilgilerinden ve dokümanlardan yararlan).
   - \`clientContact\`: Müşteri hakkında bildiğin bilgiler {"company": "...", "contactName": "...", "title": "...", "address": "...", "phone": "...", "email": "...", "website": "..."} — kullanıcı vermediği alanları boş bırak, UYDURMA.
@@ -111,6 +117,9 @@ HAZIRLAYAN (bizim şirketimiz): ${companyBlock}
 
 DOKÜMAN KÜTÜPHANESİ:
 ${docsBlock || "(henüz doküman eklenmedi)"}
+
+VARSAYILAN TEKLİF ŞABLONU:
+${defaultTemplate ? `"${defaultTemplate.title}":\n${defaultTemplate.content}` : "(henüz eklenmedi — kullanıcı karar verene kadar kendi takdirine göre sade/detaylı seç)"}
 
 GERÇEK PAKETLERİMİZ:
 ${pricingBlock}${websiteContext}`;

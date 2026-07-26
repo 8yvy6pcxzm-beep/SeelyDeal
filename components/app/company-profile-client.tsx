@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Plus, Trash2, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Plus, Trash2, Loader2, Upload } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ type CompanyDocument = {
   type: "contract" | "proposal_template" | "service_description" | "other";
   title: string;
   content: string;
+  is_default_template: boolean;
 };
 
 const DOC_TYPES: { value: CompanyDocument["type"]; tr: string; en: string }[] = [
@@ -57,6 +58,9 @@ export function CompanyProfileClient() {
   const [saving, setSaving] = useState(false);
   const [aiUsage, setAiUsage] = useState(0);
   const [crediting, setCrediting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const month = new Date().toISOString().slice(0, 7);
 
   useEffect(() => {
@@ -165,6 +169,40 @@ export function CompanyProfileClient() {
     if (data) setDocs((d) => [...d, data]);
   }
 
+  async function uploadDocument(file: File) {
+    setUploadError(null);
+    setUploading(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const res = await fetch("/api/company-documents/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ fileName: file.name, mediaType: file.type, base64, title: file.name }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setUploadError(data?.error || (lang === "tr" ? "Yüklenemedi." : "Upload failed."));
+        return;
+      }
+      setDocs((d) => [...d, data.document]);
+    } catch {
+      setUploadError(lang === "tr" ? "Yüklenemedi." : "Upload failed.");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
   function setDocumentLocal(id: string, patch: Partial<CompanyDocument>) {
     setDocs((d) => d.map((x) => (x.id === id ? { ...x, ...patch } : x)));
   }
@@ -176,6 +214,17 @@ export function CompanyProfileClient() {
   async function removeDocument(id: string) {
     setDocs((d) => d.filter((x) => x.id !== id));
     await supabase.from("company_documents").delete().eq("id", id);
+  }
+
+  async function makeDefaultTemplate(id: string) {
+    if (!company) return;
+    setDocs((d) => d.map((x) => ({ ...x, is_default_template: x.type === "proposal_template" && x.id === id })));
+    await supabase
+      .from("company_documents")
+      .update({ is_default_template: false })
+      .eq("company_id", company.id)
+      .eq("type", "proposal_template");
+    await supabase.from("company_documents").update({ is_default_template: true }).eq("id", id);
   }
 
   if (loading) {
@@ -326,16 +375,33 @@ export function CompanyProfileClient() {
             <CardTitle>{lang === "tr" ? "Doküman kütüphanesi" : "Document library"}</CardTitle>
             <p className="text-sm text-muted-foreground">
               {lang === "tr"
-                ? "Standart sözleşmen ve en çok kullandığın teklif formatları. AI ile teklif yazarken buradan revize edilebilir."
-                : "Your standard contract and go-to proposal formats. The AI can revise these when drafting a proposal."}
+                ? "Standart sözleşmen ve en çok kullandığın teklif formatları. PDF/Word dosyanı yükleyebilir, birebir metnini kütüphaneye ekleyebilirsin. Bir \"teklif formatı\"nı varsayılan yaparsan AI teklifleri o iskelete göre yazar."
+                : "Your standard contract and go-to proposal formats. Upload a PDF/Word file to add its exact text to the library. Mark a \"proposal format\" as default and the AI will follow its skeleton."}
             </p>
           </div>
-          <Button variant="outline" onClick={addDocument} className="gap-1.5">
-            <Plus className="h-4 w-4" />
-            {lang === "tr" ? "Ekle" : "Add"}
-          </Button>
+          <div className="flex gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) uploadDocument(file);
+              }}
+            />
+            <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="gap-1.5">
+              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              {lang === "tr" ? "Dosyadan yükle" : "Upload file"}
+            </Button>
+            <Button variant="outline" onClick={addDocument} className="gap-1.5">
+              <Plus className="h-4 w-4" />
+              {lang === "tr" ? "Ekle" : "Add"}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {uploadError && <p className="text-sm text-destructive">{uploadError}</p>}
           {docs.length === 0 && (
             <p className="text-sm text-muted-foreground">{lang === "tr" ? "Henüz doküman yok." : "No documents yet."}</p>
           )}
@@ -364,6 +430,16 @@ export function CompanyProfileClient() {
                   onBlur={(e) => persistDocument(d.id, { title: e.target.value })}
                   placeholder={lang === "tr" ? "Başlık" : "Title"}
                 />
+                {d.type === "proposal_template" &&
+                  (d.is_default_template ? (
+                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                      {lang === "tr" ? "Varsayılan şablon" : "Default template"}
+                    </span>
+                  ) : (
+                    <Button variant="outline" size="sm" onClick={() => makeDefaultTemplate(d.id)}>
+                      {lang === "tr" ? "Varsayılan yap" : "Make default"}
+                    </Button>
+                  ))}
                 <Button variant="outline" size="icon" onClick={() => removeDocument(d.id)}>
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
