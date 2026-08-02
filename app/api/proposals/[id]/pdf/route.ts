@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { renderToBuffer, Document, Page, Text, View, StyleSheet, Font } from "@react-pdf/renderer";
+import { renderToBuffer, Document, Page, Text, View, StyleSheet, Font, Image } from "@react-pdf/renderer";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getAuthedUser } from "@/lib/supabase/auth-user";
 import appConfig from "@/app.config";
@@ -18,6 +18,7 @@ Font.register({
 const styles = StyleSheet.create({
   page: { padding: 0, fontSize: 10, fontFamily: "Inter", color: "#1a1c1a" },
   cover: { padding: 40, color: "#fff" },
+  coverLogo: { height: 28, marginBottom: 10, objectFit: "contain" },
   coverBrand: { fontSize: 11, fontWeight: 700, marginBottom: 16 },
   title: { fontSize: 22, fontWeight: 700, marginBottom: 4 },
   client: { fontSize: 11, color: "#eee", marginBottom: 16 },
@@ -61,16 +62,26 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   const { data: proposal } = await service
     .from("proposals")
-    .select("*, clients(name), companies(name, primary_color, email)")
+    .select("*, clients(name), companies(name, primary_color, email, logo_url)")
     .eq("id", id)
     .eq("company_id", profile.company_id)
     .maybeSingle();
 
   if (!proposal) return NextResponse.json({ error: "Teklif bulunamadı." }, { status: 404 });
 
-  const sections: { title: string; body: string }[] = proposal.sections || [];
   const lineItems: { name: string; qty: number; unit: number; optional?: boolean; included?: boolean }[] = proposal.line_items || [];
   const billingOptions: { key: string; label: { tr: string; en: string }; price: number }[] = proposal.billing_options || [];
+  const allSections: { title: string; body: string; condition?: { lineItem?: string; billingKey?: string } }[] = proposal.sections || [];
+  // A section bound to a lineItem or billingKey only prints while that exact choice is the one on record for this proposal.
+  const sections = allSections.filter((s) => {
+    if (!s.condition) return true;
+    if (s.condition.lineItem) {
+      const li = lineItems.find((it) => it.name === s.condition!.lineItem);
+      return !!li && (!li.optional || !!li.included);
+    }
+    if (s.condition.billingKey) return proposal.selected_billing === s.condition.billingKey;
+    return true;
+  });
   const nextSteps: { title: string; body: string }[] = proposal.next_steps || [];
   const client: Record<string, string> = proposal.client_contact || {};
   const company = proposal.companies;
@@ -89,6 +100,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       React.createElement(
         View,
         { style: [styles.cover, { backgroundColor: brandColor }] },
+        company?.logo_url ? React.createElement(Image, { style: styles.coverLogo, src: company.logo_url }) : null,
         React.createElement(Text, { style: styles.coverBrand }, company?.name ?? appConfig.name),
         React.createElement(Text, { style: styles.title }, proposal.title),
         React.createElement(Text, { style: styles.client }, proposal.clients?.name ?? ""),

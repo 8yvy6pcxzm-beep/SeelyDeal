@@ -42,16 +42,28 @@ export interface Stat {
   label: L;
 }
 
+export interface PricingFeature {
+  label: L;
+  /** Optional hover tooltip (an "i" icon) for bullets whose name alone doesn't explain what they do. */
+  description?: L;
+}
+
 export interface PricingTier {
   name: string;
   price: string;
   monthlyPrice?: string;
   annualOnly?: boolean;
+  requiresDemo?: boolean;
   period?: L;
   tagline: L;
-  features: L[];
+  features: PricingFeature[];
+  /** "Everything in X, plus:" header shown above the feature list, without a checkmark — not a feature itself. */
+  includesLabel?: L;
   cta: L;
   featured?: boolean;
+  /** Hides the numeric price entirely and shows customPriceLabel instead ("Talk to us" tiers). */
+  customPricing?: boolean;
+  customPriceLabel?: L;
 }
 
 export interface FaqItem {
@@ -66,6 +78,8 @@ export interface Integration {
   required: boolean;
   docsUrl: string;
   purpose: string;
+  /** Shows a "Connect" button in Settings that starts the OAuth2 flow at /api/integrations/[key]/connect. */
+  oauth?: boolean;
 }
 
 export interface AppConfig {
@@ -98,6 +112,12 @@ export interface AppConfig {
 /** Pay-to-continue pack once a company's monthly AI draft quota runs out. */
 export const aiOveragePack = { extraDrafts: 25, price: 150 };
 
+/** Pro's (formerly "Growth") one-time setup fee — full price on monthly billing, discounted on annual. Not shown publicly (site only says "Ek ücrete tabidir"); used when drafting the actual sales proposal/quote. */
+export const proSetupFee = { monthly: 500, annual: 250 };
+
+/** Custom's one-time setup fee — annual-only (no monthly option; Custom deals are long-term commitments, a single month wouldn't make sense). Deliberately kept above Pro's $500 ceiling to reflect Custom's premium positioning, not just raw setup hours. Not shown publicly. */
+export const customSetupFee = 750;
+
 export const appConfig: AppConfig = {
   name: "SeelyDeal",
   tagline: {
@@ -124,8 +144,8 @@ export const appConfig: AppConfig = {
       en: "win, drafted by AI.",
     },
     heroSubtitle: {
-      tr: "Bir şablon seç, Tender markana ve müşterine göre güzel bir teklif yazsın. Etkileşimli fiyat tablosuyla gönder, her görüntülenmeyi izle ve müşterin tek tıkla imzalasın.",
-      en: "Pick a template and Tender drafts a gorgeous proposal in your brand and your client's voice. Send it with an interactive pricing table, track every view, and let your client sign in one click.",
+      tr: "Anlat, SeelyDeal markana ve müşterine göre güzel bir teklif yazsın. Etkileşimli fiyat tablosuyla gönder, açıldığını takip et ve müşterin tek tıkla imzalasın.",
+      en: "Describe it, and SeelyDeal drafts a gorgeous proposal in your brand and your client's voice. Send it with an interactive pricing table, track when it's opened, and let your client sign in one click.",
     },
     heroCtaPrimary: { tr: "Ücretsiz başla", en: "Start free" },
     heroCtaSecondary: { tr: "Canlı demoyu gör", en: "See the live demo" },
@@ -144,19 +164,16 @@ export const appConfig: AppConfig = {
       { value: "100%", label: { tr: "izlenebilir", en: "trackable" } },
     ],
     pricing: [
-      { name: "Starter", price: "$25", monthlyPrice: "$39", period: { tr: "/kullanıcı/ay", en: "/user/mo" }, tagline: { tr: "Küçük ekipler ve bireysel kullanım için.", en: "For small teams and individuals." }, features: [{ tr: "Temel özellikler", en: "Essential features" }, { tr: "AI ile teklif yazımı", en: "AI proposal drafting" }, { tr: "E-imza", en: "E-signature" }, { tr: "Analitik", en: "Analytics" }, { tr: "Ödeme tahsilatı", en: "Payment collection" }, { tr: "HubSpot, Zoho ve Pipedrive entegrasyonları", en: "HubSpot, Zoho & Pipedrive integrations" }, { tr: "API erişimi (kullanım ücretine tabi)", en: "API access (usage costs apply)" }], cta: { tr: "Ücretsiz dene", en: "Start free trial" } },
-      { name: "Growth", price: "$45", annualOnly: true, period: { tr: "/kullanıcı/ay", en: "/user/mo" }, tagline: { tr: "Daha az efor ile daha fazlasını yapmak isteyen ekipler için. Min. 5 kullanıcı.", en: "For teams that want to do more with less effort. Min. 5 users." }, features: [{ tr: "Starter'daki her şey, ayrıca...", en: "Everything on Starter plus..." }, { tr: "Otomasyonlar", en: "Automations" }, { tr: "Özel marka", en: "Custom branding" }, { tr: "Kimlik doğrulama", en: "Identity verification" }, { tr: "Gelişmiş raporlama", en: "Enhanced reporting" }, { tr: "Şablon düzeyinde ayarlar", en: "Template-level settings" }, { tr: "API erişimi (kullanım ücretine tabi)", en: "API access (usage costs apply)" }], cta: { tr: "Demo rezervasyonu", en: "Book a demo" }, featured: true },
-      { name: "Scale", price: "$65", annualOnly: true, period: { tr: "/kullanıcı/ay", en: "/user/mo" }, tagline: { tr: "Daha fazlasını yöneten, daha hızlı ilerleyen ekipler için. Min. 10 kullanıcı.", en: "For teams managing more, moving faster. Min. 10 users." }, features: [{ tr: "Growth'taki her şey, ayrıca...", en: "Everything on Growth plus..." }, { tr: "Salesforce entegrasyonu", en: "Salesforce integration" }, { tr: "Koşullu içerik", en: "Conditional content" }, { tr: "Smart Proposal Engine", en: "Smart Proposal Engine" }, { tr: "AI Prefill", en: "AI Prefill" }, { tr: "Premium tasarım hizmetleri", en: "Premium design services" }, { tr: "Takım düzeyinde izinler", en: "Team-level permissions" }, { tr: "Sohbet desteği", en: "Chat support" }, { tr: "API erişimi (kullanım ücretine tabi)", en: "API access (usage costs apply)" }, { tr: "Gelişmiş API desteği", en: "Enhanced API support" }, { tr: "Yıllık doküman otomasyon kredisi yenilemesi", en: "Annual document automation credit renewal" }], cta: { tr: "Demo rezervasyonu", en: "Book a demo" } },
+      { name: "Lite", price: "$25", monthlyPrice: "$39", period: { tr: "/kullanıcı/ay", en: "/user/mo" }, tagline: { tr: "Küçük ekipler ve bireysel kullanım için.", en: "For small teams and individuals." }, features: [{ label: { tr: "AI ile teklif yazımı", en: "AI proposal drafting" } }, { label: { tr: "E-imza", en: "E-signature" } }, { label: { tr: "Görüntüleme takibi", en: "View tracking" } }, { label: { tr: "10 AI teklif hakkı/ay", en: "10 AI proposal credits/mo" } }], cta: { tr: "Ücretsiz Dene", en: "Try for Free" } },
+      { name: "Pro", price: "$38", monthlyPrice: "$45", requiresDemo: true, period: { tr: "/kullanıcı/ay", en: "/user/mo" }, tagline: { tr: "Entegrasyon ve otomasyona ihtiyaç duyan büyüyen ekipler için.", en: "For growing teams that need integrations and automation." }, includesLabel: { tr: "Lite paketindeki tüm özellikler +", en: "Everything in the Lite plan, plus" }, features: [{ label: { tr: "Entegrasyonlar ve otomasyonlar", en: "Integrations and automations" }, description: { tr: "SeelyDeal'i popüler CRM'lerinizle bağlayın. Verileri dokümanlara aktarın ve SeelyDeal ile teknoloji altyapınız arasında otomatik iş akışları oluşturun.", en: "Connect SeelyDeal with popular CRMs. Pull data into documents and publish automated flows between SeelyDeal and your tech stack." } }, { label: { tr: "Doküman analitiği", en: "Document analytics" }, description: { tr: "Alıcının teklifinizi kaç kez açtığını ve teklifin her bölümünde ne kadar süre geçirdiğini görün.", en: "See exactly how many times your recipient opened your proposal and how much time they spent on each section." } }, { label: { tr: "AI destekli SeelyDeal kütüphanesi", en: "AI-powered SeelyDeal library" }, description: { tr: "Kayıtlı şablon ve sözleşmelerinizi otomatik kullanır. Standart teklif veya sözleşme formatınızı yükleyin; brief'te adını belirttiğinizde AI onu bulup birebir o yapıda kullanır.", en: "Automatically uses your saved templates and contracts. Upload your standard proposal or contract format; when you name it in your brief, AI finds it and follows it exactly." } }, { label: { tr: "Kurulum hizmeti", en: "Setup service" }, description: { tr: "Ek ücrete tabidir.", en: "Additional fee applies." } }, { label: { tr: "50 AI teklif hakkı/ay", en: "50 AI proposal credits/mo" } }], cta: { tr: "Demo Rezervasyonu", en: "Book a Demo" }, featured: true },
+      { name: "Custom", price: "$1,200", customPricing: true, customPriceLabel: { tr: "Bize Ulaşın.", en: "Contact Us." }, requiresDemo: true, tagline: { tr: "Ölçekte kontrol ve görünürlük isteyen kurumlar için.", en: "For organizations that need control and visibility at scale." }, includesLabel: { tr: "Pro paketindeki tüm özellikler +", en: "Everything in the Pro plan, plus" }, features: [{ label: { tr: "SeelyDeal gelişmiş AI teklif yazımı (tam kurumsal entegrasyonlu)", en: "SeelyDeal advanced AI proposal drafting (fully enterprise-integrated)" }, description: { tr: "CRM ve muhasebe sistemlerinizle tam entegre çalışan en üst düzey yapay zeka altyapımız; akıllı koşullu içerikler, dinamik fiyat tabloları ve canlı müşteri takibiyle teklif süreçlerinizi tam kapasite otomatize eder.", en: "Our top-tier AI infrastructure, fully integrated with your CRM and accounting systems — it fully automates your proposal process with smart conditional content, dynamic pricing tables, and live client tracking." } }, { label: { tr: "API erişimi", en: "API access" }, description: { tr: "İhtiyaçlarınıza özel entegrasyonlar geliştirmek üzere API erişimi elde edin.", en: "Get API access to build integrations tailored to your needs." } }, { label: { tr: "Kullanıcı rolleri ve yetkilendirme", en: "User roles and permissions" }, description: { tr: "Ekip üyelerinize özel roller atayın; hangi alanlara erişebileceklerini ve hangi işlemleri yapabileceklerini tamamen siz yönetin.", en: "Assign custom roles to your team members — you fully control which areas they can access and what actions they can take." } }, { label: { tr: "SSO desteği", en: "SSO support" }, description: { tr: "Okta, Azure AD ve Salesforce gibi kurumsal kimlik sağlayıcılarınızla entegre olun; ekibinizin sisteme tek bir güvenli şifreyle erişmesini sağlayın.", en: "Integrate with enterprise identity providers like Okta, Azure AD, and Salesforce — let your team access the system with a single secure sign-on." } }, { label: { tr: "Kişiselleştirilmiş kurulum ve destek", en: "Personalized setup & support" }, description: { tr: "Şirketinize özel kurgulanan kurulum süreci ve süreç boyunca size atanan birebir teknik danışmanlık.", en: "A setup process built specifically for your company, with a dedicated technical advisor assigned to you throughout." } }, { label: { tr: "150 AI teklif hakkı/ay", en: "150 AI proposal credits/mo" } }], cta: { tr: "Bize Ulaşın", en: "Contact Us" } },
     ],
     faq: [
-      { q: { tr: "Tender bir teklifi nasıl yazıyor?", en: "How does Tender draft a proposal?" }, a: { tr: "Bir şablon seç ve birkaç satırlık brief gir — müşteri, kapsam, bütçe. AI kapak, kapsam, fiyat tablosu ve şartları markanın sesiyle yazar; sen son rötuşu yaparsın.", en: "Pick a template and enter a short brief — client, scope, budget. The AI writes the cover, scope, pricing table and terms in your brand voice; you do the final polish." } },
-      { q: { tr: "Görüntüleme takibi gerçekten ne gösteriyor?", en: "What does view tracking actually show?" }, a: { tr: "Teklifin ne zaman ve kaç kez açıldığını, hangi bölümde ne kadar süre geçirildiğini ve hangi cihazdan görüntülendiğini gösterir — tam doğru anda takip için.", en: "It shows when and how many times a proposal was opened, how long was spent on each section, and on what device — so you can follow up at the perfect moment." } },
-      { q: { tr: "E-imza yasal olarak bağlayıcı mı?", en: "Is the e-signature legally binding?" }, a: { tr: "Evet. İmzalar teklifin içinde toplanır, zaman damgası ve denetim kaydıyla saklanır. Dropbox Sign / DocuSign ile bağladığında tam uyumludur.", en: "Yes. Signatures are collected inside the proposal with a timestamp and audit trail, and are fully compliant once you wire Dropbox Sign / DocuSign." } },
-      { q: { tr: "Etkileşimli fiyat tablosu nasıl çalışıyor?", en: "How does the interactive pricing table work?" }, a: { tr: "Müşterin opsiyonel kalemleri açıp kapatabilir ve adetleri ayarlayabilir; toplam anında güncellenir. Kabul edilen tutar doğrudan Stripe ile tahsil edilebilir.", en: "Clients can toggle optional line items and adjust quantities while the total updates live. The accepted amount can be charged directly through Stripe." } },
-      { q: { tr: "Denemek için anahtar gerekli mi?", en: "Do I need any keys to try it?" }, a: { tr: "Hayır. Gerçekçi örnek teklifler, müşteriler ve görüntülenmelerle demo modda açılır — hemen tıklayabilirsin.", en: "No. It boots in demo mode with realistic sample proposals, clients and views — click around immediately." } },
-      { q: { tr: "Teknoloji nedir?", en: "What's the stack?" }, a: { tr: "Next.js 16, React 19, Tailwind v4. Supabase, Dropbox Sign, Stripe ve bir LLM anahtarıyla bağlanır.", en: "Next.js 16, React 19, Tailwind v4. Wires to Supabase, Dropbox Sign, Stripe and an LLM key." } },
-      { q: { tr: "CRM'ime bağlanır mı?", en: "Does it connect to my CRM?" }, a: { tr: "Scale planında teklifler ve durumları CRM/Salesforce ile çift yönlü senkronlanır; webhook'larla başka araçlara da bağlanabilirsin.", en: "On the Scale plan, proposals and their statuses sync two-way with your CRM/Salesforce; webhooks let you pipe into other tools too." } },
-      { q: { tr: "Yayına alabilir miyim?", en: "Can I deploy it?" }, a: { tr: "Evet — standart bir Next.js uygulaması. Vercel'e veya herhangi bir Node sunucusuna gönder.", en: "Yes — it's a standard Next.js app. Push to Vercel or any Node host." } },
+      { q: { tr: "SeelyDeal bir teklifi nasıl yazıyor?", en: "How does SeelyDeal draft a proposal?" }, a: { tr: "Doğal bir sohbet gibi anlat — müşteri kim, ne hizmet veriyorsun, fiyatlandırma nasıl olsun. AI eksik bilgi varsa tek tek sorar, istersen müşterinin web sitesini veya bir dosya (PDF, ekran görüntüsü) paylaş, oradan da bilgi çıkarır. Kendi standart şablonun varsa onu kullanır; yoksa kapak, kapsam, fiyat tablosu ve şartları senin marka dilinle kendisi yazar. Sen son rötuşu yaparsın.", en: "Just describe it like a conversation — who the client is, what service you're offering, how you want to price it. The AI asks for anything missing, and you can share the client's website or a file (PDF, screenshot) for it to pull details from. It uses your own standard template if you have one; otherwise it writes the cover, scope, pricing table and terms in your brand voice. You do the final polish." } },
+      { q: { tr: "Görüntüleme takibi gerçekten ne gösteriyor?", en: "What does view tracking actually show?" }, a: { tr: "Teklifin açıldığı an durumu otomatik olarak 'Görüntülendi'ye döner, böylece müşterinin teklife baktığını hemen görürsün. Dashboard'daki mini grafik ve kazanma oranı, gönderdiğin tekliflerin genel performansını özetler.", en: "The moment a proposal is opened, its status automatically flips to 'Viewed', so you know right away the client has looked at it. The dashboard's mini chart and win rate summarize the overall performance of your sent proposals." } },
+      { q: { tr: "E-imza yasal olarak bağlayıcı mı?", en: "Is the e-signature legally binding?" }, a: { tr: "Pakete göre değişir. Lite'da basit e-imza kullanılır — isim, zaman damgası ve IP/kaynak kaydıyla (denetim izi) toplanır, birçok sözleşme türü için geçerlidir. Pro'da kimlik doğrulamalı (gelişmiş) e-imza sunulur. Custom'da, resmi işlemler için kağıt imza ile eşdeğer kabul edilen nitelikli elektronik imza seçeneği vardır.", en: "It depends on your plan. Lite uses a simple e-signature — collected with a name, timestamp, and IP/audit trail, valid for many contract types. Pro offers identity-verified (advanced) e-signing. Custom includes a qualified electronic signature option, legally equal to a wet-ink signature for official processes." } },
+      { q: { tr: "Etkileşimli fiyat tablosu nasıl çalışıyor?", en: "How does the interactive pricing table work?" }, a: { tr: "Müşterin opsiyonel kalemleri açıp kapatabilir ve adetleri ayarlayabilir; toplam anında güncellenir. Kabul edilen tutar, eklediğiniz ödeme linki üzerinden tahsil edilir.", en: "Clients can toggle optional line items and adjust quantities while the total updates live. The accepted amount is collected through the payment link you add." } },
+      { q: { tr: "CRM'ime bağlanır mı?", en: "Does it connect to my CRM?" }, a: { tr: "Pro paketinde CRM'inizi ve muhasebe yazılımınızı bağlayıp verileri tekliflere otomatik aktarabilirsiniz. Custom pakette ayrıca özel bir Salesforce entegrasyonu sunuyoruz.", en: "On Pro, you can connect your CRM and accounting software and pull data into proposals automatically. Custom also includes a dedicated Salesforce integration." } },
     ],
   },
 
@@ -221,6 +238,15 @@ export const appConfig: AppConfig = {
       required: false,
       docsUrl: "https://console.anthropic.com/settings/keys",
       purpose: "Powers AI proposal drafting & rewrites. Without it, AI suggestions are canned demo copy.",
+    },
+    {
+      key: "crm",
+      name: "CRM (Pro)",
+      envVars: [],
+      required: false,
+      docsUrl: "",
+      purpose: "Connect your CRM to pull client data into proposals automatically. Provider is chosen and configured during setup.",
+      oauth: true,
     },
   ],
 };

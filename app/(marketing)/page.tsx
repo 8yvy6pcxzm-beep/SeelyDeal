@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 import {
   ArrowRight,
@@ -18,6 +19,7 @@ import {
   Clock,
   Smartphone,
   Monitor,
+  Info,
 } from "lucide-react";
 import appConfig from "@/app.config";
 import { Icon } from "@/components/ui/icon";
@@ -85,15 +87,6 @@ const COMPARE: { feature: L; word: CompareValue; generic: CompareValue; tender: 
   { feature: { tr: "İmzada anında ödeme", en: "Pay on signature" }, word: false, generic: false, tender: true },
 ];
 
-const TESTIMONIALS: { quote: L; name: string; role: L; initials: string; metric: L }[] = [
-  { quote: { tr: "Teklif yazma süremiz yarıdan fazla düştü ve teklifler bambaşka görünüyor. Kazanma oranımız %35 arttı.", en: "Our proposal time dropped by more than half and they look stunning. Our win rate is up 35%." }, name: "Maria Gomez", role: { tr: "Kurucu · Northwind", en: "Founder · Northwind" }, initials: "MG", metric: { tr: "kazanma +%35", en: "win rate +35%" } },
-  { quote: { tr: "Bir teklifin ne zaman açıldığını görmek oyunu değiştirdi. Müşteri fiyatlandırmaya bakarken arıyoruz.", en: "Seeing exactly when a proposal is opened changed the game. We call while they're on the pricing page." }, name: "Liam Chen", role: { tr: "Satış Lideri · Parable", en: "Sales Lead · Parable" }, initials: "LC", metric: { tr: "2× yanıt oranı", en: "2× reply rate" } },
-  { quote: { tr: "Müşteriler artık PDF indirmiyor — bağlantıyı açıp tek tıkla imzalıyor. Sürtünme sıfır.", en: "Clients no longer download PDFs — they open the link and sign in one click. Zero friction." }, name: "Nadia Park", role: { tr: "Operasyon · Formwork", en: "Ops · Formwork" }, initials: "NP", metric: { tr: "1 tıkla imza", en: "1-click sign" } },
-  { quote: { tr: "AI taslağı işin %80'ini yapıyor; biz sadece sesi ayarlıyoruz. İlk teklif aynı gün gidiyor.", en: "The AI draft does 80% of the work; we just tune the voice. First proposal goes out same day." }, name: "Tom Reilly", role: { tr: "Ajans Sahibi · Cedarworks", en: "Agency Owner · Cedarworks" }, initials: "TR", metric: { tr: "4× daha hızlı", en: "4× faster" } },
-  { quote: { tr: "Etkileşimli fiyat tablosu ortalama anlaşma büyüklüğümüzü artırdı — müşteriler ek paketleri kendileri ekliyor.", en: "The interactive pricing lifted our average deal size — clients add upsells themselves." }, name: "Aisha Khan", role: { tr: "CEO · Lumen", en: "CEO · Lumen" }, initials: "AK", metric: { tr: "anlaşma +%22", en: "deal size +22%" } },
-  { quote: { tr: "Analitik panosu hangi şablonun kapandığını gösteriyor. Artık tahmin etmiyoruz, ölçüyoruz.", en: "The analytics show which template closes. We don't guess anymore, we measure." }, name: "Diego Santos", role: { tr: "Gelir · Harvest", en: "Revenue · Harvest" }, initials: "DS", metric: { tr: "%47 kazanma", en: "47% win rate" } },
-];
-
 /* Who SeelyDeal is for — use-case cards. */
 const USE_CASES: { icon: string; title: L; body: L }[] = [
   { icon: "palette", title: { tr: "Ajanslar & stüdyolar", en: "Agencies & studios" }, body: { tr: "Markaya uygun, etkileşimli teklifleri dakikalar içinde gönder; her görüntülenmeyi izle.", en: "Send on-brand, interactive proposals in minutes and track every view." } },
@@ -141,11 +134,15 @@ const DEEP_DIVE: { eyebrow: L; title: L; body: L; points: L[]; reverse?: boolean
 ];
 
 /* Integration logos for the strip. */
-const INTEGRATIONS: { name: string; glyph: "db" | "sign" | "pay" | "ai" }[] = [
-  { name: "Supabase", glyph: "db" },
-  { name: "Dropbox Sign", glyph: "sign" },
-  { name: "Stripe", glyph: "pay" },
-  { name: "Anthropic", glyph: "ai" },
+const INTEGRATIONS: { name: string; glyph: "db" | "sign" | "pay" | "ai" | "hubspot" | "zoho" | "pipedrive" | "salesforce" | "dropboxsign" | "resend"; subtitle: L; ready: boolean }[] = [
+  { name: "Supabase", glyph: "db", subtitle: { tr: "Veritabanı & auth", en: "Database & auth" }, ready: true },
+  { name: "Anthropic", glyph: "ai", subtitle: { tr: "AI taslak", en: "AI drafting" }, ready: true },
+  { name: "HubSpot", glyph: "hubspot", subtitle: { tr: "CRM", en: "CRM" }, ready: false },
+  { name: "Zoho CRM", glyph: "zoho", subtitle: { tr: "CRM", en: "CRM" }, ready: false },
+  { name: "Pipedrive", glyph: "pipedrive", subtitle: { tr: "CRM", en: "CRM" }, ready: false },
+  { name: "Salesforce", glyph: "salesforce", subtitle: { tr: "CRM", en: "CRM" }, ready: false },
+  { name: "Dropbox Sign", glyph: "dropboxsign", subtitle: { tr: "E-imza", en: "E-signature" }, ready: false },
+  { name: "Resend", glyph: "resend", subtitle: { tr: "E-posta (OTP)", en: "Email (OTP)" }, ready: true },
 ];
 
 export default function LandingPage() {
@@ -169,22 +166,25 @@ export default function LandingPage() {
     trackTitle: { tr: "Teklifin gözlerinin önünde açılıyor", en: "Watch your proposal open in real time" } as L,
     trackSub: { tr: "Kim açtı, hangi bölümde ne kadar kaldı, hangi cihazdan — hepsi canlı.", en: "Who opened it, time on each section, on what device — all live." } as L,
     integrationsTitle: { tr: "Sevdiğin araçlarla çalışır", en: "Works with the tools you love" } as L,
-    integrationsSub: { tr: "Supabase, Dropbox Sign, Stripe ve Anthropic'i dakikalar içinde bağla.", en: "Wire Supabase, Dropbox Sign, Stripe and Anthropic in minutes." } as L,
+    integrationsSub: { tr: "Supabase ve Anthropic'i dakikalar içinde bağla.", en: "Wire Supabase and Anthropic in minutes." } as L,
     compareTitle: { tr: "Neden SeelyDeal?", en: "Why SeelyDeal?" } as L,
     compareSub: { tr: "Word/PDF ve genel araçlarla karşılaştır.", en: "Compared to Word/PDF and generic tools." } as L,
-    testimonialsTitle: { tr: "Satış ekipleri SeelyDeal'ı seviyor", en: "Sales teams love SeelyDeal" } as L,
-    testimonialsSub: { tr: "Daha hızlı, daha güzel teklif gönderen ekiplerden.", en: "From teams sending faster, more beautiful proposals." } as L,
-    pricingTitle: { tr: "Basit, koltuk-bazlı fiyatlandırma", en: "Simple, seat-based pricing" } as L,
-    pricingSub: { tr: "İçerikle başla, otomasyonla büyüt.", en: "Start with content and scale with automation." } as L,
+    pricingTitle: { tr: "Sade, kullanıcı bazlı fiyatlandırma", en: "Simple, user-based pricing" } as L,
+    pricingSub: { tr: "Tasarımla başla, otomasyonla hızlan.", en: "Start with design, accelerate with automation." } as L,
     popular: { tr: "En popüler", en: "Most popular" } as L,
     billingMonthly: { tr: "Aylık", en: "Monthly" } as L,
     billingAnnual: { tr: "Yıllık", en: "Annual" } as L,
-    billingSave: { tr: "%36 tasarruf", en: "Save 36%" } as L,
+    billingSave: { tr: "%32 tasarruf", en: "Save 32%" } as L,
+    billingSaveNote: {
+      tr: "Abonelik ve kurulum ücretinde toplam tasarruf.",
+      en: "Total savings across subscription and setup fee.",
+    } as L,
     annualOnlyNote: { tr: "Sadece yıllık faturalandırma", en: "Annual billing only" } as L,
     faqTitle: { tr: "Sıkça sorulanlar", en: "Frequently asked" } as L,
-    faqSub: { tr: "Cevabını bulamadın mı? Ekibimize yaz.", en: "Can't find an answer? Reach our team." } as L,
+    faqSub: { tr: "Cevabını bulamadın mı?", en: "Can't find an answer?" } as L,
+    faqContactLink: { tr: "Ekibimize yaz.", en: "Reach our team." } as L,
     ctaTitle: { tr: "Bir sonraki teklifini bugün kazan", en: "Win your next proposal today" } as L,
-    ctaSub: { tr: "Anahtarsız demo modda aç, hazır olunca Supabase, Dropbox Sign ve Stripe'ı bağla.", en: "Open the keyless demo, then wire Supabase, Dropbox Sign and Stripe when you're ready." } as L,
+    ctaSub: { tr: "14 gün ücretsiz dene, kredi kartı gerekmez.", en: "Try it free for 14 days, no credit card required." } as L,
   };
 
   return (
@@ -233,7 +233,7 @@ export default function LandingPage() {
             </div>
 
             <p className="mt-4 text-xs text-muted-foreground">
-              {lang === "tr" ? "Kredi kartı gerekmez · Anahtarsız demo · 5 dakikada kurulum" : "No credit card · Keyless demo · 5-minute setup"}
+              {lang === "tr" ? "Kredi kartı gerekmez · 14 gün ücretsiz" : "No credit card · 14 days free"}
             </p>
           </div>
 
@@ -603,77 +603,30 @@ export default function LandingPage() {
               <IntegrationGlyph glyph={it.glyph} />
               <div>
                 <p className="font-semibold tracking-tight">{it.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {it.glyph === "db" ? (lang === "tr" ? "Veritabanı & auth" : "Database & auth") : it.glyph === "sign" ? (lang === "tr" ? "E-imza" : "E-signature") : it.glyph === "pay" ? (lang === "tr" ? "Ödemeler" : "Payments") : (lang === "tr" ? "AI taslak" : "AI drafting")}
-                </p>
+                <p className="text-xs text-muted-foreground">{it.subtitle[lang]}</p>
               </div>
-              <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
-                <span className="h-1.5 w-1.5 rounded-full bg-success" />
-                {lang === "tr" ? "Hazır" : "Ready"}
-              </span>
+              {it.ready ? (
+                <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
+                  <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                  {lang === "tr" ? "Hazır" : "Ready"}
+                </span>
+              ) : (
+                <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                  <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
+                  {lang === "tr" ? "İhtiyaca özel" : "Custom setup"}
+                </span>
+              )}
             </div>
           ))}
-        </div>
-      </section>
-
-      {/* ── TESTIMONIALS ──────────────────────────────────────────── */}
-      <section className="mx-auto max-w-6xl px-5 py-20">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">{tt(sectionCopy.testimonialsTitle)}</h2>
-          <p className="mt-3 text-muted-foreground">{tt(sectionCopy.testimonialsSub)}</p>
-        </div>
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {TESTIMONIALS.map((tm) => (
-            <figure key={tm.name} className="flex flex-col rounded-2xl border border-border bg-card p-6 shadow-soft">
-              <Quote className="h-5 w-5 text-primary/30" />
-              <blockquote className="mt-3 flex-1 text-[14.5px] leading-relaxed text-foreground/90">
-                {tt(tm.quote)}
-              </blockquote>
-              <div className="mt-5 flex items-center gap-3 border-t border-border pt-4">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-xs font-bold text-white" style={{ backgroundImage: "var(--grad-brand)" }}>
-                  {tm.initials}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <figcaption className="text-sm font-semibold leading-tight">{tm.name}</figcaption>
-                  <p className="truncate text-xs text-muted-foreground">{tt(tm.role)}</p>
-                </div>
-                <span className="rounded-full bg-success/10 px-2 py-1 text-[11px] font-semibold text-success">{tt(tm.metric)}</span>
-              </div>
-            </figure>
-          ))}
-        </div>
-        <div className="mt-8 flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Star key={i} className="h-4 w-4 fill-warning text-warning" />
-          ))}
-          <span className="ml-2">{lang === "tr" ? "4.9/5 · 1.200+ ekip" : "4.9/5 · 1,200+ teams"}</span>
         </div>
       </section>
 
       {/* ── RESULTS BAND ──────────────────────────────────────────── */}
       <section className="border-t border-border bg-background">
         <div className="mx-auto max-w-6xl px-5 py-20">
-          <div className="grid items-center gap-12 lg:grid-cols-[1fr_1.1fr]">
-            {/* Featured proof quote */}
-            <figure className="relative overflow-hidden rounded-3xl border border-border p-8 text-white shadow-pop" style={{ backgroundImage: "var(--grad-brand)" }}>
-              <span className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/15 blur-3xl drift" aria-hidden />
-              <Quote className="h-7 w-7 text-white/40" />
-              <blockquote className="mt-4 font-display text-2xl font-semibold leading-snug tracking-tight">
-                {lang === "tr"
-                  ? "SeelyDeal'a geçtikten sonraki çeyrekte kazanma oranımız %35 arttı ve teklif yazma süremiz dörtte bire düştü."
-                  : "In the quarter after switching to SeelyDeal, our win rate climbed 35% and our proposal time dropped to a quarter."}
-              </blockquote>
-              <figcaption className="mt-6 flex items-center gap-3 border-t border-white/20 pt-5">
-                <span className="grid h-11 w-11 place-items-center rounded-full bg-white/15 text-sm font-bold">MG</span>
-                <div>
-                  <p className="text-sm font-semibold">Maria Gomez</p>
-                  <p className="text-xs text-white/75">{lang === "tr" ? "Kurucu · Northwind" : "Founder · Northwind"}</p>
-                </div>
-              </figcaption>
-            </figure>
-
+          <div className="grid items-center gap-12">
             {/* Metric cards */}
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {[
                 { icon: Eye, value: "92%", label: { tr: "açılan teklif oranı", en: "open rate on sent" } as L, tone: "var(--seg-1)" },
                 { icon: Clock, value: "11dk", label: { tr: "ortalama gönderim süresi", en: "avg time to send" } as L, tone: "var(--seg-2)" },
@@ -728,8 +681,12 @@ export default function LandingPage() {
             <span className={cn("text-sm font-medium", annual && "text-foreground", !annual && "text-muted-foreground")}>
               {tt(sectionCopy.billingAnnual)}
             </span>
-            <span className="ml-1 rounded-full bg-success/12 px-2 py-0.5 text-xs font-semibold text-success">
+            <span className="group/save relative ml-1 inline-flex items-center gap-1 rounded-full bg-success/12 px-2 py-0.5 text-xs font-semibold text-success">
               {tt(sectionCopy.billingSave)}
+              <Info className="h-3 w-3 shrink-0" />
+              <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-56 -translate-x-1/2 rounded-lg bg-foreground px-3 py-2 text-xs font-normal text-background opacity-0 shadow-pop transition-opacity group-hover/save:opacity-100">
+                {tt(sectionCopy.billingSaveNote)}
+              </span>
             </span>
           </div>
 
@@ -750,33 +707,57 @@ export default function LandingPage() {
                 )}
                 <h3 className="font-semibold tracking-tight">{tier.name}</h3>
                 <div className="mt-2 flex items-baseline gap-1">
-                  <span className="font-display text-4xl font-bold tracking-tight">
-                    {annual || tier.annualOnly ? tier.price : tier.monthlyPrice ?? tier.price}
+                  <span
+                    className={cn(
+                      "font-display font-bold tracking-tight",
+                      tier.customPricing ? "text-3xl" : "text-4xl",
+                    )}
+                  >
+                    {tier.customPricing
+                      ? t(tier.customPriceLabel!)
+                      : annual || tier.annualOnly
+                        ? tier.price
+                        : (tier.monthlyPrice ?? tier.price)}
                   </span>
-                  {tier.period && <span className="text-sm text-muted-foreground">{t(tier.period)}</span>}
+                  {!tier.customPricing && tier.period && (
+                    <span className="text-sm text-muted-foreground">{t(tier.period)}</span>
+                  )}
                 </div>
-                {tier.annualOnly && (
+                {!tier.customPricing && tier.annualOnly && (
                   <p className="mt-1 text-xs font-medium text-muted-foreground">{tt(sectionCopy.annualOnlyNote)}</p>
                 )}
                 <p className="mt-1.5 text-sm text-muted-foreground">{t(tier.tagline)}</p>
-                <ul className="mt-6 flex-1 space-y-3 text-sm">
+                {tier.includesLabel && (
+                  <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t(tier.includesLabel)}</p>
+                )}
+                <ul className={cn("flex-1 space-y-3 text-sm", tier.includesLabel ? "mt-3" : "mt-6")}>
                   {tier.features.map((f) => (
-                    <li key={t(f)} className="flex items-start gap-2.5">
+                    <li key={t(f.label)} className="group/feat relative flex items-start gap-2.5">
                       <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-success/12 text-success">
                         <Check className="h-2.5 w-2.5" strokeWidth={3} />
                       </span>
-                      {t(f)}
+                      <span className="inline-flex items-center gap-1.5">
+                        {t(f.label)}
+                        {f.description && (
+                          <span className="relative inline-flex">
+                            <Info className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                            <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-56 -translate-x-1/2 rounded-lg bg-foreground px-3 py-2 text-xs font-normal text-background opacity-0 shadow-pop transition-opacity group-hover/feat:opacity-100">
+                              {t(f.description)}
+                            </span>
+                          </span>
+                        )}
+                      </span>
                     </li>
                   ))}
                 </ul>
-                {tier.annualOnly ? (
+                {tier.requiresDemo || tier.annualOnly ? (
                   <button
                     onClick={() => setDemoTier(tier.name)}
                     className={cn(
                       "mt-7 inline-flex h-11 items-center justify-center rounded-xl text-sm font-semibold transition-all",
                       tier.featured
                         ? "bg-primary text-primary-foreground shadow-glow hover:opacity-90"
-                        : "border border-border bg-card text-foreground hover:bg-muted",
+                        : "border border-primary/25 bg-primary/[0.06] text-primary hover:bg-primary/10",
                     )}
                   >
                     {t(tier.cta)}
@@ -788,7 +769,7 @@ export default function LandingPage() {
                       "mt-7 inline-flex h-11 items-center justify-center rounded-xl text-sm font-semibold transition-all",
                       tier.featured
                         ? "bg-primary text-primary-foreground shadow-glow hover:opacity-90"
-                        : "border border-border bg-card text-foreground hover:bg-muted",
+                        : "border border-primary/25 bg-primary/[0.06] text-primary hover:bg-primary/10",
                     )}
                   >
                     {t(tier.cta)}
@@ -804,7 +785,12 @@ export default function LandingPage() {
       <section id="faq" className="mx-auto max-w-3xl px-5 py-20">
         <div className="text-center">
           <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">{tt(sectionCopy.faqTitle)}</h2>
-          <p className="mt-3 text-muted-foreground">{tt(sectionCopy.faqSub)}</p>
+          <p className="mt-3 text-muted-foreground">
+            {tt(sectionCopy.faqSub)}{" "}
+            <a href={`mailto:${appConfig.contactEmail}`} className="font-medium text-primary hover:underline">
+              {tt(sectionCopy.faqContactLink)}
+            </a>
+          </p>
         </div>
         <div className="mt-10 space-y-3">
           {m.faq.map((f) => (
@@ -830,7 +816,7 @@ export default function LandingPage() {
           <span className="pointer-events-none absolute -left-10 top-0 -z-10 h-48 w-48 rounded-full bg-primary/15 blur-3xl drift" aria-hidden />
           <div className="mx-auto mb-5 flex w-fit items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-pill">
             <Sparkles className="h-3.5 w-3.5 text-primary" />
-            <span>{lang === "tr" ? "AI taslak · tek tıkla imza" : "AI drafting · one-click sign"}</span>
+            <span>{lang === "tr" ? "Sohbet ederek teklif tasarla" : "Design proposals through conversation"}</span>
           </div>
           <h2 className="mx-auto max-w-2xl font-display text-3xl font-bold tracking-tight sm:text-4xl">{tt(sectionCopy.ctaTitle)}</h2>
           <p className="mx-auto mt-3 max-w-xl text-muted-foreground">{tt(sectionCopy.ctaSub)}</p>
@@ -856,16 +842,21 @@ export default function LandingPage() {
   );
 }
 
-function IntegrationGlyph({ glyph }: { glyph: "db" | "sign" | "pay" | "ai" }) {
-  const color =
-    glyph === "db" ? "var(--color-success)" : glyph === "sign" ? "var(--color-primary)" : glyph === "pay" ? "var(--seg-3)" : "var(--color-accent)";
+function IntegrationGlyph({ glyph }: { glyph: "db" | "sign" | "pay" | "ai" | "hubspot" | "zoho" | "pipedrive" | "salesforce" | "dropboxsign" | "resend" }) {
+  if (glyph === "hubspot" || glyph === "zoho" || glyph === "pipedrive" || glyph === "salesforce" || glyph === "db" || glyph === "ai" || glyph === "dropboxsign" || glyph === "resend") {
+    const file = glyph === "db" ? "supabase" : glyph === "ai" ? "anthropic" : glyph;
+    return (
+      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-border bg-white p-1.5">
+        <Image src={`/logos/${file}.png`} alt={file} width={64} height={64} className="h-full w-full object-contain" />
+      </span>
+    );
+  }
+  const color = glyph === "sign" ? "var(--color-primary)" : "var(--seg-3)";
   return (
     <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl" style={{ background: color }}>
       <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-        {glyph === "db" && <path d="M4 6 c0 -1.7 3.6 -3 8 -3 s8 1.3 8 3 v12 c0 1.7 -3.6 3 -8 3 s-8 -1.3 -8 -3 z M4 6 c0 1.7 3.6 3 8 3 s8 -1.3 8 -3 M4 12 c0 1.7 3.6 3 8 3 s8 -1.3 8 -3" />}
         {glyph === "sign" && <path d="M3 17 c4 -3 6 3 9 -1 c2 -2.6 4 1.4 9 -3 M5 21 h14" />}
         {glyph === "pay" && <path d="M3 7 h18 v10 h-18 z M3 11 h18 M7 15 h3" />}
-        {glyph === "ai" && <path d="M12 3 l1.8 4.4 L18 9 l-4.2 1.6 L12 15 l-1.8 -4.4 L6 9 l4.2 -1.6 z M18 15 l.9 2.1 L21 18 l-2.1 .9 L18 21 l-.9 -2.1 L15 18 l2.1 -.9 z" />}
       </svg>
     </span>
   );

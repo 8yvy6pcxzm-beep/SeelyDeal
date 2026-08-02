@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { CheckCircle2, Loader2, PenLine, ExternalLink, Copy, Check, FileText, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
@@ -18,7 +18,7 @@ type PublicProposal = {
   title: string;
   status: string;
   value: number;
-  sections: { title: string; body: string }[];
+  sections: { title: string; body: string; condition?: { lineItem?: string; billingKey?: string } }[];
   line_items: LineItem[];
   contract_text: string | null;
   signed_at: string | null;
@@ -32,7 +32,7 @@ type PublicProposal = {
   valid_days: number;
   created_at: string;
   clients: { name: string } | null;
-  companies: { name: string; logo_url: string | null; primary_color: string | null; email: string | null } | null;
+  companies: { name: string; logo_url: string | null; primary_color: string | null; email: string | null; plan: string | null } | null;
 };
 
 function fmtDate(iso: string, lang: "tr" | "en") {
@@ -59,6 +59,26 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
   const [billingKey, setBillingKey] = useState<string | null>(null);
   const [items, setItems] = useState<LineItem[]>([]);
   const [signerName, setSignerName] = useState("");
+  const [signerEmail, setSignerEmail] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [requestingOtp, setRequestingOtp] = useState(false);
+  const [viewId, setViewId] = useState<string | null>(null);
+  const skipLiveSelection = useRef(true);
+
+  // Smart Proposal (Custom only): report the buyer's live toggle state so the seller can watch it in real time.
+  useEffect(() => {
+    if (skipLiveSelection.current) {
+      skipLiveSelection.current = false;
+      return;
+    }
+    if (proposal?.companies?.plan !== "scale" || proposal.status === "accepted") return;
+    fetch(`/api/proposals/${id}/public/live-selection`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lineItems: items.map((i) => ({ name: i.name, included: i.included })), billingKey }),
+    }).catch(() => {});
+  }, [items, billingKey, id, proposal?.companies?.plan, proposal?.status]);
 
   useEffect(() => {
     fetch(`/api/proposals/${id}/public`)
@@ -67,18 +87,112 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
         if (data.error) setError(data.error);
         else {
           setProposal(data.proposal);
+          setViewId(data.viewId ?? null);
           const options: BillingOption[] = data.proposal?.billing_options ?? [];
           setBillingKey(data.proposal?.selected_billing ?? options[0]?.key ?? null);
           setItems((data.proposal?.line_items ?? []).map((li: LineItem) => ({ ...li, included: li.optional ? !!li.included : true })));
+          setSignerEmail(data.proposal?.client_contact?.email ?? "");
         }
       })
       .catch(() => setError(lang === "tr" ? "Teklif yüklenemedi." : "Couldn't load the proposal."))
       .finally(() => setLoading(false));
   }, [id, lang]);
 
+  // Tracks how long each section stays visible in the viewport and flushes it as a beacon on tab-hide/unload.
+  const sectionRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const visibleSince = useRef<Map<number, number>>(new Map());
+  const accumulated = useRef<Map<number, number>>(new Map());
+
+  useEffect(() => {
+    if (!viewId || !proposal?.sections?.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const index = Number(entry.target.getAttribute("data-section-index"));
+          if (entry.isIntersecting) {
+            visibleSince.current.set(index, Date.now());
+          } else {
+            const since = visibleSince.current.get(index);
+            if (since) {
+              accumulated.current.set(index, (accumulated.current.get(index) ?? 0) + (Date.now() - since));
+              visibleSince.current.delete(index);
+            }
+          }
+        }
+      },
+      { threshold: 0.5 },
+    );
+
+    sectionRefs.current.forEach((el) => el && observer.observe(el));
+
+    const flush = () => {
+      const now = Date.now();
+      for (const [index, since] of visibleSince.current) {
+        accumulated.current.set(index, (accumulated.current.get(index) ?? 0) + (now - since));
+      }
+      visibleSince.current.clear();
+
+      const sections = Array.from(accumulated.current.entries())
+        .map(([index, ms]) => ({ index, seconds: Math.round(ms / 1000) }))
+        .filter((s) => s.seconds > 0);
+      if (sections.length === 0) return;
+
+      const payload = JSON.stringify({ viewId, sections });
+      navigator.sendBeacon?.(
+        `/api/proposals/${id}/public/section-time`,
+        new Blob([payload], { type: "application/json" }),
+      );
+      accumulated.current.clear();
+    };
+
+    const onVisibilityChange = () => document.hidden && flush();
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pagehide", flush);
+
+    return () => {
+      flush();
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pagehide", flush);
+    };
+  }, [viewId, id, proposal?.sections?.length]);
+
+  const requiresOtp = !!(proposal?.companies?.plan && proposal.companies.plan !== "starter");
+
+  async function requestOtp() {
+    if (!signerEmail.trim()) {
+      setError(lang === "tr" ? "Kod göndermek için email adresi gerekiyor." : "Email is required to send a code.");
+      return;
+    }
+    setRequestingOtp(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/proposals/${id}/sign/request-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: signerEmail.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || (lang === "tr" ? "Kod gönderilemedi." : "Couldn't send the code."));
+      } else {
+        setOtpSent(true);
+      }
+    } catch {
+      setError(lang === "tr" ? "Bağlantı hatası." : "Connection error.");
+    } finally {
+      setRequestingOtp(false);
+    }
+  }
+
   async function sign() {
     if (!signerName.trim()) {
       setError(lang === "tr" ? "İmzalamak için adını yazman gerekiyor." : "Type your name to sign.");
+      return;
+    }
+    if (requiresOtp && !otpCode.trim()) {
+      setError(lang === "tr" ? "Doğrulama kodunu gir." : "Enter the verification code.");
       return;
     }
     setSigning(true);
@@ -87,7 +201,7 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
       const res = await fetch(`/api/proposals/${id}/sign`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ billingKey, lineItems: items, signedByName: signerName.trim() }),
+        body: JSON.stringify({ billingKey, lineItems: items, signedByName: signerName.trim(), otpCode: otpCode.trim() }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -140,6 +254,19 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
   const client = proposal.client_contact ?? {};
   const brandColor = company?.primary_color || undefined;
   const validUntil = new Date(new Date(proposal.created_at).getTime() + (proposal.valid_days || 15) * 86400000);
+
+  // A section bound to a lineItem or billingKey only shows while that exact choice is currently selected — mutually exclusive with any other choice.
+  const visibleSections = (proposal.sections ?? [])
+    .map((s, index) => ({ ...s, index }))
+    .filter((s) => {
+      if (!s.condition) return true;
+      if (s.condition.lineItem) {
+        const li = items.find((it) => it.name === s.condition!.lineItem);
+        return !!li && (!li.optional || !!li.included);
+      }
+      if (s.condition.billingKey) return billingKey === s.condition.billingKey;
+      return true;
+    });
 
   const sectionLabel = (n: number) =>
     lang === "tr" ? `Bölüm ${n}` : `Section ${n}`;
@@ -247,19 +374,26 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
           )}
 
           {/* Hizmet kapsamı — checklist */}
-          {proposal.sections?.length > 0 && (
+          {visibleSections.length > 0 && (
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">
                 {lang === "tr" ? "Hizmet Kapsamı" : "Scope of Service"}
               </p>
               <div className="space-y-3">
-                {proposal.sections.map((s, i) => (
-                  <div key={i} className="flex items-start gap-2.5">
+                {visibleSections.map((s) => (
+                  <div
+                    key={s.index}
+                    ref={(el) => {
+                      sectionRefs.current[s.index] = el;
+                    }}
+                    data-section-index={s.index}
+                    className="flex items-start gap-2.5"
+                  >
                     <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
                       <Check className="h-3 w-3" strokeWidth={3} />
                     </span>
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold">{s.title || sectionLabel(i + 1)}</p>
+                      <p className="text-sm font-semibold">{s.title || sectionLabel(s.index + 1)}</p>
                       <p className="mt-0.5 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{s.body}</p>
                     </div>
                   </div>
@@ -438,7 +572,35 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
                   placeholder={lang === "tr" ? "Ad Soyad" : "Full name"}
                 />
               </div>
-              <Button onClick={sign} disabled={signing} className="w-full gap-2" size="lg">
+              {requiresOtp && (
+                <div className="mb-3 space-y-1.5">
+                  <Label htmlFor="signer-email">{lang === "tr" ? "Email (doğrulama kodu için)" : "Email (for verification code)"}</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="signer-email"
+                      type="email"
+                      value={signerEmail}
+                      onChange={(e) => setSignerEmail(e.target.value)}
+                      placeholder={lang === "tr" ? "email@ornek.com" : "email@example.com"}
+                      disabled={otpSent}
+                    />
+                    {!otpSent && (
+                      <Button variant="outline" onClick={requestOtp} disabled={requestingOtp} className="shrink-0">
+                        {requestingOtp ? <Loader2 className="h-4 w-4 animate-spin" /> : lang === "tr" ? "Kod gönder" : "Send code"}
+                      </Button>
+                    )}
+                  </div>
+                  {otpSent && (
+                    <Input
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value)}
+                      placeholder={lang === "tr" ? "6 haneli kod" : "6-digit code"}
+                      className="mt-2"
+                    />
+                  )}
+                </div>
+              )}
+              <Button onClick={sign} disabled={signing || (requiresOtp && !otpSent)} className="w-full gap-2" size="lg">
                 {signing ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenLine className="h-4 w-4" />}
                 {lang === "tr" ? "Kabul Et & İmzala" : "Accept & Sign"}
               </Button>

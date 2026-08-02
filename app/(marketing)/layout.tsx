@@ -18,7 +18,7 @@ export default function MarketingLayout({
           <Link href="/">
             <Logo />
           </Link>
-          <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-7 text-sm font-medium text-muted-foreground md:flex">
+          <nav className="hidden flex-1 items-center justify-center gap-7 text-sm font-medium text-muted-foreground md:flex">
             <a href="#features" className="transition-colors hover:text-foreground">{ui.features}</a>
             <a href="#how" className="transition-colors hover:text-foreground">{ui.howItWorks}</a>
             <a href="#pricing" className="transition-colors hover:text-foreground">{ui.pricing}</a>

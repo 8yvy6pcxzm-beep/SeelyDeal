@@ -74,5 +74,39 @@ export async function GET(req: Request) {
     .eq("company_id", profile.company_id)
     .order("created_at", { ascending: false });
 
-  return NextResponse.json({ proposals: proposals ?? [] });
+  const ids = (proposals ?? []).map((p: { id: string }) => p.id);
+  const { data: views } = ids.length
+    ? await service.from("proposal_views").select("proposal_id, viewed_at").in("proposal_id", ids)
+    : { data: [] as { proposal_id: string; viewed_at: string }[] };
+
+  const dayKeys = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - (6 - i));
+    return d.toISOString().slice(0, 10);
+  });
+
+  // "Live now": a proposal counts as currently being viewed if its most recent open was within the last 3 minutes.
+  const LIVE_WINDOW_MS = 3 * 60 * 1000;
+  const now = Date.now();
+
+  const withViews = (proposals ?? []).map((p: { id: string; live_selection_at?: string | null; live_selection?: unknown }) => {
+    const rows = (views ?? []).filter((v: { proposal_id: string }) => v.proposal_id === p.id);
+    const spark = dayKeys.map((day) => rows.filter((v: { viewed_at: string }) => v.viewed_at.slice(0, 10) === day).length);
+    const lastViewedAt: string | null = rows.reduce(
+      (latest: string | null, v: { viewed_at: string }) => (!latest || v.viewed_at > latest ? v.viewed_at : latest),
+      null,
+    );
+    const liveNow = !!lastViewedAt && now - new Date(lastViewedAt).getTime() < LIVE_WINDOW_MS;
+    const liveSelectionFresh = !!p.live_selection_at && now - new Date(p.live_selection_at).getTime() < LIVE_WINDOW_MS;
+    return {
+      ...p,
+      view_count: rows.length,
+      view_spark: spark,
+      last_viewed_at: lastViewedAt,
+      live_now: liveNow,
+      live_selection: liveSelectionFresh ? p.live_selection : null,
+    };
+  });
+
+  return NextResponse.json({ proposals: withViews });
 }

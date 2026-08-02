@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Search, Sparkles, PenLine, Eye, ArrowUpDown, Download, Link2, Settings2 } from "lucide-react";
+import { Plus, Search, Sparkles, PenLine, Eye, ArrowUpDown, Download, Link2, Settings2, Clock } from "lucide-react";
 import { Sparkline } from "@/components/app/charts";
 import { StatusPill, ClientAvatar, Checkbox } from "@/components/app/proposal-bits";
 import { AiDraftDialog } from "@/components/app/ai-draft-dialog";
 import { EditProposalDialog } from "@/components/app/edit-proposal-dialog";
+import { SectionTimesDialog } from "@/components/app/section-times-dialog";
 import { useLang } from "@/components/i18n/language-provider";
 import { cn, formatUsd } from "@/lib/utils";
 import { proposals, pipeline, type ProposalStatus } from "@/lib/demo/data";
@@ -31,7 +32,10 @@ export default function ProposalsPage() {
   const [query, setQuery] = useState("");
   const [aiOpen, setAiOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [sectionTimesId, setSectionTimesId] = useState<string | null>(null);
   const [realRows, setRealRows] = useState<typeof proposals>([]);
+  const [liveIds, setLiveIds] = useState<Set<string>>(new Set());
+  const [liveSelections, setLiveSelections] = useState<Map<string, { lineItems: { name: string; included?: boolean }[]; billingKey: string | null }>>(new Map());
 
   async function loadReal() {
     try {
@@ -47,8 +51,8 @@ export default function ProposalsPage() {
         value: Number(p.value) || 0,
         status: p.status,
         sentDate: null,
-        views: 0,
-        spark: [0, 0, 0, 0, 0, 0, 0],
+        views: p.view_count ?? 0,
+        spark: p.view_spark ?? [0, 0, 0, 0, 0, 0, 0],
         signed: p.status === "accepted",
         viewSummary: { tr: "", en: "" },
         sections: p.sections ?? [],
@@ -57,6 +61,14 @@ export default function ProposalsPage() {
         template: { tr: "AI taslağı", en: "AI draft" },
       }));
       setRealRows(mapped);
+      setLiveIds(new Set((data.proposals ?? []).filter((p: any) => p.live_now).map((p: any) => p.id)));
+      setLiveSelections(
+        new Map(
+          (data.proposals ?? [])
+            .filter((p: any) => p.live_selection)
+            .map((p: any) => [p.id, p.live_selection]),
+        ),
+      );
     } catch {
       setRealRows([]);
     }
@@ -64,6 +76,9 @@ export default function ProposalsPage() {
 
   useEffect(() => {
     loadReal();
+    // Poll so the "şu an bakıyor" badge stays roughly live without a websocket.
+    const interval = setInterval(loadReal, 20000);
+    return () => clearInterval(interval);
   }, []);
 
   const allProposals = useMemo(() => [...realRows, ...proposals], [realRows]);
@@ -198,6 +213,25 @@ export default function ProposalsPage() {
                     <span className="inline-flex items-center gap-1.5">
                       <StatusPill status={row.status} lang={lang} />
                       {row.signed && <PenLine className="h-3 w-3 text-success" />}
+                      {liveIds.has(row.id) && (
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full bg-success/10 px-1.5 py-0.5 text-[11px] font-medium text-success"
+                          title={
+                            liveSelections.get(row.id)
+                              ? liveSelections
+                                  .get(row.id)!
+                                  .lineItems.filter((li) => li.included !== false)
+                                  .map((li) => li.name)
+                                  .join(", ")
+                              : undefined
+                          }
+                        >
+                          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
+                          {lang === "tr" ? "Şu an bakıyor" : "Viewing now"}
+                          {liveSelections.get(row.id) &&
+                            ` · ${liveSelections.get(row.id)!.lineItems.filter((li) => li.included !== false).length}/${liveSelections.get(row.id)!.lineItems.length} ${lang === "tr" ? "kalem" : "items"}`}
+                        </span>
+                      )}
                     </span>
                   </td>
                   <td className="py-3 pr-4">
@@ -252,6 +286,16 @@ export default function ProposalsPage() {
                         >
                           <Download className="h-3.5 w-3.5" />
                         </a>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSectionTimesId(row.id);
+                          }}
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                          title={lang === "tr" ? "Bölüm bazlı görüntüleme süresi" : "Time spent per section"}
+                        >
+                          <Clock className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     )}
                   </td>
@@ -289,6 +333,7 @@ export default function ProposalsPage() {
 
       <AiDraftDialog open={aiOpen} onClose={() => setAiOpen(false)} onSaved={loadReal} />
       <EditProposalDialog proposalId={editingId} onClose={() => setEditingId(null)} onSaved={loadReal} />
+      <SectionTimesDialog proposalId={sectionTimesId} onClose={() => setSectionTimesId(null)} />
     </div>
   );
 }

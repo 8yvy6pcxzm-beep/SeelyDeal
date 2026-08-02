@@ -10,7 +10,13 @@ import { Icon } from "@/components/ui/icon";
 import { useLang } from "@/components/i18n/language-provider";
 import { ApiKeySection } from "@/components/app/api-key-section";
 
-export function SettingsClient({ connected }: { connected: Record<string, boolean> }) {
+export function SettingsClient({
+  connected,
+  oauthReady = {},
+}: {
+  connected: Record<string, boolean>;
+  oauthReady?: Record<string, boolean>;
+}) {
   const { t, ui } = useLang();
 
   return (
@@ -56,7 +62,17 @@ export function SettingsClient({ connected }: { connected: Record<string, boolea
                 </div>
                 <p className="truncate text-sm text-muted-foreground">{it.purpose}</p>
               </div>
-              {connected[it.key] ? (
+              {it.oauth ? (
+                oauthReady[it.key] ? (
+                  <a href={`/api/integrations/${it.key}/connect`}>
+                    <Button variant="secondary" size="sm">
+                      Bağlan
+                    </Button>
+                  </a>
+                ) : (
+                  <span className="text-sm text-muted-foreground">Kurulum sırasında etkinleştirilecek</span>
+                )
+              ) : connected[it.key] ? (
                 <span className="inline-flex items-center gap-1.5 text-sm font-medium text-success">
                   <CheckCircle2 className="h-4 w-4" /> {ui.connected}
                 </span>

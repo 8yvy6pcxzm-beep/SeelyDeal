@@ -15,6 +15,7 @@ export function DemoRequestDialog({ tier, onClose }: { tier: string; onClose: ()
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const isCustom = tier === "Custom";
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -47,7 +48,13 @@ export function DemoRequestDialog({ tier, onClose }: { tier: string; onClose: ()
       >
         <div className="flex items-center justify-between">
           <h3 className="font-display text-lg font-semibold">
-            {lang === "tr" ? `${tier} demo talebi` : `${tier} demo request`}
+            {isCustom
+              ? lang === "tr"
+                ? "İletişim talebi"
+                : "Contact request"
+              : lang === "tr"
+                ? `${tier} demo talebi`
+                : `${tier} demo request`}
           </h3>
           <button onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted">
             <X className="h-4 w-4" />

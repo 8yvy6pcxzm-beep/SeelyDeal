@@ -11,6 +11,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const billingKey: string | undefined = body?.billingKey;
   const lineItems: LineItem[] | undefined = body?.lineItems;
   const signedByName: string | undefined = body?.signedByName;
+  const otpCode: string | undefined = body?.otpCode;
 
   if (!signedByName?.trim()) {
     return NextResponse.json({ error: "İmzalamak için adını yazman gerekiyor." }, { status: 400 });
@@ -23,11 +24,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const { data: existing } = await service
     .from("proposals")
-    .select("billing_options, line_items, value")
+    .select("billing_options, line_items, value, otp_code, otp_expires_at, companies(plan)")
     .eq("id", id)
     .maybeSingle();
 
   if (!existing) return NextResponse.json({ error: "Teklif bulunamadı." }, { status: 404 });
+
+  const plan = (existing.companies as { plan: string } | null)?.plan ?? "starter";
+  if (plan !== "starter") {
+    const expired = !existing.otp_expires_at || new Date(existing.otp_expires_at) < new Date();
+    if (!otpCode?.trim() || !existing.otp_code || otpCode.trim() !== existing.otp_code || expired) {
+      return NextResponse.json({ error: "Kod hatalı veya süresi dolmuş." }, { status: 400 });
+    }
+  }
 
   const options: BillingOption[] = existing.billing_options ?? [];
   const chosen = billingKey ? options.find((o) => o.key === billingKey) : undefined;
@@ -45,6 +54,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     value: itemsTotal + (chosen?.price ?? 0) || existing.value,
   };
   if (chosen) patch.selected_billing = chosen.key;
+  if (plan !== "starter") {
+    patch.otp_code = null;
+    patch.otp_expires_at = null;
+  }
 
   const { data: proposal, error } = await service
     .from("proposals")
