@@ -53,13 +53,15 @@ export async function POST(req: Request) {
   const MESSAGE_LIMIT_MULTIPLIER = (company?.plan ?? "lite") === "lite" ? 15 : 18;
   const messageLimit = limit * MESSAGE_LIMIT_MULTIPLIER;
 
+  const overagePack = aiOveragePack[(company?.plan as "lite" | "pro" | "custom") ?? "lite"];
+
   if (used >= limit) {
     return NextResponse.json(
       {
         error: `Bu ayki AI teklif hakkın (${limit}) doldu.`,
         overageLink: company?.overage_link ?? null,
-        overagePrice: aiOveragePack.price,
-        overageDrafts: aiOveragePack.extraDrafts,
+        overagePrice: overagePack.price,
+        overageDrafts: overagePack.extraDrafts,
       },
       { status: 429 },
     );

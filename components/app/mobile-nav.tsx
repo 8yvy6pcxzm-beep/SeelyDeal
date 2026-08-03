@@ -9,6 +9,7 @@ import { useLang } from "@/components/i18n/language-provider";
 import { cn } from "@/lib/utils";
 import { useOpenAiDraft } from "@/components/app/ai-draft-provider";
 import { NavGroups } from "@/components/app/nav-groups";
+import appConfig from "@/app.config";
 
 /** Hamburger button + slide-in drawer — the mobile equivalent of the desktop Sidebar. */
 export function MobileNav({ userName, userEmail }: { userName: string | null; userEmail: string | null }) {
@@ -81,10 +82,14 @@ export function MobileNav({ userName, userEmail }: { userName: string | null; us
                 <Settings className="h-[17px] w-[17px] text-muted-foreground" />
                 {lang === "tr" ? "Ayarlar" : "Settings"}
               </Link>
-              <button className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium text-foreground/70 transition-colors hover:bg-muted hover:text-foreground">
+              <a
+                href={`mailto:${appConfig.contactEmail}`}
+                onClick={() => setOpen(false)}
+                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium text-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
+              >
                 <LifeBuoy className="h-[17px] w-[17px] text-muted-foreground" />
                 {lang === "tr" ? "Destek" : "Support"}
-              </button>
+              </a>
             </div>
 
             <div className="border-t border-sidebar-border p-3">

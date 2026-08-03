@@ -68,6 +68,9 @@ export function CompanyProfileClient() {
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const [photoUploadingId, setPhotoUploadingId] = useState<string | null>(null);
+  const [photoErrorId, setPhotoErrorId] = useState<{ id: string; message: string } | null>(null);
+  const photoInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const month = new Date().toISOString().slice(0, 7);
 
   useEffect(() => {
@@ -113,7 +116,7 @@ export function CompanyProfileClient() {
   async function creditOverage() {
     if (!company) return;
     setCrediting(true);
-    const nextCount = Math.max(0, aiUsage - aiOveragePack.extraDrafts);
+    const nextCount = Math.max(0, aiUsage - aiOveragePack[company.plan].extraDrafts);
     await supabase
       .from("ai_usage")
       .upsert({ company_id: company.id, month, count: nextCount }, { onConflict: "company_id,month" });
@@ -249,6 +252,46 @@ export function CompanyProfileClient() {
     }
   }
 
+  async function uploadTeamPhoto(memberId: string, file: File) {
+    setPhotoErrorId(null);
+    setPhotoUploadingId(memberId);
+    try {
+      const ACCEPTED = ["image/png", "image/jpeg", "image/webp"];
+      if (!ACCEPTED.includes(file.type)) {
+        setPhotoErrorId({ id: memberId, message: lang === "tr" ? "Sadece PNG, JPG veya WEBP." : "PNG, JPG or WEBP only." });
+        return;
+      }
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const res = await fetch("/api/settings/team-photo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ memberId, mediaType: file.type, base64 }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPhotoErrorId({ id: memberId, message: data?.error || (lang === "tr" ? "Yüklenemedi." : "Upload failed.") });
+        return;
+      }
+      setTeamMemberLocal(memberId, { photo_url: data.url });
+    } catch {
+      setPhotoErrorId({ id: memberId, message: lang === "tr" ? "Yüklenemedi." : "Upload failed." });
+    } finally {
+      setPhotoUploadingId(null);
+      const input = photoInputRefs.current[memberId];
+      if (input) input.value = "";
+    }
+  }
+
   function setDocumentLocal(id: string, patch: Partial<CompanyDocument>) {
     setDocs((d) => d.map((x) => (x.id === id ? { ...x, ...patch } : x)));
   }
@@ -342,10 +385,6 @@ export function CompanyProfileClient() {
             />
           </div>
           <div className="space-y-1.5 sm:col-span-2">
-            <Label>{lang === "tr" ? "Yazı tipi" : "Font"}</Label>
-            <Input value={company.font ?? ""} onChange={(e) => setCompany({ ...company, font: e.target.value })} placeholder="Inter" />
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
             <Label>{lang === "tr" ? "Aşım ödeme linki (Ruul)" : "Overage payment link (Ruul)"}</Label>
             <Input
               value={company.overage_link ?? ""}
@@ -367,8 +406,8 @@ export function CompanyProfileClient() {
             <Button variant="outline" size="sm" onClick={creditOverage} disabled={crediting} className="ml-auto gap-1.5">
               {crediting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {lang === "tr"
-                ? `Ödeme onaylandı — +${aiOveragePack.extraDrafts} hak tanı`
-                : `Payment confirmed — grant +${aiOveragePack.extraDrafts}`}
+                ? `Ödeme onaylandı — +${aiOveragePack[company.plan].extraDrafts} hak tanı`
+                : `Payment confirmed — grant +${aiOveragePack[company.plan].extraDrafts}`}
             </Button>
           </div>
           <div className="sm:col-span-2">
@@ -415,13 +454,32 @@ export function CompanyProfileClient() {
               <Button variant="outline" size="icon" onClick={() => removeTeamMember(m.id)}>
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
-              <Input
-                className="sm:col-span-3"
-                value={m.photo_url ?? ""}
-                onChange={(e) => setTeamMemberLocal(m.id, { photo_url: e.target.value })}
-                onBlur={(e) => persistTeamMember(m.id, { photo_url: e.target.value })}
-                placeholder={lang === "tr" ? "Fotoğraf URL" : "Photo URL"}
-              />
+              <div className="flex items-center gap-3 sm:col-span-3">
+                {m.photo_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={m.photo_url} alt="" className="h-9 w-9 rounded-full border border-border object-cover" />
+                )}
+                <input
+                  ref={(el) => {
+                    photoInputRefs.current[m.id] = el;
+                  }}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={(e) => e.target.files?.[0] && uploadTeamPhoto(m.id, e.target.files[0])}
+                  className="hidden"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => photoInputRefs.current[m.id]?.click()}
+                  disabled={photoUploadingId === m.id}
+                  className="gap-1.5"
+                >
+                  {photoUploadingId === m.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  {lang === "tr" ? "Fotoğraf yükle" : "Upload photo"}
+                </Button>
+                {photoErrorId?.id === m.id && <p className="text-xs text-destructive">{photoErrorId.message}</p>}
+              </div>
             </div>
           ))}
         </CardContent>

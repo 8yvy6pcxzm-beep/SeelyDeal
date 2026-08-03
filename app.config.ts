@@ -109,8 +109,17 @@ export interface AppConfig {
   integrations: Integration[];
 }
 
-/** Pay-to-continue pack once a company's monthly AI draft quota runs out. */
-export const aiOveragePack = { extraDrafts: 25, price: 150 };
+/**
+ * Pay-to-continue pack once a company's monthly AI draft quota runs out, per plan.
+ * Lite finalized 2026-08-04 (proportional to its 10/mo quota, same $6/draft rate as
+ * the old flat pack). Pro/Custom are still the old placeholder numbers — not yet
+ * decided, revisit before either plan has real paying customers.
+ */
+export const aiOveragePack: Record<"lite" | "pro" | "custom", { extraDrafts: number; price: number }> = {
+  lite: { extraDrafts: 5, price: 30 },
+  pro: { extraDrafts: 25, price: 150 },
+  custom: { extraDrafts: 25, price: 150 },
+};
 
 /** Pro's (formerly "Growth") one-time setup fee — full price on monthly billing, discounted on annual. Not shown publicly (site only says "Ek ücrete tabidir"); used when drafting the actual sales proposal/quote. */
 export const proSetupFee = { monthly: 500, annual: 250 };
