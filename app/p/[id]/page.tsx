@@ -72,7 +72,7 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
       skipLiveSelection.current = false;
       return;
     }
-    if (proposal?.companies?.plan !== "scale" || proposal.status === "accepted") return;
+    if (proposal?.companies?.plan !== "custom" || proposal.status === "accepted") return;
     fetch(`/api/proposals/${id}/public/live-selection`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -158,7 +158,7 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
     };
   }, [viewId, id, proposal?.sections?.length]);
 
-  const requiresOtp = !!(proposal?.companies?.plan && proposal.companies.plan !== "starter");
+  const requiresOtp = !!(proposal?.companies?.plan && proposal.companies.plan !== "lite");
 
   async function requestOtp() {
     if (!signerEmail.trim()) {

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   Check,
@@ -151,6 +151,24 @@ export default function LandingPage() {
   const tt = (v: L) => v[lang];
   const [annual, setAnnual] = useState(true);
   const [demoTier, setDemoTier] = useState<string | null>(null);
+  const [howVisible, setHowVisible] = useState(false);
+  const howRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = howRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setHowVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.25 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const sectionCopy = {
     demoTitle: { tr: "Müşteri gibi dene", en: "Try it like a client" } as L,
@@ -443,9 +461,18 @@ export default function LandingPage() {
             <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">{tt(sectionCopy.howTitle)}</h2>
             <p className="mt-3 text-muted-foreground">{tt(sectionCopy.howSub)}</p>
           </div>
-          <div className="relative mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
+          <div ref={howRef} className={cn("relative mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-5", howVisible && "stagger")}>
+            {/* Connecting line — draws in left-to-right once the row scrolls into view. */}
+            <div
+              className="pointer-events-none absolute left-[10%] right-[10%] top-[38px] hidden h-px origin-left bg-border transition-transform duration-[1100ms] ease-out motion-reduce:transition-none lg:block"
+              style={{ transform: howVisible ? "scaleX(1)" : "scaleX(0)" }}
+              aria-hidden
+            />
             {HOW_STEPS.map((s, i) => (
-              <div key={s.n} className="relative rounded-2xl border border-border bg-card p-5 shadow-soft">
+              <div
+                key={s.n}
+                className={cn("relative rounded-2xl border border-border bg-card p-5 shadow-soft", !howVisible && "opacity-0")}
+              >
                 <div className="flex items-center justify-between">
                   <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
                     <Icon name={s.icon} className="h-[18px] w-[18px]" />
@@ -455,7 +482,12 @@ export default function LandingPage() {
                 <h3 className="mt-3.5 font-semibold tracking-tight">{tt(s.title)}</h3>
                 <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">{tt(s.body)}</p>
                 {i < HOW_STEPS.length - 1 && (
-                  <span className="absolute -right-3 top-1/2 z-10 hidden h-6 w-6 -translate-y-1/2 place-items-center rounded-full border border-border bg-card text-muted-foreground lg:grid">
+                  <span
+                    className={cn(
+                      "absolute -right-3 top-1/2 z-10 hidden h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-opacity duration-500 lg:flex",
+                      howVisible ? "opacity-100 delay-500" : "opacity-0",
+                    )}
+                  >
                     <ArrowRight className="h-3 w-3" />
                   </span>
                 )}

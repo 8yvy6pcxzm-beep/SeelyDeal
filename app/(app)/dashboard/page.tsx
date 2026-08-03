@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Plus,
@@ -19,6 +20,7 @@ import {
   Check,
   Minus,
   Clock,
+  Loader2,
 } from "lucide-react";
 import { Sparkline, AcceptanceChart, WinGauge } from "@/components/app/charts";
 import { StatusPill, ClientAvatar, Checkbox, STATUS_META } from "@/components/app/proposal-bits";
@@ -73,6 +75,7 @@ const FILTERS: { key: ProposalStatus | "all"; label: { tr: string; en: string } 
 
 export default function DashboardPage() {
   const { t, lang } = useLang();
+  const router = useRouter();
   const [filter, setFilter] = useState<ProposalStatus | "all">("all");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>("p1");
@@ -82,25 +85,175 @@ export default function DashboardPage() {
   // items + changing quantities recomputes the total.
   const [items, setItems] = useState(() => proposals[0].lineItems.map((l) => ({ ...l })));
 
-  const rows = useMemo(
-    () =>
-      proposals.filter((p) => {
-        const okStatus = filter === "all" || p.status === filter;
-        const okQuery =
-          !query ||
-          p.client.toLowerCase().includes(query.toLowerCase()) ||
-          t(p.title).toLowerCase().includes(query.toLowerCase()) ||
-          p.number.toLowerCase().includes(query.toLowerCase());
-        return okStatus && okQuery;
-      }),
-    [filter, query, t],
-  );
+  // Proposals actually saved to the DB (AI-drafted). Only these can be opened
+  // as a real public link — demo rows are illustrative only.
+  const [realRows, setRealRows] = useState<typeof proposals>([]);
 
-  const current = proposals.find((p) => p.id === selected) ?? proposals[0];
-  const maxPipeline = Math.max(...pipeline.map((c) => c.value));
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/proposals")
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return;
+        const mapped = (data.proposals ?? []).map((p: any, i: number) => ({
+          id: p.id,
+          number: `AI-${String(i + 1).padStart(4, "0")}`,
+          title: { tr: p.title, en: p.title },
+          client: p.clients?.name ?? "—",
+          clientEmail: "",
+          clientInitials: (p.clients?.name ?? "?").slice(0, 2).toUpperCase(),
+          value: Number(p.value) || 0,
+          status: p.status,
+          sentDate: p.status !== "draft" ? p.created_at ?? null : null,
+          views: p.view_count ?? 0,
+          spark: p.view_spark ?? [0, 0, 0, 0, 0, 0, 0],
+          signed: p.status === "accepted",
+          viewSummary: { tr: "", en: "" },
+          sections: p.sections ?? [],
+          timeline: [],
+          lineItems: p.line_items ?? [],
+          template: { tr: "AI taslağı", en: "AI draft" },
+        }));
+        setRealRows(mapped);
+      })
+      .catch(() => setRealRows([]));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const allProposals = useMemo(() => [...realRows, ...proposals], [realRows]);
+  const realIds = useMemo(() => new Set(realRows.map((r) => r.id)), [realRows]);
+
+  const [sort, setSort] = useState<{ key: "value" | "sent" | "views"; dir: "asc" | "desc" } | null>(null);
+  const SORT_CYCLE: { key: "value" | "sent" | "views"; dir: "asc" | "desc" }[] = [
+    { key: "value", dir: "desc" },
+    { key: "value", dir: "asc" },
+    { key: "sent", dir: "desc" },
+    { key: "views", dir: "desc" },
+  ];
+  function cycleSort() {
+    setSort((prev) => {
+      if (!prev) return SORT_CYCLE[0];
+      const idx = SORT_CYCLE.findIndex((s) => s.key === prev.key && s.dir === prev.dir);
+      return SORT_CYCLE[(idx + 1) % SORT_CYCLE.length];
+    });
+  }
+
+  // Real proposals hit /api/proposals/[id]/remind, which actually emails the
+  // client via Resend. Demo rows have no DB record (and no real client
+  // inbox), so they just settle into a local "sent" acknowledgement.
+  const [reminded, setReminded] = useState<Set<string>>(new Set());
+  const [reminding, setReminding] = useState<Set<string>>(new Set());
+  const [reminderError, setReminderError] = useState<string | null>(null);
+  async function sendReminder(id: string) {
+    if (reminding.has(id) || reminded.has(id)) return;
+    setReminderError(null);
+    setReminding((prev) => new Set(prev).add(id));
+
+    if (realIds.has(id)) {
+      try {
+        const res = await fetch(`/api/proposals/${id}/remind`, { method: "POST" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error || (lang === "tr" ? "Hatırlatma gönderilemedi." : "Couldn't send the reminder."));
+      } catch (err) {
+        setReminderError(err instanceof Error ? err.message : String(err));
+        setReminding((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        return;
+      }
+    } else {
+      await new Promise((resolve) => window.setTimeout(resolve, 700));
+    }
+
+    setReminding((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    setReminded((prev) => new Set(prev).add(id));
+    window.setTimeout(() => {
+      setReminded((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }, 4000);
+  }
+
+  const rows = useMemo(() => {
+    const filtered = allProposals.filter((p) => {
+      const okStatus = filter === "all" || p.status === filter;
+      const okQuery =
+        !query ||
+        p.client.toLowerCase().includes(query.toLowerCase()) ||
+        t(p.title).toLowerCase().includes(query.toLowerCase()) ||
+        p.number.toLowerCase().includes(query.toLowerCase());
+      return okStatus && okQuery;
+    });
+    if (!sort) return filtered;
+    const dir = sort.dir === "asc" ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      if (sort.key === "value") return (a.value - b.value) * dir;
+      if (sort.key === "views") return (a.views - b.views) * dir;
+      const at = a.sentDate ? new Date(a.sentDate).getTime() : 0;
+      const bt = b.sentDate ? new Date(b.sentDate).getTime() : 0;
+      return (at - bt) * dir;
+    });
+  }, [allProposals, filter, query, sort, t]);
+
+  const current = allProposals.find((p) => p.id === selected) ?? proposals[0];
   const builderTotal = items.reduce((sum, l) => (l.optional && !l.included ? sum : sum + l.unit * l.qty), 0);
 
-  const viewedUnsigned = proposals.filter((p) => p.status === "viewed" && !p.signed);
+  const viewedUnsigned = allProposals.filter((p) => p.status === "viewed" && !p.signed);
+
+  // Real stat row + pipeline + win breakdown, computed from allProposals (real
+  // rows merged with demo ones) instead of the static demo `stats`/`pipeline`
+  // arrays — so these numbers always match what's actually in the table below.
+  const now = new Date();
+  const thisMonthSent = allProposals.filter((p) => {
+    if (p.status === "draft" || !p.sentDate) return false;
+    const d = new Date(p.sentDate);
+    return d.getUTCFullYear() === now.getUTCFullYear() && d.getUTCMonth() === now.getUTCMonth();
+  });
+  const openProposals = allProposals.filter((p) => p.status === "draft" || p.status === "sent" || p.status === "viewed");
+  const decided = allProposals.filter((p) => p.status === "accepted" || p.status === "declined");
+  const accepted = allProposals.filter((p) => p.status === "accepted");
+  const declined = allProposals.filter((p) => p.status === "declined");
+  const pending = allProposals.filter((p) => p.status === "sent" || p.status === "viewed");
+  const winRatePct = decided.length ? Math.round((accepted.length / decided.length) * 100) : 0;
+  const avgDealSize = accepted.length ? Math.round(accepted.reduce((sum, p) => sum + p.value, 0) / accepted.length) : 0;
+
+  const computedStats: typeof stats = [
+    {
+      key: "open",
+      label: { tr: "Açık teklif", en: "Open proposals" },
+      value: String(openProposals.length),
+      hint: { tr: `${formatUsd(openProposals.reduce((s, p) => s + p.value, 0))} boru hattı`, en: `${formatUsd(openProposals.reduce((s, p) => s + p.value, 0))} in pipeline` },
+    },
+    { key: "winrate", label: { tr: "Kazanma oranı", en: "Win rate" }, value: `${winRatePct}%` },
+    { key: "avg", label: { tr: "Ort. anlaşma", en: "Avg deal size" }, value: formatUsd(avgDealSize) },
+    {
+      key: "sent",
+      label: { tr: "Bu ay gönderilen", en: "Sent this month" },
+      value: String(thisMonthSent.length),
+      hint: { tr: `${thisMonthSent.filter((p) => p.status === "viewed" || p.status === "accepted").length} görüntülendi`, en: `${thisMonthSent.filter((p) => p.status === "viewed" || p.status === "accepted").length} viewed` },
+    },
+  ];
+
+  const computedPipeline: typeof pipeline = (["draft", "sent", "viewed", "accepted"] as const).map((status) => {
+    const rows = allProposals.filter((p) => p.status === status);
+    return {
+      status,
+      label: pipeline.find((c) => c.status === status)!.label,
+      count: rows.length,
+      value: rows.reduce((s, p) => s + p.value, 0),
+    };
+  });
+  const maxPipeline = Math.max(1, ...computedPipeline.map((c) => c.value));
 
   return (
     <div className="mx-auto max-w-[1500px] animate-fade-in">
@@ -139,7 +292,7 @@ export default function DashboardPage() {
 
           {/* Stat row */}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {stats.map((s) => {
+            {computedStats.map((s) => {
               const up = (s.delta ?? 0) >= 0;
               const isWin = s.key === "winrate";
               return (
@@ -171,7 +324,7 @@ export default function DashboardPage() {
               </span>
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {pipeline.map((col, i) => {
+              {computedPipeline.map((col, i) => {
                 const I = STATUS_ICON[col.status];
                 const m = STATUS_META[col.status];
                 return (
@@ -189,7 +342,7 @@ export default function DashboardPage() {
                     <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-border">
                       <div className="h-full rounded-full" style={{ width: `${(col.value / maxPipeline) * 100}%`, background: m.dot }} />
                     </div>
-                    {i < pipeline.length - 1 && (
+                    {i < computedPipeline.length - 1 && (
                       <span className="absolute -right-[11px] top-1/2 z-10 hidden h-5 w-5 -translate-y-1/2 place-items-center rounded-full border border-border bg-card text-muted-foreground lg:grid">
                         <ArrowUpRight className="h-3 w-3 rotate-45" />
                       </span>
@@ -232,9 +385,21 @@ export default function DashboardPage() {
                       <span className="truncate">{p.client}</span>
                     </button>
                   ))}
-                  <button className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[12px] font-semibold text-white transition-opacity hover:opacity-90">
-                    <Bell className="h-3.5 w-3.5" />
-                    {lang === "tr" ? "Hepsini hatırlat" : "Remind all"}
+                  <button
+                    onClick={() => viewedUnsigned.forEach((p) => sendReminder(p.id))}
+                    disabled={viewedUnsigned.every((p) => reminded.has(p.id) || reminding.has(p.id))}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[12px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+                  >
+                    {viewedUnsigned.some((p) => reminding.has(p.id)) ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : viewedUnsigned.every((p) => reminded.has(p.id)) ? (
+                      <Check className="h-3.5 w-3.5" />
+                    ) : (
+                      <Bell className="h-3.5 w-3.5" />
+                    )}
+                    {viewedUnsigned.every((p) => reminded.has(p.id))
+                      ? lang === "tr" ? "Gönderildi" : "Sent"
+                      : lang === "tr" ? "Hepsini hatırlat" : "Remind all"}
                   </button>
                 </div>
               </div>
@@ -272,9 +437,19 @@ export default function DashboardPage() {
                     className="w-32 bg-transparent text-foreground placeholder:text-muted-foreground/70 focus:outline-none sm:w-44"
                   />
                 </div>
-                <button className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-muted">
-                  <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
-                  {lang === "tr" ? "Sırala" : "Sort"}
+                <button
+                  onClick={cycleSort}
+                  className={cn(
+                    "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-[13px] font-medium transition-colors",
+                    sort ? "border-primary/40 bg-primary/[0.06] text-primary" : "border-border bg-card text-foreground hover:bg-muted",
+                  )}
+                >
+                  <ArrowUpDown className="h-3.5 w-3.5" />
+                  {sort
+                    ? lang === "tr"
+                      ? `${{ value: "Değer", sent: "Gönderim", views: "Görüntüleme" }[sort.key]} ${sort.dir === "asc" ? "↑" : "↓"}`
+                      : `${{ value: "Value", sent: "Sent", views: "Views" }[sort.key]} ${sort.dir === "asc" ? "↑" : "↓"}`
+                    : lang === "tr" ? "Sırala" : "Sort"}
                 </button>
               </div>
             </div>
@@ -386,30 +561,25 @@ export default function DashboardPage() {
                 {lang === "tr" ? "Kazanma oranı" : "Win rate"}
               </h3>
               <div className="mt-4 flex items-center gap-5">
-                <WinGauge pct={47} />
+                <WinGauge pct={winRatePct} />
                 <div className="space-y-2.5 text-[13px]">
                   <div className="flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-success" />
                     <span className="text-muted-foreground">{lang === "tr" ? "Kabul" : "Accepted"}</span>
-                    <span className="tnum ml-auto font-semibold">15</span>
+                    <span className="tnum ml-auto font-semibold">{accepted.length}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-info" />
                     <span className="text-muted-foreground">{lang === "tr" ? "Beklemede" : "Pending"}</span>
-                    <span className="tnum ml-auto font-semibold">12</span>
+                    <span className="tnum ml-auto font-semibold">{pending.length}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-destructive" />
                     <span className="text-muted-foreground">{lang === "tr" ? "Reddedildi" : "Declined"}</span>
-                    <span className="tnum ml-auto font-semibold">4</span>
+                    <span className="tnum ml-auto font-semibold">{declined.length}</span>
                   </div>
                 </div>
               </div>
-              <p className="mt-4 rounded-lg bg-muted/50 px-3 py-2 text-[12px] text-muted-foreground">
-                {lang === "tr"
-                  ? "Görüntülenen teklifler %62 daha sık kapanıyor."
-                  : "Viewed proposals close 62% more often."}
-              </p>
             </div>
           </div>
 
@@ -537,7 +707,11 @@ export default function DashboardPage() {
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {templates.map((tpl) => (
-                <button key={tpl.id} className="group rounded-xl border border-border bg-card p-3.5 text-left shadow-pill transition-shadow hover:shadow-pop">
+                <button
+                  key={tpl.id}
+                  onClick={() => router.push(`/templates?use=${tpl.id}`)}
+                  className="group rounded-xl border border-border bg-card p-3.5 text-left shadow-pill transition-shadow hover:shadow-pop"
+                >
                   <div className="flex h-16 items-center justify-center rounded-lg" style={{ background: `color-mix(in oklch, ${tpl.accent} 14%, white)` }}>
                     <span className="grid h-9 w-9 place-items-center rounded-lg text-white" style={{ background: tpl.accent }}>
                       <FileText className="h-4 w-4" />
@@ -671,15 +845,46 @@ export default function DashboardPage() {
 
               {/* actions */}
               <div className="grid grid-cols-2 gap-2">
-                <button className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-card py-2.5 text-[13px] font-semibold transition-colors hover:bg-muted">
-                  <Bell className="h-4 w-4 text-muted-foreground" />
-                  {lang === "tr" ? "Hatırlat" : "Send reminder"}
+                <button
+                  onClick={() => sendReminder(current.id)}
+                  disabled={reminding.has(current.id) || reminded.has(current.id)}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-card py-2.5 text-[13px] font-semibold transition-colors hover:bg-muted disabled:opacity-60"
+                >
+                  {reminding.has(current.id) ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  ) : reminded.has(current.id) ? (
+                    <Check className="h-4 w-4 text-success" />
+                  ) : (
+                    <Bell className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  {reminded.has(current.id)
+                    ? lang === "tr" ? "Gönderildi" : "Sent"
+                    : lang === "tr" ? "Hatırlat" : "Send reminder"}
                 </button>
-                <button className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary py-2.5 text-[13px] font-semibold text-primary-foreground transition-opacity hover:opacity-90">
-                  <ArrowUpRight className="h-4 w-4" />
-                  {lang === "tr" ? "Teklifi aç" : "Open proposal"}
-                </button>
+                {realIds.has(current.id) ? (
+                  <a
+                    href={`/p/${current.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary py-2.5 text-[13px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                  >
+                    <ArrowUpRight className="h-4 w-4" />
+                    {lang === "tr" ? "Teklifi aç" : "Open proposal"}
+                  </a>
+                ) : (
+                  <button
+                    onClick={() => router.push("/proposals")}
+                    title={lang === "tr" ? "Bu bir demo kaydı — canlı linki görmek için gerçek teklifler listesine git." : "This is a demo row — go to the real proposals list for a live link."}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary py-2.5 text-[13px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                  >
+                    <ArrowUpRight className="h-4 w-4" />
+                    {lang === "tr" ? "Teklifi aç" : "Open proposal"}
+                  </button>
+                )}
               </div>
+              {reminderError && (
+                <p className="rounded-lg bg-destructive/10 px-3 py-2 text-[12px] text-destructive">{reminderError}</p>
+              )}
             </div>
 
             {/* Activity feed */}

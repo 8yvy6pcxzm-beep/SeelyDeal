@@ -11,7 +11,7 @@ create table if not exists companies (
   primary_color text,
   font text,
   email text,
-  plan text not null default 'starter' check (plan in ('starter', 'growth', 'scale')),
+  plan text not null default 'lite' check (plan in ('lite', 'pro', 'custom')),
   ai_monthly_limit integer not null default 10,
   created_at timestamptz not null default now()
 );

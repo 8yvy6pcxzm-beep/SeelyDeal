@@ -67,9 +67,9 @@ export async function POST(req: Request) {
       : `\n\nNot: verilen web sitesi (${websiteUrl}) çekilemedi — kullanıcıya bilgiyi manuel anlatmasını iste.`;
   }
 
-  // Lite (companies.plan === "starter") writes from the brief alone — no document library, no template following.
-  const isLite = (company?.plan ?? "starter") === "starter";
-  const isCustom = (company?.plan ?? "starter") === "scale";
+  // Lite (companies.plan === "lite") writes from the brief alone — no document library, no template following.
+  const isLite = (company?.plan ?? "lite") === "lite";
+  const isCustom = (company?.plan ?? "lite") === "custom";
 
   // AI Prefill (Custom only): if the chat mentions an existing client by name, pull their most recent proposal as context.
   let prefillBlock = "";

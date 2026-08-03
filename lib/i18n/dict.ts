@@ -23,7 +23,7 @@ export const ui = {
     orContinueWith: "veya şununla devam et",
     noAccount: "Hesabın yok mu?",
     haveAccount: "Zaten hesabın var mı?",
-    demoNote: "Demo modu · Supabase bağlı değil — herhangi bir e-posta/şifreyle girebilirsin.",
+    demoNote: "Kayıt olmadan örnek verilerle gösterim panelini gezebilirsin — hiçbir şey kaydedilmez.",
     authBlurb: "Önceden doldurulmuş, canlı bir demo paneli açmak üzeresin. Etrafına tıkla — hiçbir şey gerçek değil, hiçbir şey bozulmaz.",
     bySigningIn: "Giriş yaparak hizmet şartlarını kabul etmiş olursun.",
     // dashboard chrome
@@ -65,7 +65,7 @@ export const ui = {
     orContinueWith: "or continue with",
     noAccount: "Don't have an account?",
     haveAccount: "Already have an account?",
-    demoNote: "Demo mode · Supabase not connected — any email/password works.",
+    demoNote: "Browse the demo panel with sample data, no sign-up needed — nothing is saved.",
     authBlurb: "You're about to open a pre-loaded, live demo dashboard. Click around — nothing is real, nothing breaks.",
     bySigningIn: "By signing in you agree to the terms of service.",
     search: "Search…",

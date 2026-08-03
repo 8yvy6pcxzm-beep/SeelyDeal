@@ -9,6 +9,8 @@ import { Input, Label } from "@/components/ui/input";
 import { Icon } from "@/components/ui/icon";
 import { useLang } from "@/components/i18n/language-provider";
 import { ApiKeySection } from "@/components/app/api-key-section";
+import { planAllows } from "@/lib/plan";
+import { usePlan } from "@/components/app/plan-provider";
 
 export function SettingsClient({
   connected,
@@ -17,7 +19,9 @@ export function SettingsClient({
   connected: Record<string, boolean>;
   oauthReady?: Record<string, boolean>;
 }) {
-  const { t, ui } = useLang();
+  const { t, ui, lang } = useLang();
+  const plan = usePlan();
+  const crmAllowed = planAllows(plan, "crm_integrations");
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -63,7 +67,11 @@ export function SettingsClient({
                 <p className="truncate text-sm text-muted-foreground">{it.purpose}</p>
               </div>
               {it.oauth ? (
-                oauthReady[it.key] ? (
+                !crmAllowed ? (
+                  <span className="text-sm font-medium text-muted-foreground">
+                    {lang === "tr" ? "Pro paketinde" : "On Pro plan"}
+                  </span>
+                ) : oauthReady[it.key] ? (
                   <a href={`/api/integrations/${it.key}/connect`}>
                     <Button variant="secondary" size="sm">
                       Bağlan

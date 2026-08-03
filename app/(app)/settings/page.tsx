@@ -10,5 +10,6 @@ export default function SettingsPage() {
     connected[it.key] = it.envVars.every((v) => !!process.env[v]);
     if (it.oauth) oauthReady[it.key] = Object.keys(CRM_PROVIDERS).length > 0;
   }
+
   return <SettingsClient connected={connected} oauthReady={oauthReady} />;
 }

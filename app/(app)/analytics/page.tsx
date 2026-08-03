@@ -5,20 +5,29 @@ import { Loader2, FileText, TrendingUp, DollarSign, Target } from "lucide-react"
 import { WinGauge } from "@/components/app/charts";
 import { useLang } from "@/components/i18n/language-provider";
 import { formatUsd } from "@/lib/utils";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { usePlan } from "@/components/app/plan-provider";
+import { planAllows } from "@/lib/plan";
 
 type Proposal = { id: string; status: string; value: number; created_at: string };
 
 export default function AnalyticsPage() {
   const { lang } = useLang();
+  const plan = usePlan();
+  const allowed = planAllows(plan, "analytics");
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!allowed) {
+      setLoading(false);
+      return;
+    }
     fetch("/api/proposals")
       .then((res) => res.json())
       .then((data) => setProposals(data.proposals ?? []))
       .finally(() => setLoading(false));
-  }, []);
+  }, [allowed]);
 
   const stats = useMemo(() => {
     const total = proposals.length;
@@ -41,6 +50,23 @@ export default function AnalyticsPage() {
     accepted: { tr: "Kabul", en: "Accepted" },
     declined: { tr: "Reddedildi", en: "Declined" },
   };
+
+  if (!allowed) {
+    return (
+      <div className="mx-auto max-w-[1100px]">
+        <Card>
+          <CardHeader>
+            <CardTitle>{lang === "tr" ? "Analitik" : "Analytics"}</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {lang === "tr"
+                ? "Analitik Pro ve Custom paketlerinde kullanılabilir. Ücretsiz deneme (Lite) bu özelliği içermez."
+                : "Analytics is available on the Pro and Custom plans. The free trial (Lite) doesn't include this feature."}
+            </p>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

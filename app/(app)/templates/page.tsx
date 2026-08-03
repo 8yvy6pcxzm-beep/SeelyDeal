@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Plus, FileText, Sparkles, ArrowUpRight, Search } from "lucide-react";
 import { WinGauge } from "@/components/app/charts";
 import { useLang } from "@/components/i18n/language-provider";
@@ -17,8 +18,20 @@ const SECTIONS: L[] = [
 ];
 
 export default function TemplatesPage() {
+  return (
+    <Suspense fallback={null}>
+      <TemplatesPageInner />
+    </Suspense>
+  );
+}
+
+function TemplatesPageInner() {
   const { t, lang } = useLang();
-  const [selected, setSelected] = useState(templates[0].id);
+  const searchParams = useSearchParams();
+  const useParam = searchParams.get("use");
+  const [selected, setSelected] = useState(
+    (useParam && templates.some((tpl) => tpl.id === useParam)) ? useParam : templates[0].id,
+  );
   const current = templates.find((tpl) => tpl.id === selected) ?? templates[0];
 
   return (

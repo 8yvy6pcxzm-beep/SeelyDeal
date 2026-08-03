@@ -3,15 +3,24 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sparkles, Settings, LifeBuoy, LogOut } from "lucide-react";
-import appConfig from "@/app.config";
 import { Logo } from "@/components/ui/logo";
-import { Icon } from "@/components/ui/icon";
 import { useLang } from "@/components/i18n/language-provider";
 import { cn } from "@/lib/utils";
+import { useOpenAiDraft } from "@/components/app/ai-draft-provider";
+import { NavGroups } from "@/components/app/nav-groups";
 
-export function Sidebar() {
+export function Sidebar({ userName, userEmail }: { userName: string | null; userEmail: string | null }) {
   const pathname = usePathname();
-  const { t, lang } = useLang();
+  const { lang } = useLang();
+  const openAiDraft = useOpenAiDraft();
+
+  const displayName = userName ?? userEmail?.split("@")[0] ?? (lang === "tr" ? "Kullanıcı" : "User");
+  const initials = displayName
+    .split(/\s+/)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(href + "/");
@@ -27,66 +36,18 @@ export function Sidebar() {
 
       {/* AI draft pill */}
       <div className="px-3 pb-2">
-        <Link
-          href="/proposals"
+        <button
+          onClick={openAiDraft}
           className="flex w-full items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <Sparkles className="h-4 w-4 text-primary" />
           <span>{lang === "tr" ? "AI ile teklif yaz" : "Draft with AI"}</span>
           <kbd className="ml-auto rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">⌘K</kbd>
-        </Link>
+        </button>
       </div>
 
       {/* Grouped nav */}
-      <nav className="flex-1 overflow-y-auto px-3 py-2">
-        {appConfig.navGroups.map((group) => (
-          <div key={t(group.label)} className="mb-4">
-            <p className="label-mono px-3 pb-1.5 pt-2 text-sidebar-muted">{t(group.label)}</p>
-            <div className="space-y-0.5">
-              {group.items.map((item) => {
-                const active = isActive(item.href);
-                const inner = (
-                  <>
-                    <Icon
-                      name={item.icon}
-                      className={cn("h-[17px] w-[17px] shrink-0", active ? "text-primary" : "text-muted-foreground")}
-                    />
-                    <span className="truncate">{t(item.label)}</span>
-                    {item.badge && (
-                      <span className="ml-auto rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
-                        {t(item.badge)}
-                      </span>
-                    )}
-                  </>
-                );
-                // Muted items are "coming soon" — render non-navigating.
-                if (item.muted) {
-                  return (
-                    <span
-                      key={item.href}
-                      className="group flex cursor-default items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium text-sidebar-muted"
-                    >
-                      {inner}
-                    </span>
-                  );
-                }
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      "group flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium transition-colors",
-                      active ? "nav-pill-active text-foreground" : "text-foreground/70 hover:bg-muted hover:text-foreground",
-                    )}
-                  >
-                    {inner}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </nav>
+      <NavGroups />
 
       {/* Settings + Support */}
       <div className="space-y-0.5 px-3 pb-2">
@@ -110,11 +71,11 @@ export function Sidebar() {
       <div className="border-t border-sidebar-border p-3">
         <div className="flex items-center gap-2.5 rounded-xl border border-border bg-card px-2.5 py-2 shadow-pill">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-bold text-white" style={{ backgroundImage: "var(--grad-brand)" }}>
-            AR
+            {initials}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-semibold">Avery Rhodes</p>
-            <p className="truncate text-[11.5px] text-muted-foreground">avery@northwind.co</p>
+            <p className="truncate text-[13px] font-semibold capitalize">{displayName}</p>
+            <p className="truncate text-[11.5px] text-muted-foreground">{userEmail ?? ""}</p>
           </div>
           <Link
             href="/login"

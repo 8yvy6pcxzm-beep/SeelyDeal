@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { useLang } from "@/components/i18n/language-provider";
 import { aiOveragePack } from "@/app.config";
+import { planAllows, type Plan } from "@/lib/plan";
+import { usePlan } from "@/components/app/plan-provider";
 
 type Company = {
   id: string;
@@ -17,6 +19,7 @@ type Company = {
   font: string | null;
   email: string | null;
   overage_link: string | null;
+  plan: Plan;
 };
 
 type TeamMember = {
@@ -48,6 +51,7 @@ function textareaClass(extra?: string) {
 
 export function CompanyProfileClient() {
   const { lang } = useLang();
+  const plan = usePlan();
   const supabase = createClient();
 
   const [loading, setLoading] = useState(true);
@@ -369,6 +373,18 @@ export function CompanyProfileClient() {
       </Card>
 
       {/* Documents */}
+      {!planAllows(plan, "document_library") ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>{lang === "tr" ? "Doküman kütüphanesi" : "Document library"}</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {lang === "tr"
+                ? "Doküman kütüphanesi Pro ve Custom paketlerinde kullanılabilir. Ücretsiz deneme (Lite) bu özelliği içermez."
+                : "The document library is available on the Pro and Custom plans. The free trial (Lite) doesn't include this feature."}
+            </p>
+          </CardHeader>
+        </Card>
+      ) : (
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
@@ -455,6 +471,7 @@ export function CompanyProfileClient() {
           ))}
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }

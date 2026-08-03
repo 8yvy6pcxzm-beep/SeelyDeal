@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getAuthedUser } from "@/lib/supabase/auth-user";
+import { planAllows } from "@/lib/plan";
 
 /** Company-scoped: real per-section total view time (seconds) for one proposal, aggregated across all viewers. */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -12,6 +13,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const service = createServiceClient();
   const { data: profile } = await service.from("profiles").select("company_id").eq("id", user.id).maybeSingle();
   if (!profile) return NextResponse.json({ error: "Şirket profilin bulunamadı." }, { status: 404 });
+
+  const { data: company } = await service.from("companies").select("plan").eq("id", profile.company_id).maybeSingle();
+  if (!planAllows(company?.plan, "document_analytics")) {
+    return NextResponse.json({ error: "Doküman analitiği Pro ve Custom paketlerinde kullanılabilir." }, { status: 403 });
+  }
 
   const { data: proposal } = await service
     .from("proposals")

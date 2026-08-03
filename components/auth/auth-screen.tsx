@@ -57,8 +57,8 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
       // whose company/profile row was never created since signup returned no session.
       const completeRes = await fetch("/api/auth/complete-signup", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: signInData.user?.id, email }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${signInData.session?.access_token}` },
+        body: JSON.stringify({ email }),
       });
 
       if (!completeRes.ok) {
@@ -88,8 +88,8 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
 
     const completeRes = await fetch("/api/auth/complete-signup", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: data.user?.id, email, companyName: name }),
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${data.session?.access_token}` },
+      body: JSON.stringify({ email, companyName: name }),
     });
 
     if (!completeRes.ok) {

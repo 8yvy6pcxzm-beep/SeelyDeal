@@ -10,6 +10,8 @@ import { SectionTimesDialog } from "@/components/app/section-times-dialog";
 import { useLang } from "@/components/i18n/language-provider";
 import { cn, formatUsd } from "@/lib/utils";
 import { proposals, pipeline, type ProposalStatus } from "@/lib/demo/data";
+import { usePlan } from "@/components/app/plan-provider";
+import { planAllows } from "@/lib/plan";
 
 const FILTERS: { key: ProposalStatus | "all"; label: { tr: string; en: string } }[] = [
   { key: "all", label: { tr: "Tümü", en: "All" } },
@@ -28,6 +30,8 @@ function fmtDate(iso: string | null) {
 
 export default function ProposalsPage() {
   const { t, lang } = useLang();
+  const plan = usePlan();
+  const documentAnalyticsAllowed = planAllows(plan, "document_analytics");
   const [filter, setFilter] = useState<ProposalStatus | "all">("all");
   const [query, setQuery] = useState("");
   const [aiOpen, setAiOpen] = useState(false);
@@ -286,16 +290,18 @@ export default function ProposalsPage() {
                         >
                           <Download className="h-3.5 w-3.5" />
                         </a>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSectionTimesId(row.id);
-                          }}
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                          title={lang === "tr" ? "Bölüm bazlı görüntüleme süresi" : "Time spent per section"}
-                        >
-                          <Clock className="h-3.5 w-3.5" />
-                        </button>
+                        {documentAnalyticsAllowed && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSectionTimesId(row.id);
+                            }}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                            title={lang === "tr" ? "Bölüm bazlı görüntüleme süresi" : "Time spent per section"}
+                          >
+                            <Clock className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                       </div>
                     )}
                   </td>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Script from "next/script";
 import { AtSign } from "lucide-react";
 import appConfig from "@/app.config";
 import { Logo, LogoMark } from "@/components/ui/logo";
@@ -82,6 +83,8 @@ export default function MarketingLayout({
           </div>
         </div>
       </footer>
+
+      <Script src="/widget.js" strategy="lazyOnload" />
     </div>
   );
 }

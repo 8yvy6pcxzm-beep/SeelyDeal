@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getAuthedUser } from "@/lib/supabase/auth-user";
 import { getCrmProvider } from "@/lib/integrations/crm-providers";
+import { planAllows } from "@/lib/plan";
 
 /** Starts the OAuth2 authorization-code flow for a registered CRM provider. */
 export async function GET(req: Request, { params }: { params: Promise<{ provider: string }> }) {
@@ -24,6 +25,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
   const service = createServiceClient();
   const { data: profile } = await service.from("profiles").select("company_id").eq("id", user.id).maybeSingle();
   if (!profile) return NextResponse.json({ error: "Şirket profilin bulunamadı." }, { status: 404 });
+
+  const { data: company } = await service.from("companies").select("plan").eq("id", profile.company_id).maybeSingle();
+  if (!planAllows(company?.plan, "crm_integrations")) {
+    return NextResponse.json({ error: "CRM entegrasyonları Pro ve Custom paketlerinde kullanılabilir." }, { status: 403 });
+  }
 
   // Unguessable nonce, bound to this browser via an HttpOnly cookie — the callback
   // must see the same value in both places before it trusts the request at all.

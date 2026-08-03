@@ -8,9 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLang } from "@/components/i18n/language-provider";
 import appConfig from "@/app.config";
+import { planAllows } from "@/lib/plan";
+import { usePlan } from "@/components/app/plan-provider";
 
 export function ApiKeySection() {
   const { lang } = useLang();
+  const plan = usePlan();
+  const allowed = planAllows(plan, "api_access");
   const supabase = createClient();
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,6 +60,21 @@ export function ApiKeySection() {
   }
 
   if (noCompany) return null;
+
+  if (!allowed) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{lang === "tr" ? "API Erişimi" : "API Access"}</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            {lang === "tr"
+              ? "API erişimi Pro ve Custom paketlerinde kullanılabilir. Ücretsiz deneme (Lite) bu özelliği içermez."
+              : "API access is available on the Pro and Custom plans. The free trial (Lite) doesn't include this feature."}
+          </p>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   return (
     <Card>

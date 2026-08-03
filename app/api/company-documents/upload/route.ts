@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getAuthedUser } from "@/lib/supabase/auth-user";
+import { planAllows } from "@/lib/plan";
 
 const DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
@@ -12,6 +13,11 @@ export async function POST(req: Request) {
   const service = createServiceClient();
   const { data: profile } = await service.from("profiles").select("company_id").eq("id", user.id).maybeSingle();
   if (!profile) return NextResponse.json({ error: "Şirket profilin bulunamadı." }, { status: 404 });
+
+  const { data: company } = await service.from("companies").select("plan").eq("id", profile.company_id).maybeSingle();
+  if (!planAllows(company?.plan, "document_library")) {
+    return NextResponse.json({ error: "Doküman kütüphanesi Pro ve Custom paketlerinde kullanılabilir." }, { status: 403 });
+  }
 
   const { fileName, mediaType, base64, title, type } = (await req.json()) as {
     fileName: string;
