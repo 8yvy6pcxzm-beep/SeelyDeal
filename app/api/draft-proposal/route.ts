@@ -50,9 +50,7 @@ export async function POST(req: Request) {
   const limit: number = company?.ai_monthly_limit ?? 10;
   const used = usage?.count ?? 0;
   const messagesUsed = usage?.message_count ?? 0;
-  // Lite gets double the multiplier for now — new trial users need room to explore
-  // without hitting a wall before they've even seen what the product can do.
-  const MESSAGE_LIMIT_MULTIPLIER = (company?.plan ?? "lite") === "lite" ? 36 : 18;
+  const MESSAGE_LIMIT_MULTIPLIER = (company?.plan ?? "lite") === "lite" ? 15 : 18;
   const messageLimit = limit * MESSAGE_LIMIT_MULTIPLIER;
 
   if (used >= limit) {
