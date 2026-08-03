@@ -65,6 +65,9 @@ export function CompanyProfileClient() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const month = new Date().toISOString().slice(0, 7);
 
   useEffect(() => {
@@ -207,6 +210,45 @@ export function CompanyProfileClient() {
     }
   }
 
+  async function uploadLogo(file: File) {
+    setLogoError(null);
+    setLogoUploading(true);
+    try {
+      const ACCEPTED = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
+      if (!ACCEPTED.includes(file.type)) {
+        setLogoError(lang === "tr" ? "Sadece PNG, JPG, WEBP veya SVG." : "PNG, JPG, WEBP or SVG only.");
+        return;
+      }
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const res = await fetch("/api/settings/logo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ mediaType: file.type, base64 }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setLogoError(data?.error || (lang === "tr" ? "Yüklenemedi." : "Upload failed."));
+        return;
+      }
+      setCompany((c) => (c ? { ...c, logo_url: data.url } : c));
+    } catch {
+      setLogoError(lang === "tr" ? "Yüklenemedi." : "Upload failed.");
+    } finally {
+      setLogoUploading(false);
+      if (logoInputRef.current) logoInputRef.current.value = "";
+    }
+  }
+
   function setDocumentLocal(id: string, patch: Partial<CompanyDocument>) {
     setDocs((d) => d.map((x) => (x.id === id ? { ...x, ...patch } : x)));
   }
@@ -271,12 +313,25 @@ export function CompanyProfileClient() {
             <Input value={company.email ?? ""} onChange={(e) => setCompany({ ...company, email: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label>{lang === "tr" ? "Logo URL" : "Logo URL"}</Label>
-            <Input
-              value={company.logo_url ?? ""}
-              onChange={(e) => setCompany({ ...company, logo_url: e.target.value })}
-              placeholder="https://…/logo.png"
-            />
+            <Label>{lang === "tr" ? "Logo" : "Logo"}</Label>
+            <div className="flex items-center gap-3">
+              {company.logo_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={company.logo_url} alt="" className="h-9 w-9 rounded-md border border-border object-contain" />
+              )}
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                onChange={(e) => e.target.files?.[0] && uploadLogo(e.target.files[0])}
+                className="hidden"
+              />
+              <Button variant="outline" onClick={() => logoInputRef.current?.click()} disabled={logoUploading} className="gap-1.5">
+                {logoUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                {lang === "tr" ? "Logo yükle" : "Upload logo"}
+              </Button>
+            </div>
+            {logoError && <p className="text-xs text-destructive">{logoError}</p>}
           </div>
           <div className="space-y-1.5">
             <Label>{lang === "tr" ? "Ana renk (hex)" : "Primary color (hex)"}</Label>

@@ -46,6 +46,7 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [showWebsiteField, setShowWebsiteField] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [paymentLink, setPaymentLink] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +59,32 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
 
   const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
   const ACCEPTED_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/webp", "image/gif"];
+
+  const SECTION_OPTIONS: { key: string; tr: string; en: string }[] = [
+    { key: "intro", tr: "Ön Yazı", en: "Cover letter" },
+    { key: "about", tr: "Hakkımızda", en: "About us" },
+    { key: "team", tr: "Ekibimiz", en: "Our team" },
+    { key: "scope", tr: "Hizmet Kapsamı", en: "Scope of work" },
+    { key: "process", tr: "Süreç / Nasıl Çalışıyoruz", en: "Process / how we work" },
+    { key: "pricing", tr: "Paket ve Ücret", en: "Package & pricing" },
+    { key: "terms", tr: "Sözleşme Şartları", en: "Contract terms" },
+    { key: "next", tr: "Sonraki Adımlar", en: "Next steps" },
+  ];
+  const [showChecklist, setShowChecklist] = useState(false);
+  const [checkedSections, setCheckedSections] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(SECTION_OPTIONS.map((s) => [s.key, true])),
+  );
+
+  function sendWithChecklist() {
+    const included = SECTION_OPTIONS.filter((s) => checkedSections[s.key]).map((s) => (lang === "tr" ? s.tr : s.en));
+    const excluded = SECTION_OPTIONS.filter((s) => !checkedSections[s.key]).map((s) => (lang === "tr" ? s.tr : s.en));
+    const summary =
+      lang === "tr"
+        ? `Kapsamlı bir teklif hazırla. Dahil edilecek bölümler: ${included.join(", ")}.${excluded.length ? ` Şunları dahil ETME: ${excluded.join(", ")}.` : ""}${input.trim() ? ` ${input.trim()}` : ""}`
+        : `Draft a comprehensive proposal. Include these sections: ${included.join(", ")}.${excluded.length ? ` Do NOT include: ${excluded.join(", ")}.` : ""}${input.trim() ? ` ${input.trim()}` : ""}`;
+    setShowChecklist(false);
+    send(summary);
+  }
 
   function processFile(file: File) {
     setAttachError(null);
@@ -112,15 +139,19 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
 
   if (!open || !mounted) return null;
 
-  async function send() {
-    if ((!input.trim() && !attachment) || loading) return;
-    const text = input.trim() || (lang === "tr" ? "Ektesindeki dokümanı incele ve teklif için kullan." : "Review the attached document and use it for the proposal.");
+  async function send(override?: string) {
+    if ((!override?.trim() && !input.trim() && !attachment) || loading) return;
+    const text =
+      override?.trim() ||
+      input.trim() ||
+      (lang === "tr" ? "Ektesindeki dokümanı incele ve teklif için kullan." : "Review the attached document and use it for the proposal.");
     const next = [...messages, { role: "user" as const, content: text, attachmentName: attachment?.name }];
     setMessages(next);
     setInput("");
     const sentAttachment = attachment;
     setAttachment(null);
     setLoading(true);
+    setSending(true);
     setError(null);
     setOverage(null);
 
@@ -154,6 +185,7 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
       setError(lang === "tr" ? "Bağlantı hatası." : "Connection error.");
     } finally {
       setLoading(false);
+      setSending(false);
     }
   }
 
@@ -218,11 +250,43 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
 
         <div className="flex-1 space-y-3 overflow-y-auto p-5">
           {messages.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              {lang === "tr"
-                ? "Örn: \"Acme için web sitesi tasarımı teklifi hazırla, Growth paketiyle.\" Eksik bir şey olursa sana soracağım."
-                : "E.g. \"Draft a website design proposal for Acme, using the Growth package.\" I'll ask if anything's missing."}
-            </p>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {lang === "tr"
+                  ? "Örn: \"Acme için web sitesi tasarımı teklifi hazırla, Growth paketiyle.\" Eksik bir şey olursa sana soracağım."
+                  : "E.g. \"Draft a website design proposal for Acme, using the Growth package.\" I'll ask if anything's missing."}
+              </p>
+              {!showChecklist ? (
+                <button
+                  onClick={() => setShowChecklist(true)}
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  {lang === "tr" ? "Kapsamlı teklif için bölümleri seç →" : "Pick sections for a comprehensive proposal →"}
+                </button>
+              ) : (
+                <div className="rounded-xl border border-border bg-muted/30 p-3.5">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {lang === "tr" ? "Teklife hangi bölümler dahil olsun?" : "Which sections should the proposal include?"}
+                  </p>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                    {SECTION_OPTIONS.map((s) => (
+                      <label key={s.key} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={checkedSections[s.key]}
+                          onChange={(e) => setCheckedSections((prev) => ({ ...prev, [s.key]: e.target.checked }))}
+                          className="h-3.5 w-3.5 rounded border-border accent-primary"
+                        />
+                        {lang === "tr" ? s.tr : s.en}
+                      </label>
+                    ))}
+                  </div>
+                  <Button onClick={sendWithChecklist} disabled={loading} className="mt-3 w-full gap-2">
+                    {lang === "tr" ? "Bu bölümlerle başla" : "Start with these sections"}
+                  </Button>
+                </div>
+              )}
+            </div>
           )}
           {messages.map((m, i) => (
             <div
@@ -241,6 +305,14 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
               {renderFormatted(m.content)}
             </div>
           ))}
+
+          {sending && (
+            <div className="flex w-fit items-center gap-1 rounded-2xl bg-muted px-4 py-3">
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.3s]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.15s]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground" />
+            </div>
+          )}
 
           {draft && !saved && (
             <div className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
@@ -433,12 +505,23 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
                   }
                 }}
                 onPaste={handlePaste}
-                placeholder={lang === "tr" ? "Mesajını yaz… (resim yapıştırabilirsin, yeni satır için Shift+Enter)" : "Type a message… (you can paste an image, Shift+Enter for a new line)"}
+                placeholder={
+                  sending
+                    ? lang === "tr"
+                      ? "Seely yazıyor…"
+                      : "Seely is typing…"
+                    : lang === "tr"
+                      ? "Mesajını yaz… (resim yapıştırabilirsin, yeni satır için Shift+Enter)"
+                      : "Type a message… (you can paste an image, Shift+Enter for a new line)"
+                }
                 disabled={loading}
                 rows={3}
-                className="flex w-full resize-none rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring transition-colors disabled:opacity-50"
+                className={cn(
+                  "flex w-full resize-none rounded-lg border border-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring transition-colors",
+                  loading ? "bg-muted opacity-70 cursor-not-allowed" : "bg-card",
+                )}
               />
-              <Button size="icon" onClick={send} disabled={loading}>
+              <Button size="icon" onClick={() => send()} disabled={loading}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </div>
