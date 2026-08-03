@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getAuthedUser } from "@/lib/supabase/auth-user";
 import appConfig from "@/app.config";
+import { planAllows } from "@/lib/plan";
 
 /** Sends a "you haven't signed yet" nudge email to the client on an already-sent proposal. */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -14,6 +15,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const service = createServiceClient();
   const { data: profile } = await service.from("profiles").select("company_id").eq("id", user.id).maybeSingle();
   if (!profile) return NextResponse.json({ error: "Şirket profili bulunamadı." }, { status: 404 });
+
+  const { data: company } = await service.from("companies").select("plan").eq("id", profile.company_id).maybeSingle();
+  if (!planAllows(company?.plan, "reminders")) {
+    return NextResponse.json({ error: "Hatırlatma otomasyonu Pro ve üzeri paketlerde." }, { status: 403 });
+  }
 
   const { data: proposal } = await service
     .from("proposals")

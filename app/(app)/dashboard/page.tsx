@@ -26,6 +26,8 @@ import { Sparkline, AcceptanceChart, WinGauge } from "@/components/app/charts";
 import { StatusPill, ClientAvatar, Checkbox, STATUS_META } from "@/components/app/proposal-bits";
 import { AiDraftDialog } from "@/components/app/ai-draft-dialog";
 import { useLang } from "@/components/i18n/language-provider";
+import { usePlan } from "@/components/app/plan-provider";
+import { planAllows } from "@/lib/plan";
 import { cn, formatUsd, formatRelative } from "@/lib/utils";
 import {
   stats,
@@ -75,6 +77,8 @@ const FILTERS: { key: ProposalStatus | "all"; label: { tr: string; en: string } 
 
 export default function DashboardPage() {
   const { t, lang } = useLang();
+  const plan = usePlan();
+  const remindersAllowed = planAllows(plan, "reminders");
   const router = useRouter();
   const [filter, setFilter] = useState<ProposalStatus | "all">("all");
   const [query, setQuery] = useState("");
@@ -147,7 +151,7 @@ export default function DashboardPage() {
   const [reminding, setReminding] = useState<Set<string>>(new Set());
   const [reminderError, setReminderError] = useState<string | null>(null);
   async function sendReminder(id: string) {
-    if (reminding.has(id) || reminded.has(id)) return;
+    if (!remindersAllowed || reminding.has(id) || reminded.has(id)) return;
     setReminderError(null);
     setReminding((prev) => new Set(prev).add(id));
 
@@ -385,22 +389,33 @@ export default function DashboardPage() {
                       <span className="truncate">{p.client}</span>
                     </button>
                   ))}
-                  <button
-                    onClick={() => viewedUnsigned.forEach((p) => sendReminder(p.id))}
-                    disabled={viewedUnsigned.every((p) => reminded.has(p.id) || reminding.has(p.id))}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[12px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
-                  >
-                    {viewedUnsigned.some((p) => reminding.has(p.id)) ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : viewedUnsigned.every((p) => reminded.has(p.id)) ? (
-                      <Check className="h-3.5 w-3.5" />
-                    ) : (
+                  {remindersAllowed ? (
+                    <button
+                      onClick={() => viewedUnsigned.forEach((p) => sendReminder(p.id))}
+                      disabled={viewedUnsigned.every((p) => reminded.has(p.id) || reminding.has(p.id))}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[12px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+                    >
+                      {viewedUnsigned.some((p) => reminding.has(p.id)) ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : viewedUnsigned.every((p) => reminded.has(p.id)) ? (
+                        <Check className="h-3.5 w-3.5" />
+                      ) : (
+                        <Bell className="h-3.5 w-3.5" />
+                      )}
+                      {viewedUnsigned.every((p) => reminded.has(p.id))
+                        ? lang === "tr" ? "Gönderildi" : "Sent"
+                        : lang === "tr" ? "Hepsini hatırlat" : "Remind all"}
+                    </button>
+                  ) : (
+                    <Link
+                      href="/settings"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-[12px] font-semibold text-muted-foreground transition-colors hover:bg-muted"
+                    >
                       <Bell className="h-3.5 w-3.5" />
-                    )}
-                    {viewedUnsigned.every((p) => reminded.has(p.id))
-                      ? lang === "tr" ? "Gönderildi" : "Sent"
-                      : lang === "tr" ? "Hepsini hatırlat" : "Remind all"}
-                  </button>
+                      {lang === "tr" ? "Hepsini hatırlat" : "Remind all"}
+                      <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">Pro</span>
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>
@@ -847,7 +862,8 @@ export default function DashboardPage() {
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => sendReminder(current.id)}
-                  disabled={reminding.has(current.id) || reminded.has(current.id)}
+                  disabled={!remindersAllowed || reminding.has(current.id) || reminded.has(current.id)}
+                  title={remindersAllowed ? undefined : lang === "tr" ? "Hatırlatma otomasyonu Pro ve üzeri paketlerde." : "Reminder automation is on Pro and above."}
                   className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-card py-2.5 text-[13px] font-semibold transition-colors hover:bg-muted disabled:opacity-60"
                 >
                   {reminding.has(current.id) ? (
@@ -860,6 +876,9 @@ export default function DashboardPage() {
                   {reminded.has(current.id)
                     ? lang === "tr" ? "Gönderildi" : "Sent"
                     : lang === "tr" ? "Hatırlat" : "Send reminder"}
+                  {!remindersAllowed && (
+                    <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">Pro</span>
+                  )}
                 </button>
                 {realIds.has(current.id) ? (
                   <a
