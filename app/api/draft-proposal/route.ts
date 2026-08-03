@@ -36,17 +36,23 @@ export async function POST(req: Request) {
     service.from("company_documents").select("type, title, content, is_default_template").eq("company_id", profile.company_id),
   ]);
 
-  // Enforce the plan's monthly AI draft limit.
+  // Enforce the plan's monthly AI draft limit (customer-facing) and a much more
+  // generous message-count ceiling (cost backstop — chatting is "free" against the
+  // draft quota, but still costs real Anthropic API calls, so it can't be unlimited).
   const month = new Date().toISOString().slice(0, 7);
   const { data: usage } = await service
     .from("ai_usage")
-    .select("count")
+    .select("count, message_count")
     .eq("company_id", profile.company_id)
     .eq("month", month)
     .maybeSingle();
 
   const limit: number = company?.ai_monthly_limit ?? 10;
   const used = usage?.count ?? 0;
+  const messagesUsed = usage?.message_count ?? 0;
+  const MESSAGE_LIMIT_MULTIPLIER = 15;
+  const messageLimit = limit * MESSAGE_LIMIT_MULTIPLIER;
+
   if (used >= limit) {
     return NextResponse.json(
       {
@@ -55,6 +61,12 @@ export async function POST(req: Request) {
         overagePrice: aiOveragePack.price,
         overageDrafts: aiOveragePack.extraDrafts,
       },
+      { status: 429 },
+    );
+  }
+  if (messagesUsed >= messageLimit) {
+    return NextResponse.json(
+      { error: "Bu ay çok fazla AI mesajı gönderildi. Lütfen bizimle iletişime geç." },
       { status: 429 },
     );
   }
@@ -218,13 +230,12 @@ ${pricingBlock}${websiteContext}${prefillBlock}`;
     }
   }
 
-  // Only counts against the monthly quota when a proposal is actually produced —
-  // back-and-forth chatting/clarifying questions are free, not metered per message.
-  if (draft) {
-    await service
-      .from("ai_usage")
-      .upsert({ company_id: profile.company_id, month, count: used + 1 }, { onConflict: "company_id,month" });
-  }
+  // The draft quota (customer-facing) only counts a produced proposal; the message
+  // count (cost backstop) always increments, since every call is a real API charge.
+  await service.from("ai_usage").upsert(
+    { company_id: profile.company_id, month, count: draft ? used + 1 : used, message_count: messagesUsed + 1 },
+    { onConflict: "company_id,month" },
+  );
 
   const reply = replyText.replace(/```json[\s\S]*?```/, "").trim();
 
