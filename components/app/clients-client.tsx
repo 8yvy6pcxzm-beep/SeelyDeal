@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { useLang } from "@/components/i18n/language-provider";
 import { formatUsd } from "@/lib/utils";
+import { usePlan } from "@/components/app/plan-provider";
 
 type Client = {
   id: string;
@@ -26,6 +27,8 @@ type ProposalSummary = {
 
 export function ClientsClient() {
   const { lang } = useLang();
+  const plan = usePlan();
+  const canAddManually = plan !== "lite";
   const supabase = createClient();
 
   const [loading, setLoading] = useState(true);
@@ -146,13 +149,15 @@ export function ClientsClient() {
               : "Everyone you've sent a proposal to. New clients are added automatically when you draft a proposal for them."}
           </p>
         </div>
-        <Button onClick={() => setAdding((a) => !a)} className="ml-auto gap-1.5">
-          <Plus className="h-4 w-4" />
-          {lang === "tr" ? "Yeni müşteri" : "New client"}
-        </Button>
+        {canAddManually && (
+          <Button onClick={() => setAdding((a) => !a)} className="ml-auto gap-1.5">
+            <Plus className="h-4 w-4" />
+            {lang === "tr" ? "Yeni müşteri" : "New client"}
+          </Button>
+        )}
       </div>
 
-      {adding && (
+      {canAddManually && adding && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">{lang === "tr" ? "Yeni müşteri ekle" : "Add a new client"}</CardTitle>
