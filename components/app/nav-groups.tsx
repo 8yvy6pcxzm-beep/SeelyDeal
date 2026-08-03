@@ -28,7 +28,9 @@ export function NavGroups({ onNavigate }: { onNavigate?: () => void }) {
         <div key={t(group.label)} className="mb-4">
           <p className="label-mono px-3 pb-1.5 pt-2 text-sidebar-muted">{t(group.label)}</p>
           <div className="space-y-0.5">
-            {group.items.map((item) => {
+            {group.items
+              .filter((item) => !(item.hideForLite && plan === "lite"))
+              .map((item) => {
               const active = isActive(item.href);
               const gate = NAV_GATE[item.href];
               const locked = gate ? !planAllows(plan, gate) : false;
@@ -40,7 +42,12 @@ export function NavGroups({ onNavigate }: { onNavigate?: () => void }) {
                   />
                   <span className="truncate">{t(item.label)}</span>
                   {item.badge && (
-                    <span className="ml-auto rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                    <span
+                      className={cn(
+                        "ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                        t(item.badge) === "Pro" ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary",
+                      )}
+                    >
                       {t(item.badge)}
                     </span>
                   )}

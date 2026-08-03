@@ -24,6 +24,8 @@ export interface NavItem {
   badge?: L;
   /** Render as disabled/muted (e.g. a not-yet-shipped section). */
   muted?: boolean;
+  /** Hide this item entirely on the Lite plan (the feature has no equivalent there at all). */
+  hideForLite?: boolean;
 }
 
 export interface NavGroup {
@@ -194,14 +196,14 @@ export const appConfig: AppConfig = {
         { label: { tr: "Teklifler", en: "Proposals" }, href: "/proposals", icon: "file-text" },
         { label: { tr: "Şablonlar", en: "Templates" }, href: "/templates", icon: "layout-template" },
         { label: { tr: "Müşteriler", en: "Clients" }, href: "/clients", icon: "users", muted: true },
-        { label: { tr: "İçerik kütüphanesi", en: "Content library" }, href: "/content", icon: "library", badge: { tr: "Yakında", en: "Soon" }, muted: true },
+        { label: { tr: "İçerik kütüphanesi", en: "Content library" }, href: "/content", icon: "library", badge: { tr: "Pro", en: "Pro" }, muted: true },
       ],
     },
     {
       label: { tr: "Yönetim", en: "Management" },
       items: [
         { label: { tr: "Analitik", en: "Analytics" }, href: "/analytics", icon: "chart-no-axes-column" },
-        { label: { tr: "İmzalar", en: "Signatures" }, href: "/signatures", icon: "pen-line", muted: true },
+        { label: { tr: "İmzalar", en: "Signatures" }, href: "/signatures", icon: "pen-line", muted: true, hideForLite: true },
         { label: { tr: "Şirket profili", en: "Company profile" }, href: "/team", icon: "user-plus" },
         { label: { tr: "Entegrasyonlar", en: "Integrations" }, href: "/settings", icon: "plug" },
       ],
