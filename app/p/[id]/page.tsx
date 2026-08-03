@@ -33,7 +33,10 @@ type PublicProposal = {
   created_at: string;
   clients: { name: string } | null;
   companies: { name: string; logo_url: string | null; primary_color: string | null; email: string | null; plan: string | null } | null;
+  team: { name: string; title: string | null; photo_url: string | null }[];
 };
+
+const TEAM_SECTION_RE = /ekib|ekip|team/i;
 
 function fmtDate(iso: string, lang: "tr" | "en") {
   const d = new Date(iso);
@@ -395,6 +398,20 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
                     <div className="min-w-0">
                       <p className="text-sm font-semibold">{s.title || sectionLabel(s.index + 1)}</p>
                       <p className="mt-0.5 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{s.body}</p>
+                      {TEAM_SECTION_RE.test(s.title) && proposal.team.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-3">
+                          {proposal.team.map((m) => (
+                            <div key={m.name} className="flex items-center gap-2 rounded-full border border-border bg-card py-1 pl-1 pr-3 shadow-pill">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={m.photo_url!} alt={m.name} className="h-7 w-7 rounded-full object-cover" />
+                              <span className="text-xs">
+                                <span className="font-semibold">{m.name}</span>
+                                {m.title && <span className="text-muted-foreground"> · {m.title}</span>}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
