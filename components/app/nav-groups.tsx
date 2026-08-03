@@ -12,6 +12,7 @@ import { planAllows, type GatedFeature } from "@/lib/plan";
 /** Which nav routes correspond to a plan-gated feature (not "coming soon" muted, but a real Pro+ page). */
 const NAV_GATE: Record<string, GatedFeature> = {
   "/analytics": "analytics",
+  "/content": "document_library",
 };
 
 /** The grouped nav list — shared by the desktop Sidebar and the mobile drawer. */

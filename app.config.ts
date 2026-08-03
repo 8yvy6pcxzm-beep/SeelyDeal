@@ -196,7 +196,7 @@ export const appConfig: AppConfig = {
         { label: { tr: "Teklifler", en: "Proposals" }, href: "/proposals", icon: "file-text" },
         { label: { tr: "Şablonlar", en: "Templates" }, href: "/templates", icon: "layout-template" },
         { label: { tr: "Müşteriler", en: "Clients" }, href: "/clients", icon: "users" },
-        { label: { tr: "İçerik kütüphanesi", en: "Content library" }, href: "/content", icon: "library", badge: { tr: "Pro", en: "Pro" }, muted: true },
+        { label: { tr: "İçerik kütüphanesi", en: "Content library" }, href: "/content", icon: "library" },
       ],
     },
     {
