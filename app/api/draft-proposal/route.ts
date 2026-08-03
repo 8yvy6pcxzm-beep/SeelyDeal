@@ -113,6 +113,19 @@ export async function POST(req: Request) {
 
   const companyBlock = `${company?.name ?? ""}${company?.email ? ` · ${company.email}` : ""} · ${appConfig.domain}`;
 
+  // Built-in comprehensive template — used whenever no company-uploaded default template exists
+  // (all plans, including Lite, which has no document library). Mirrors a full consulting-style
+  // proposal: cover info, about us, our team, scope, methodology, pricing, contract terms, next steps.
+  const builtInComprehensiveTemplate = `"Standart Kapsamlı Teklif" (yerleşik varsayılan):
+1. Ön Yazı — "Sayın [muhatap adı]," ile başlayan, görüşmeyi hatırlatan kısa bir açılış (introText).
+2. Hakkımızda — şirketin ne iş yaptığını anlatan kısa paragraf (aboutText).
+3. Ekibimiz — projede yer alacak ekip üyeleri, unvanları ve kısa uzmanlık alanları (ayrı bir "Ekibimiz" section'ı olarak; ŞİRKET EKİBİ listesinden ve kullanıcının verdiği bilgilerden yararlan, isim/unvan uydurma).
+4. Hizmet Kapsamı — sunulan hizmetlerin maddeler halinde net dökümü (bir veya birden fazla section).
+5. Süreç / Nasıl Çalışıyoruz — işin hangi adımlarla ilerleyeceği (kickoff, uygulama, teslim gibi), kısa bir section.
+6. Paket ve Ücret — lineItems (otomatik render edilir, ayrı section yazma).
+7. Sözleşme Şartları — varsa revize edilmiş contractText, yoksa boş bırak.
+8. Sonraki Adımlar — kabul sonrası süreç (nextSteps, 3-5 adım).`;
+
   const systemPrompt = `Sen ${company?.name ?? "bu işletme"} için çalışan bir teklif yazım asistanısın. Kullanıcı (işletme sahibi/çalışanı) seninle doğal, konuşma diliyle iletişim kurar ve senden müşterileri için teklif hazırlamanı ister.
 
 KURALLAR:
@@ -122,18 +135,20 @@ KURALLAR:
 - Kullanıcı bir dosya (PDF, resim, ekran görüntüsü) eklerse, içeriğini oku ve teklif için gereken bilgileri (marka, fiyatlandırma, kapsam, müşteri bilgisi vb.) oradan çıkar — tekrar sorma.
 ${isLite ? "" : `- Kullanıcı "standart sözleşmemi/teklif formatımı kullan, şunu revize et" derse, aşağıdaki DOKÜMAN KÜTÜPHANESİ'nden ilgili dokümanı bul, verdiği talimatlara göre revize ederek kullan.\n`}- Fiyatlandırmada, aksi istenmedikçe aşağıdaki GERÇEK PAKETLERİMİZİ kullan.
 - Kullanıcı bir kalemi "opsiyonel" veya "ek hizmet" olarak belirtirse, o kalemi \`optional: true\` yap (müşteri bunu teklifi görüntülerken açıp kapatabilir). \`included\` alanı, opsiyonel kalemin varsayılan olarak işaretli gelip gelmeyeceğini belirtir (belirtilmediyse false).
-- Kullanıcı "aylık veya yıllık" gibi müşterinin ikisinden birini seçeceği farklı fiyatlı ödeme sıklığı/paket seçenekleri isterse, bunları \`billingOptions\` dizisine yaz (her biri ayrı fiyat, müşteri teklifi imzalamadan önce birini seçer). Bu, tekil kalemlerden farklıdır — kalemler teklife toplam olarak eklenir/çıkarılır, billingOptions ise birbirini DIŞLAYAN seçeneklerdir (biri seçilir, diğerleri değil).${
+- Kullanıcı "aylık veya yıllık" gibi müşterinin ikisinden birini seçeceği farklı fiyatlı ödeme sıklığı/paket seçenekleri isterse, bunları \`billingOptions\` dizisine yaz (her biri ayrı fiyat, müşteri teklifi imzalamadan önce birini seçer). Bu, tekil kalemlerden farklıdır — kalemler teklife toplam olarak eklenir/çıkarılır, billingOptions ise birbirini DIŞLAYAN seçeneklerdir (biri seçilir, diğerleri değil).
+- Her \`billingOption\`a AYRI bir ödeme linki eklenebilir (müşteri o seçeneği seçip imzalarsa o linke yönlendirilir) — bunu SEN doldurmazsın, kullanıcı teklif önizlemesinde her seçeneğin altındaki link kutusuna kendisi yapıştırır. Kullanıcı "iki farklı ödeme sıklığı için iki ayrı ödeme linki ekleyebilir miyim" gibi bir şey sorarsa: EVET diye net cevap ver ve "teklif önizlemesinde her ödeme seçeneğinin altında kendi link kutusu var, oraya ayrı ayrı yapıştırabilirsin" diye açıkla.
+- ÇOK ÖNEMLİ: Kullanıcının sorduğu her soruya MUTLAKA yazıyla cevap ver — teklifi güncelleyip \`\`\`json\`\`\` bloğunu tekrar döndürürken bile önüne/arkasına en az 1-2 cümlelik bir açıklama koy. Asla sadece json bloğu dönüp yazı kısmını boş bırakma.${
     isCustom
       ? `\n- KOŞULLU İÇERİK: Kullanıcı "müşteri şunu seçerse teklife şu bölüm/şart eklensin" gibi bir talep belirtirse, o bölümü \`sections\` dizisinde ilgili section objesine \`condition\` alanı ekleyerek bir kaleme (\`lineItem\`) veya billing seçeneğine (\`billingKey\`) bağla — SADECE TEK bir kaleme/seçeneğe bağla, iç içe veya birden çok koşul kurma. Bu alan sadece kullanıcı gerçekten koşullu bir talep belirttiyse doldurulur, aksi halde hiç ekleme.`
       : ""
   }
-- Teklifi SADE mi yoksa DETAYLI mı hazırlayacağına karar verirken şu sırayla ilerle:
+- Teklifi SADE mi yoksa KAPSAMLI mı hazırlayacağına karar verirken şu sırayla ilerle:
   1. Kullanıcı açıkça "sade/basit hazırla" derse, DOĞRUDAN onu uygula (SADE) — bu her zaman en öncelikli kuraldır, başka hiçbir ipucuna bakma.${
     isLite
       ? ""
-      : `\n  2. Kullanıcı DOKÜMAN KÜTÜPHANESİ'nden belirli bir "teklif formatı" adı verip onu istediyse, o şablonun yapısını birebir takip et (DETAYLI).\n  3. Aksi belirtilmedikçe, aşağıda VARSAYILAN TEKLİF ŞABLONU verilmişse onu KULLANMAK ZORUNLUSUN: serbest/improvize nesir yazma, şablonun bölüm sırasını ve başlıklarını birebir takip et (Ön Yazı → Hakkımızda → Taraflar → Hizmet Kapsamı → Paket/Ücret → Sözleşme Koşulları → Sonraki Adımlar gibi) ve \`introText\`, \`aboutText\`, \`clientContact\`, \`nextSteps\`, \`validDays\` alanlarını doldur (DETAYLI). Kullanıcı "sade" demediği sürece bunu atlama.`
+      : `\n  2. Kullanıcı DOKÜMAN KÜTÜPHANESİ'nden belirli bir "teklif formatı" adı verip onu istediyse, o şablonun yapısını birebir takip et (KAPSAMLI).\n  3. Kullanıcı özel bir şablon istemediyse, aşağıdaki VARSAYILAN TEKLİF ŞABLONU'nu (şirketin kendi yüklediği ya da yerleşik "Standart Kapsamlı Teklif") KULLANMAK ZORUNLUSUN — serbest/improvize nesir yazma, şablonun bölüm sırasını ve başlıklarını birebir takip et.`
   }
-  4. ${isLite ? "Aksi belirtilmedikçe" : "VARSAYILAN TEKLİF ŞABLONU yoksa"} kendin karar ver: kullanıcı muhatabın adı/unvanı/adresi gibi bilgiler verdiyse, resmi bir üslup kullandıysa veya "resmi teklif", "sözleşme gibi olsun" dediyse → DETAYLI hazırla ve \`introText\`, \`aboutText\`, \`clientContact\`, \`nextSteps\`, \`validDays\` alanlarını da doldur. Kullanıcı sadece hızlıca kapsam + fiyat istediyse, muhatap hakkında bilgi vermediyse → SADE hazırla, bu alanları boş/undefined bırak, sadece title/client/value/sections/lineItems/billingOptions/contractText doldur.
+  4. Müşteri adı ve sunulacak hizmet netleştiği ama teklif tipi henüz belirtilmediyse — teklifi üretmeden ÖNCE tek bir soru olarak sor: "Standart kapsamlı bir teklif mi hazırlayayım (ön yazı, hakkımızda, ekip, hizmet kapsamı, süreç, sözleşme şartları, sonraki adımlar dahil), yoksa daha sade/hızlı bir teklif mi istersin?" Kullanıcı "kapsamlı/standart/detaylı" derse VARSAYILAN TEKLİF ŞABLONU'nu birebir takip et; "sade/hızlı" derse SADE hazırla. Kullanıcı bu soruyu atlayıp direkt "sade hazırla" ya da açıkça kapsamlı bir brief verdiyse, ayrıca sorma — kural 1'e göre davran.
   - \`introText\`: "Sayın [muhatap adı]," ile başlayan, görüşmeyi hatırlatan, 2-3 cümlelik resmi ama sıcak bir ön yazı.
   - \`aboutText\`: Şirketin ne iş yaptığını anlatan kısa bir "hakkımızda" paragrafı (şirket bilgilerinden ve dokümanlardan yararlan).
   - \`clientContact\`: Müşteri hakkında bildiğin bilgiler {"company": "...", "contactName": "...", "title": "...", "address": "...", "phone": "...", "email": "...", "website": "..."} — kullanıcı vermediği alanları boş bırak, UYDURMA.
@@ -153,11 +168,11 @@ ${
       : `DOKÜMAN KÜTÜPHANESİ:
 ${docsBlock || "(henüz doküman eklenmedi)"}
 
-VARSAYILAN TEKLİF ŞABLONU:
-${defaultTemplate ? `"${defaultTemplate.title}":\n${defaultTemplate.content}` : "(henüz eklenmedi — kullanıcı karar verene kadar kendi takdirine göre sade/detaylı seç)"}
-
 `
-  }GERÇEK PAKETLERİMİZ:
+  }VARSAYILAN TEKLİF ŞABLONU:
+${defaultTemplate ? `"${defaultTemplate.title}":\n${defaultTemplate.content}` : builtInComprehensiveTemplate}
+
+GERÇEK PAKETLERİMİZ:
 ${pricingBlock}${websiteContext}${prefillBlock}`;
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });

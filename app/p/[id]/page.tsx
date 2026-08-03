@@ -8,7 +8,7 @@ import { useLang } from "@/components/i18n/language-provider";
 import { cn, formatUsd } from "@/lib/utils";
 import appConfig from "@/app.config";
 
-type BillingOption = { key: string; label: { tr: string; en: string }; price: number };
+type BillingOption = { key: string; label: { tr: string; en: string }; price: number; paymentLink?: string };
 type LineItem = { name: string; qty: number; unit: number; optional?: boolean; included?: boolean };
 type ClientContact = { company?: string; contactName?: string; title?: string; address?: string; phone?: string; email?: string; website?: string };
 type Step = { title: string; body: string };

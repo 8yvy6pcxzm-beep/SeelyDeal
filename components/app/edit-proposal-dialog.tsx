@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { useLang } from "@/components/i18n/language-provider";
 
-type BillingOption = { key: string; label: { tr: string; en: string }; price: number };
+type BillingOption = { key: string; label: { tr: string; en: string }; price: number; paymentLink?: string };
 type LineItem = { name: string; qty: number; unit: number; optional?: boolean; included?: boolean };
 
 export function EditProposalDialog({
@@ -54,6 +54,10 @@ export function EditProposalDialog({
 
   function updatePrice(key: string, price: number) {
     setBillingOptions((opts) => opts.map((o) => (o.key === key ? { ...o, price } : o)));
+  }
+
+  function updateOptionPaymentLink(key: string, paymentLink: string) {
+    setBillingOptions((opts) => opts.map((o) => (o.key === key ? { ...o, paymentLink } : o)));
   }
 
   function removeOption(key: string) {
@@ -137,14 +141,16 @@ export function EditProposalDialog({
                 </div>
               )}
 
-              <div className="space-y-1.5">
-                <Label>{lang === "tr" ? "Ödeme linki" : "Payment link"}</Label>
-                <Input
-                  value={paymentLink}
-                  onChange={(e) => setPaymentLink(e.target.value)}
-                  placeholder={lang === "tr" ? "Ödeme linki (Ruul, Stripe, iyzico) ya da IBAN" : "Payment link (Ruul, Stripe, iyzico) or IBAN"}
-                />
-              </div>
+              {billingOptions.length === 0 && (
+                <div className="space-y-1.5">
+                  <Label>{lang === "tr" ? "Ödeme linki" : "Payment link"}</Label>
+                  <Input
+                    value={paymentLink}
+                    onChange={(e) => setPaymentLink(e.target.value)}
+                    placeholder={lang === "tr" ? "Ödeme linki (Ruul, Stripe, iyzico) ya da IBAN" : "Payment link (Ruul, Stripe, iyzico) or IBAN"}
+                  />
+                </div>
+              )}
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -163,25 +169,37 @@ export function EditProposalDialog({
                   )}
                 </div>
                 {billingOptions.map((o) => (
-                  <div key={o.key} className="flex items-center gap-2 rounded-lg border border-border p-2.5">
-                    <span className="w-16 text-sm font-medium">{lang === "tr" ? o.label.tr : o.label.en}</span>
+                  <div key={o.key} className="space-y-1.5 rounded-lg border border-border p-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="w-16 text-sm font-medium">{lang === "tr" ? o.label.tr : o.label.en}</span>
+                      <Input
+                        type="number"
+                        value={o.price}
+                        onChange={(e) => updatePrice(o.key, Number(e.target.value) || 0)}
+                        className="flex-1"
+                        placeholder="$"
+                      />
+                      <Button variant="outline" size="icon" onClick={() => removeOption(o.key)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                     <Input
-                      type="number"
-                      value={o.price}
-                      onChange={(e) => updatePrice(o.key, Number(e.target.value) || 0)}
-                      className="flex-1"
-                      placeholder="$"
+                      value={o.paymentLink ?? ""}
+                      onChange={(e) => updateOptionPaymentLink(o.key, e.target.value)}
+                      placeholder={
+                        lang === "tr"
+                          ? `${o.label.tr} için ödeme linki`
+                          : `Payment link for ${o.label.en}`
+                      }
+                      className="text-sm"
                     />
-                    <Button variant="outline" size="icon" onClick={() => removeOption(o.key)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
                   </div>
                 ))}
                 {billingOptions.length > 0 && (
                   <p className="text-xs text-muted-foreground">
                     {lang === "tr"
-                      ? "Müşteri teklifi imzalamadan önce birini seçer."
-                      : "The client picks one before signing."}
+                      ? "Müşteri hangi seçeneği seçip imzalarsa, o seçeneğin linkine yönlendirilir."
+                      : "Whichever option the client picks and signs, they're redirected to that option's link."}
                   </p>
                 )}
               </div>

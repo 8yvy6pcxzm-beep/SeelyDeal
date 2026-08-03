@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 
 type Msg = { role: "user" | "assistant"; content: string; attachmentName?: string };
 type Attachment = { name: string; mediaType: string; base64: string };
-type BillingOption = { key: string; label: { tr: string; en: string }; price: number };
+type BillingOption = { key: string; label: { tr: string; en: string }; price: number; paymentLink?: string };
 type ClientContact = { company?: string; contactName?: string; title?: string; address?: string; phone?: string; email?: string; website?: string };
 type Draft = {
   title: string;
@@ -59,10 +59,7 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
   const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
   const ACCEPTED_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/webp", "image/gif"];
 
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
+  function processFile(file: File) {
     setAttachError(null);
 
     if (!ACCEPTED_TYPES.includes(file.type)) {
@@ -83,11 +80,37 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
     reader.readAsDataURL(file);
   }
 
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    processFile(file);
+  }
+
+  function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.kind === "file" && item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (file) {
+          e.preventDefault();
+          processFile(file);
+        }
+        return;
+      }
+    }
+  }
+
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, draft]);
 
-  if (!open) return null;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!open || !mounted) return null;
 
   async function send() {
     if ((!input.trim() && !attachment) || loading) return;
@@ -120,7 +143,12 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
         setLoading(false);
         return;
       }
-      setMessages((m) => [...m, { role: "assistant", content: data.reply }]);
+      const reply = (data.reply ?? "").trim()
+        ? data.reply
+        : lang === "tr"
+          ? "Teklifi güncelledim, aşağıdaki önizlemeden kontrol edebilirsin."
+          : "Updated the proposal — check the preview below.";
+      setMessages((m) => [...m, { role: "assistant", content: reply }]);
       if (data.draft) setDraft(data.draft);
     } catch {
       setError(lang === "tr" ? "Bağlantı hatası." : "Connection error.");
@@ -166,8 +194,8 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
     setAttachError(null);
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
         className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-pop"
         onClick={(e) => e.stopPropagation()}
@@ -210,7 +238,7 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
                   {m.attachmentName}
                 </p>
               )}
-              {m.content}
+              {renderFormatted(m.content)}
             </div>
           ))}
 
@@ -244,17 +272,44 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
                 </table>
               )}
               {draft.billingOptions && draft.billingOptions.length > 0 && (
-                <div>
+                <div className="space-y-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     {lang === "tr" ? "Ödeme sıklığı seçenekleri" : "Billing options"}
                   </p>
-                  <div className="mt-1 flex gap-2">
-                    {draft.billingOptions.map((o) => (
-                      <span key={o.key} className="rounded-lg border border-border px-2.5 py-1 text-xs">
+                  {draft.billingOptions.map((o) => (
+                    <div key={o.key} className="rounded-lg border border-border p-2.5">
+                      <p className="mb-1.5 text-xs font-medium">
                         {lang === "tr" ? o.label.tr : o.label.en} — ${o.price.toLocaleString()}
-                      </span>
-                    ))}
-                  </div>
+                      </p>
+                      <Input
+                        value={o.paymentLink ?? ""}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setDraft((d) =>
+                            d
+                              ? {
+                                  ...d,
+                                  billingOptions: d.billingOptions?.map((opt) =>
+                                    opt.key === o.key ? { ...opt, paymentLink: value } : opt,
+                                  ),
+                                }
+                              : d,
+                          );
+                        }}
+                        placeholder={
+                          lang === "tr"
+                            ? `${lang === "tr" ? o.label.tr : o.label.en} için ödeme linki`
+                            : `Payment link for ${o.label.en}`
+                        }
+                        className="text-xs"
+                      />
+                    </div>
+                  ))}
+                  <p className="text-xs text-muted-foreground">
+                    {lang === "tr"
+                      ? "Müşteri hangi seçeneği seçip imzalarsa, o seçeneğin linkine yönlendirilir."
+                      : "Whichever option the client picks and signs, they're redirected to that option's link."}
+                  </p>
                 </div>
               )}
               {draft.contractText && (
@@ -265,27 +320,29 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
                   <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{draft.contractText}</p>
                 </div>
               )}
-              <div>
-                <label className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  <CreditCard className="h-3.5 w-3.5" />
-                  {lang === "tr" ? "Ödeme Yöntemi (opsiyonel)" : "Payment Method (optional)"}
-                </label>
-                <Input
-                  value={paymentLink}
-                  onChange={(e) => setPaymentLink(e.target.value)}
-                  placeholder={
-                    lang === "tr"
-                      ? "Ödeme linki (Ruul, Stripe, iyzico) ya da IBAN"
-                      : "Payment link (Ruul, Stripe, iyzico) or IBAN"
-                  }
-                  className="text-sm"
-                />
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {lang === "tr"
-                    ? "Müşteri imzaladığında buraya yönlendirilir."
-                    : "The client is redirected here once they sign."}
-                </p>
-              </div>
+              {(!draft.billingOptions || draft.billingOptions.length === 0) && (
+                <div>
+                  <label className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <CreditCard className="h-3.5 w-3.5" />
+                    {lang === "tr" ? "Ödeme Yöntemi (opsiyonel)" : "Payment Method (optional)"}
+                  </label>
+                  <Input
+                    value={paymentLink}
+                    onChange={(e) => setPaymentLink(e.target.value)}
+                    placeholder={
+                      lang === "tr"
+                        ? "Ödeme linki (Ruul, Stripe, iyzico) ya da IBAN"
+                        : "Payment link (Ruul, Stripe, iyzico) or IBAN"
+                    }
+                    className="text-sm"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {lang === "tr"
+                      ? "Müşteri imzaladığında buraya yönlendirilir."
+                      : "The client is redirected here once they sign."}
+                  </p>
+                </div>
+              )}
               <Button onClick={saveDraft} disabled={loading} className="w-full gap-2">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                 {lang === "tr" ? "Teklife ekle" : "Add to proposals"}
@@ -375,7 +432,8 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
                     send();
                   }
                 }}
-                placeholder={lang === "tr" ? "Mesajını yaz… (yeni satır için Shift+Enter)" : "Type a message… (Shift+Enter for a new line)"}
+                onPaste={handlePaste}
+                placeholder={lang === "tr" ? "Mesajını yaz… (resim yapıştırabilirsin, yeni satır için Shift+Enter)" : "Type a message… (you can paste an image, Shift+Enter for a new line)"}
                 disabled={loading}
                 rows={3}
                 className="flex w-full resize-none rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring transition-colors disabled:opacity-50"
@@ -387,6 +445,7 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

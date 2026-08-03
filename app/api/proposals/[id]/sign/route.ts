@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { createServiceClient } from "@/lib/supabase/server";
 
 /** Public e-sign action: marks the proposal accepted and hands back the agency's payment link. */
-type BillingOption = { key: string; label: { tr: string; en: string }; price: number };
+type BillingOption = { key: string; label: { tr: string; en: string }; price: number; paymentLink?: string };
 type LineItem = { name: string; qty: number; unit: number; optional?: boolean; included?: boolean };
 
 const MAX_OTP_ATTEMPTS = 5;
@@ -84,5 +84,5 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if (error || !proposal) return NextResponse.json({ error: "Teklif bulunamadı." }, { status: 404 });
 
-  return NextResponse.json({ ok: true, paymentLink: proposal.payment_link ?? null });
+  return NextResponse.json({ ok: true, paymentLink: chosen?.paymentLink || proposal.payment_link || null });
 }
