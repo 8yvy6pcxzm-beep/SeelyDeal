@@ -50,7 +50,7 @@ export async function POST(req: Request) {
   const limit: number = company?.ai_monthly_limit ?? 10;
   const used = usage?.count ?? 0;
   const messagesUsed = usage?.message_count ?? 0;
-  const MESSAGE_LIMIT_MULTIPLIER = 15;
+  const MESSAGE_LIMIT_MULTIPLIER = 18;
   const messageLimit = limit * MESSAGE_LIMIT_MULTIPLIER;
 
   if (used >= limit) {
@@ -144,8 +144,8 @@ KURALLAR:
 - Türkçe konuş (kullanıcı İngilizce yazarsa İngilizce cevap ver).
 - Teklif hazırlamak için gerekli bilgiler eksikse (müşteri adı, sunulacak hizmet, fiyatlandırma yaklaşımı) TEK TEK, doğal bir sohbet diliyle sor. Kullanıcı "nelere ihtiyacın var" derse hepsini liste halinde sun.
 - Müşterinin web sitesini ASLA kendin tahmin etme veya arama; sadece kullanıcı paylaşırsa kullan. Paylaşmadıysa ve faydalı olacaksa nazikçe sor ("müşterinin web sitesini paylaşır mısın?").${
-    !company?.logo_url
-      ? `\n- Şirketin henüz bir logosu yok. Sohbetin bir noktasında (ilk mesajlarda, doğal bir yerde) samimi bir şekilde sor: "Bu arada şirketinizin logosunu da alabilir miyim? Ayarlar sayfasından yükleyebilirsin, tekliflerinde otomatik görünür." Bunu SADECE BİR KEZ sor, ısrar etme; kullanıcı buraya bir logo dosyası eklerse bunu doğrudan kaydedemeyeceğini, Ayarlar'dan yüklemesi gerektiğini nazikçe hatırlat.`
+    !company?.logo_url || !company?.primary_color
+      ? `\n- Şirketin henüz ${!company?.logo_url && !company?.primary_color ? "logosu ve marka rengi" : !company?.logo_url ? "logosu" : "marka rengi"} ayarlanmamış. Sohbetin bir noktasında (ilk mesajlarda, doğal bir yerde) samimi bir şekilde sor: "Bu arada şirketinizin ${!company?.logo_url && !company?.primary_color ? "logosunu ve marka rengini" : !company?.logo_url ? "logosunu" : "marka rengini"} de alabilir miyim? Şirket Profili sayfasından bir kere ayarlaman yeterli, o andan sonra tüm tekliflerinde otomatik görünür." Bunu SADECE BİR KEZ sor, ısrar etme; kullanıcı buraya bir logo dosyası veya renk kodu eklerse bunu doğrudan kaydedemeyeceğini, Şirket Profili'nden ayarlaması gerektiğini nazikçe hatırlat.`
       : ""
   }
 - Kullanıcı bir dosya (PDF, resim, ekran görüntüsü) eklerse, içeriğini oku ve teklif için gereken bilgileri (marka, fiyatlandırma, kapsam, müşteri bilgisi vb.) oradan çıkar — tekrar sorma.
@@ -153,6 +153,7 @@ ${isLite ? "" : `- Kullanıcı "standart sözleşmemi/teklif formatımı kullan,
 - Kullanıcı bir kalemi "opsiyonel" veya "ek hizmet" olarak belirtirse, o kalemi \`optional: true\` yap (müşteri bunu teklifi görüntülerken açıp kapatabilir). \`included\` alanı, opsiyonel kalemin varsayılan olarak işaretli gelip gelmeyeceğini belirtir (belirtilmediyse false).
 - Kullanıcı "aylık veya yıllık" gibi müşterinin ikisinden birini seçeceği farklı fiyatlı ödeme sıklığı/paket seçenekleri isterse, bunları \`billingOptions\` dizisine yaz (her biri ayrı fiyat, müşteri teklifi imzalamadan önce birini seçer). Bu, tekil kalemlerden farklıdır — kalemler teklife toplam olarak eklenir/çıkarılır, billingOptions ise birbirini DIŞLAYAN seçeneklerdir (biri seçilir, diğerleri değil).
 - Her \`billingOption\`a AYRI bir ödeme linki eklenebilir (müşteri o seçeneği seçip imzalarsa o linke yönlendirilir) — bunu SEN doldurmazsın, kullanıcı teklif önizlemesinde her seçeneğin altındaki link kutusuna kendisi yapıştırır. Kullanıcı "iki farklı ödeme sıklığı için iki ayrı ödeme linki ekleyebilir miyim" gibi bir şey sorarsa: EVET diye net cevap ver ve "teklif önizlemesinde her ödeme seçeneğinin altında kendi link kutusu var, oraya ayrı ayrı yapıştırabilirsin" diye açıkla.
+- Kullanıcı ödeme linki/IBAN eklemek istemediğini belirtirse (örn. "ödeme linki eklemiyecem", "eklemeyeceğim", "yok", "gerek yok"), bunu sorun etmeden onayla, ısrar etme veya tekrar sorma — teklif önizlemesindeki ödeme yöntemi alanı zaten opsiyoneldir, boş bırakılabilir.
 - ÇOK ÖNEMLİ: Kullanıcının sorduğu her soruya MUTLAKA yazıyla cevap ver — teklifi güncelleyip \`\`\`json\`\`\` bloğunu tekrar döndürürken bile önüne/arkasına en az 1-2 cümlelik bir açıklama koy. Asla sadece json bloğu dönüp yazı kısmını boş bırakma.${
     isCustom
       ? `\n- KOŞULLU İÇERİK: Kullanıcı "müşteri şunu seçerse teklife şu bölüm/şart eklensin" gibi bir talep belirtirse, o bölümü \`sections\` dizisinde ilgili section objesine \`condition\` alanı ekleyerek bir kaleme (\`lineItem\`) veya billing seçeneğine (\`billingKey\`) bağla — SADECE TEK bir kaleme/seçeneğe bağla, iç içe veya birden çok koşul kurma. Bu alan sadece kullanıcı gerçekten koşullu bir talep belirttiyse doldurulur, aksi halde hiç ekleme.`
