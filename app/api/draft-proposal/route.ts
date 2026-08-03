@@ -208,10 +208,6 @@ ${pricingBlock}${websiteContext}${prefillBlock}`;
 
   const replyText = response.content.map((b) => (b.type === "text" ? b.text : "")).join("");
 
-  await service
-    .from("ai_usage")
-    .upsert({ company_id: profile.company_id, month, count: used + 1 }, { onConflict: "company_id,month" });
-
   const jsonMatch = replyText.match(/```json\s*([\s\S]*?)```/);
   let draft = null;
   if (jsonMatch) {
@@ -222,7 +218,15 @@ ${pricingBlock}${websiteContext}${prefillBlock}`;
     }
   }
 
+  // Only counts against the monthly quota when a proposal is actually produced —
+  // back-and-forth chatting/clarifying questions are free, not metered per message.
+  if (draft) {
+    await service
+      .from("ai_usage")
+      .upsert({ company_id: profile.company_id, month, count: used + 1 }, { onConflict: "company_id,month" });
+  }
+
   const reply = replyText.replace(/```json[\s\S]*?```/, "").trim();
 
-  return NextResponse.json({ reply, draft, remaining: limit - used - 1 });
+  return NextResponse.json({ reply, draft, remaining: limit - (draft ? used + 1 : used) });
 }
