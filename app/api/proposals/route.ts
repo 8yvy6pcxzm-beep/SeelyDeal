@@ -34,28 +34,33 @@ export async function POST(req: Request) {
     }
   }
 
+  const numericValue = Number(value);
+
   const { data: proposal, error } = await service
     .from("proposals")
     .insert({
       company_id: profile.company_id,
       client_id: clientId,
       title: title || "Yeni teklif",
-      value: value || 0,
-      sections: sections || [],
-      line_items: lineItems || [],
+      value: Number.isFinite(numericValue) ? numericValue : 0,
+      sections: Array.isArray(sections) ? sections : [],
+      line_items: Array.isArray(lineItems) ? lineItems : [],
       contract_text: contractText || null,
       payment_link: paymentLink || null,
-      billing_options: billingOptions || [],
+      billing_options: Array.isArray(billingOptions) ? billingOptions : [],
       intro_text: introText || null,
       about_text: aboutText || null,
-      client_contact: clientContact || {},
-      next_steps: nextSteps || [],
-      valid_days: validDays || 15,
+      client_contact: clientContact && typeof clientContact === "object" ? clientContact : {},
+      next_steps: Array.isArray(nextSteps) ? nextSteps : [],
+      valid_days: Number.isFinite(Number(validDays)) ? Number(validDays) : 15,
     })
     .select("id")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("POST /api/proposals insert failed:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true, id: proposal.id });
 }
