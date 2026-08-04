@@ -155,6 +155,9 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
     setError(null);
     setOverage(null);
 
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 130_000);
+
     try {
       const res = await fetch("/api/draft-proposal", {
         method: "POST",
@@ -164,6 +167,7 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
           websiteUrl: websiteUrl || undefined,
           attachment: sentAttachment ?? undefined,
         }),
+        signal: controller.signal,
       });
       const data = await res.json();
       if (!res.ok) {
@@ -171,7 +175,6 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
         if (res.status === 429) {
           setOverage({ link: data.overageLink ?? null, price: data.overagePrice, drafts: data.overageDrafts });
         }
-        setLoading(false);
         return;
       }
       const reply = (data.reply ?? "").trim()
@@ -181,9 +184,18 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
           : "Updated the proposal — check the preview below.";
       setMessages((m) => [...m, { role: "assistant", content: reply }]);
       if (data.draft) setDraft(data.draft);
-    } catch {
-      setError(lang === "tr" ? "Bağlantı hatası." : "Connection error.");
+    } catch (err) {
+      setError(
+        err instanceof DOMException && err.name === "AbortError"
+          ? lang === "tr"
+            ? "Yanıt çok uzun sürdü, lütfen tekrar dene."
+            : "That took too long — please try again."
+          : lang === "tr"
+            ? "Bağlantı hatası."
+            : "Connection error.",
+      );
     } finally {
+      window.clearTimeout(timeoutId);
       setLoading(false);
       setSending(false);
     }

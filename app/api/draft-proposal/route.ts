@@ -5,6 +5,11 @@ import { getAuthedUser } from "@/lib/supabase/auth-user";
 import appConfig, { aiOveragePack } from "@/app.config";
 import { safeFetchWebsiteText } from "@/lib/safe-fetch-website";
 
+// AI drafting (company context + template docs + an optional attachment) routinely
+// runs past the platform's default serverless timeout; give it real headroom so the
+// request errors cleanly instead of hanging until the client times out on its own.
+export const maxDuration = 120;
+
 const MODEL = "claude-sonnet-5";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
@@ -152,6 +157,7 @@ KURALLAR:
   }
 - Kullanıcı bir dosya (PDF, resim, ekran görüntüsü) eklerse, içeriğini oku ve teklif için gereken bilgileri (marka, fiyatlandırma, kapsam, müşteri bilgisi vb.) oradan çıkar — tekrar sorma.
 ${isLite ? "" : `- Kullanıcı "standart sözleşmemi/teklif formatımı kullan, şunu revize et" derse, aşağıdaki DOKÜMAN KÜTÜPHANESİ'nden ilgili dokümanı bul, verdiği talimatlara göre revize ederek kullan.\n`}- Fiyatlandırmada, aksi istenmedikçe aşağıdaki GERÇEK PAKETLERİMİZİ kullan.
+- ÇOK ÖNEMLİ — OKUNAKLILIK: \`sections\` dizisindeki her bölümün \`body\`'si UZUN PARAGRAF OLMASIN — her bölüm başlığının altına, o bölümü özetleyen TEK bir çarpıcı cümle yaz (en fazla ~20 kelime, gerekirse virgülle iki-üç madde birleştir). Örnek: "Keşif, marka sistemi, 8 sayfalık web sitesi ve devir." veya "Sabit ücret + opsiyonel bakım paketi." Detay gerekiyorsa ikinci cümleye değil, ayrı bir alt madde/kalem olarak lineItems'a taşı. \`introText\` ve \`aboutText\` bu kurala tabi değil, onlar kısa paragraf olabilir.
 - Kullanıcı bir kalemi "opsiyonel" veya "ek hizmet" olarak belirtirse, o kalemi \`optional: true\` yap (müşteri bunu teklifi görüntülerken açıp kapatabilir). \`included\` alanı, opsiyonel kalemin varsayılan olarak işaretli gelip gelmeyeceğini belirtir (belirtilmediyse false).
 - Kullanıcı "aylık veya yıllık" gibi müşterinin ikisinden birini seçeceği farklı fiyatlı ödeme sıklığı/paket seçenekleri isterse, bunları \`billingOptions\` dizisine yaz (her biri ayrı fiyat, müşteri teklifi imzalamadan önce birini seçer). Bu, tekil kalemlerden farklıdır — kalemler teklife toplam olarak eklenir/çıkarılır, billingOptions ise birbirini DIŞLAYAN seçeneklerdir (biri seçilir, diğerleri değil).
 - Her \`billingOption\`a AYRI bir ödeme linki eklenebilir (müşteri o seçeneği seçip imzalarsa o linke yönlendirilir) — bunu SEN doldurmazsın, kullanıcı teklif önizlemesinde her seçeneğin altındaki link kutusuna kendisi yapıştırır. Kullanıcı "iki farklı ödeme sıklığı için iki ayrı ödeme linki ekleyebilir miyim" gibi bir şey sorarsa: EVET diye net cevap ver ve "teklif önizlemesinde her ödeme seçeneğinin altında kendi link kutusu var, oraya ayrı ayrı yapıştırabilirsin" diye açıkla.
