@@ -57,6 +57,8 @@ export interface ViewEvent {
   label: L;
   section?: L;
   seconds?: number;
+  /** open/reopen/section-read events — collapsed on Lite, kept on Pro (document_analytics) */
+  kind?: "open";
 }
 
 export interface LineItem {
@@ -121,9 +123,9 @@ export const proposals: ProposalRow[] = [
     ],
     timeline: [
       { at: "2026-06-11T09:20:00Z", label: { tr: "Gönderildi", en: "Sent" } },
-      { at: "2026-06-11T14:02:00Z", label: { tr: "İlk kez açıldı", en: "Opened first time" }, section: { tr: "Kapak", en: "Cover" }, seconds: 38 },
-      { at: "2026-06-12T08:46:00Z", label: { tr: "Tekrar açıldı", en: "Re-opened" }, section: { tr: "Fiyatlandırma", en: "Pricing" }, seconds: 244 },
-      { at: "2026-06-12T20:11:00Z", label: { tr: "Kapsam okundu", en: "Read scope" }, section: { tr: "Kapsam", en: "Scope" }, seconds: 96 },
+      { at: "2026-06-11T14:02:00Z", label: { tr: "İlk kez açıldı", en: "Opened first time" }, section: { tr: "Kapak", en: "Cover" }, seconds: 38, kind: "open" },
+      { at: "2026-06-12T08:46:00Z", label: { tr: "Tekrar açıldı", en: "Re-opened" }, section: { tr: "Fiyatlandırma", en: "Pricing" }, seconds: 244, kind: "open" },
+      { at: "2026-06-12T20:11:00Z", label: { tr: "Kapsam okundu", en: "Read scope" }, section: { tr: "Kapsam", en: "Scope" }, seconds: 96, kind: "open" },
     ],
     lineItems: [
       { id: "l1", name: { tr: "Keşif & strateji", en: "Discovery & strategy" }, unit: 3200, qty: 1 },
@@ -156,8 +158,8 @@ export const proposals: ProposalRow[] = [
     ],
     timeline: [
       { at: "2026-06-08T11:00:00Z", label: { tr: "Gönderildi", en: "Sent" } },
-      { at: "2026-06-08T15:30:00Z", label: { tr: "Açıldı", en: "Opened" }, section: { tr: "Fiyatlandırma", en: "Pricing" }, seconds: 180 },
-      { at: "2026-06-09T09:10:00Z", label: { tr: "Şartlar okundu", en: "Read terms" }, section: { tr: "Şartlar", en: "Terms" }, seconds: 70 },
+      { at: "2026-06-08T15:30:00Z", label: { tr: "Açıldı", en: "Opened" }, section: { tr: "Fiyatlandırma", en: "Pricing" }, seconds: 180, kind: "open" },
+      { at: "2026-06-09T09:10:00Z", label: { tr: "Şartlar okundu", en: "Read terms" }, section: { tr: "Şartlar", en: "Terms" }, seconds: 70, kind: "open" },
       { at: "2026-06-09T16:42:00Z", label: { tr: "Kabul edildi & imzalandı", en: "Accepted & signed" } },
     ],
     lineItems: [
@@ -220,9 +222,9 @@ export const proposals: ProposalRow[] = [
     ],
     timeline: [
       { at: "2026-06-10T13:15:00Z", label: { tr: "Gönderildi", en: "Sent" } },
-      { at: "2026-06-10T18:00:00Z", label: { tr: "Açıldı", en: "Opened" }, section: { tr: "Kapsam", en: "Scope" }, seconds: 120 },
-      { at: "2026-06-11T10:30:00Z", label: { tr: "Fiyatlandırmaya bakıldı", en: "Viewed pricing" }, section: { tr: "Fiyatlandırma", en: "Pricing" }, seconds: 210 },
-      { at: "2026-06-13T09:05:00Z", label: { tr: "İkinci kişi açtı", en: "Second viewer opened" }, section: { tr: "Şartlar", en: "Terms" }, seconds: 88 },
+      { at: "2026-06-10T18:00:00Z", label: { tr: "Açıldı", en: "Opened" }, section: { tr: "Kapsam", en: "Scope" }, seconds: 120, kind: "open" },
+      { at: "2026-06-11T10:30:00Z", label: { tr: "Fiyatlandırmaya bakıldı", en: "Viewed pricing" }, section: { tr: "Fiyatlandırma", en: "Pricing" }, seconds: 210, kind: "open" },
+      { at: "2026-06-13T09:05:00Z", label: { tr: "İkinci kişi açtı", en: "Second viewer opened" }, section: { tr: "Şartlar", en: "Terms" }, seconds: 88, kind: "open" },
     ],
     lineItems: [
       { id: "l1", name: { tr: "Aylık retainer", en: "Monthly retainer" }, unit: 3000, qty: 12 },
@@ -281,7 +283,7 @@ export const proposals: ProposalRow[] = [
     ],
     timeline: [
       { at: "2026-06-04T10:00:00Z", label: { tr: "Gönderildi", en: "Sent" } },
-      { at: "2026-06-04T12:20:00Z", label: { tr: "Açıldı", en: "Opened" }, section: { tr: "Kapak", en: "Cover" }, seconds: 52 },
+      { at: "2026-06-04T12:20:00Z", label: { tr: "Açıldı", en: "Opened" }, section: { tr: "Kapak", en: "Cover" }, seconds: 52, kind: "open" },
       { at: "2026-06-05T09:00:00Z", label: { tr: "Kabul edildi & imzalandı", en: "Accepted & signed" } },
     ],
     lineItems: [
@@ -313,7 +315,7 @@ export const proposals: ProposalRow[] = [
     ],
     timeline: [
       { at: "2026-06-02T09:00:00Z", label: { tr: "Gönderildi", en: "Sent" } },
-      { at: "2026-06-02T14:00:00Z", label: { tr: "Açıldı", en: "Opened" }, section: { tr: "Fiyatlandırma", en: "Pricing" }, seconds: 64 },
+      { at: "2026-06-02T14:00:00Z", label: { tr: "Açıldı", en: "Opened" }, section: { tr: "Fiyatlandırma", en: "Pricing" }, seconds: 64, kind: "open" },
       { at: "2026-06-03T11:00:00Z", label: { tr: "Reddedildi", en: "Declined" } },
     ],
     lineItems: [
@@ -345,7 +347,7 @@ export const proposals: ProposalRow[] = [
     ],
     timeline: [
       { at: "2026-06-13T08:30:00Z", label: { tr: "Gönderildi", en: "Sent" } },
-      { at: "2026-06-13T09:02:00Z", label: { tr: "İlk kez açıldı", en: "Opened first time" }, section: { tr: "Kapak", en: "Cover" }, seconds: 41 },
+      { at: "2026-06-13T09:02:00Z", label: { tr: "İlk kez açıldı", en: "Opened first time" }, section: { tr: "Kapak", en: "Cover" }, seconds: 41, kind: "open" },
     ],
     lineItems: [
       { id: "l1", name: { tr: "Komponent kütüphanesi", en: "Component library" }, unit: 18000, qty: 1 },

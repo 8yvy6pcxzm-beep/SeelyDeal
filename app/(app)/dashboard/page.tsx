@@ -834,32 +834,35 @@ export default function DashboardPage() {
               {/* view timeline */}
               <div>
                 <p className="label-mono pb-2 text-muted-foreground">{lang === "tr" ? "Görüntüleme zaman çizelgesi" : "View timeline"}</p>
-                {current.timeline.length === 0 ? (
-                  <p className="rounded-lg bg-muted/50 px-3 py-2 text-[12px] text-muted-foreground">
-                    {lang === "tr" ? "Henüz hareket yok — taslak." : "No activity yet — it's a draft."}
-                  </p>
-                ) : (
-                  <div className="space-y-3">
-                    {current.timeline.map((ev, i) => (
-                      <div key={i} className="flex items-start gap-2.5">
-                        <span className="relative mt-0.5 flex flex-col items-center">
-                          <span className="grid h-5 w-5 place-items-center rounded-full bg-primary/10 text-primary">
-                            {i === current.timeline.length - 1 && current.signed ? <Check className="h-3 w-3" strokeWidth={3} /> : <Clock className="h-3 w-3" />}
+                {(() => {
+                  const visibleTimeline = documentAnalyticsAllowed ? current.timeline : current.timeline.filter((ev) => ev.kind !== "open");
+                  return visibleTimeline.length === 0 ? (
+                    <p className="rounded-lg bg-muted/50 px-3 py-2 text-[12px] text-muted-foreground">
+                      {lang === "tr" ? "Henüz hareket yok — taslak." : "No activity yet — it's a draft."}
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {visibleTimeline.map((ev, i) => (
+                        <div key={i} className="flex items-start gap-2.5">
+                          <span className="relative mt-0.5 flex flex-col items-center">
+                            <span className="grid h-5 w-5 place-items-center rounded-full bg-primary/10 text-primary">
+                              {i === visibleTimeline.length - 1 && current.signed ? <Check className="h-3 w-3" strokeWidth={3} /> : <Clock className="h-3 w-3" />}
+                            </span>
+                            {i < visibleTimeline.length - 1 && <span className="mt-0.5 h-5 w-px bg-border" />}
                           </span>
-                          {i < current.timeline.length - 1 && <span className="mt-0.5 h-5 w-px bg-border" />}
-                        </span>
-                        <div className="min-w-0 text-[12.5px]">
-                          <p className="font-medium leading-tight">{t(ev.label)}</p>
-                          <p className="text-[11px] text-muted-foreground">
-                            {fmtTime(ev.at)}
-                            {documentAnalyticsAllowed && ev.section && ` · ${t(ev.section)}`}
-                            {documentAnalyticsAllowed && ev.seconds ? ` · ${Math.round(ev.seconds / 60) || 1}m` : ""}
-                          </p>
+                          <div className="min-w-0 text-[12.5px]">
+                            <p className="font-medium leading-tight">{t(ev.label)}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {fmtTime(ev.at)}
+                              {documentAnalyticsAllowed && ev.section && ` · ${t(ev.section)}`}
+                              {documentAnalyticsAllowed && ev.seconds ? ` · ${Math.round(ev.seconds / 60) || 1}m` : ""}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  );
+                })()}
                 <p className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-muted/60 px-2.5 py-1 text-[11.5px] font-medium text-muted-foreground">
                   <Eye className="h-3.5 w-3.5" />
                   {documentAnalyticsAllowed
