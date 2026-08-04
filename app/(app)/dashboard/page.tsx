@@ -113,7 +113,11 @@ export default function DashboardPage() {
           spark: p.view_spark ?? [0, 0, 0, 0, 0, 0, 0],
           signed: p.status === "accepted",
           viewSummary: { tr: "", en: "" },
-          sections: p.sections ?? [],
+          sections: (p.sections ?? []).map((s: { title: string; body: string }, si: number) => ({
+            key: `s${si}`,
+            title: { tr: s.title, en: s.title },
+            preview: { tr: s.body, en: s.body },
+          })),
           timeline: [],
           lineItems: p.line_items ?? [],
           template: { tr: "AI taslağı", en: "AI draft" },
