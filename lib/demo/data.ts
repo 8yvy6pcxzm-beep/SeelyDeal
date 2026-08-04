@@ -398,13 +398,15 @@ export interface DActivity {
   target: string;
   at: string;
   tone: "neutral" | "success" | "warning" | "info";
+  /** Hide this row on plans that don't have the feature it demonstrates (e.g. section-level analytics, reminders). */
+  requires?: "document_analytics" | "reminders";
 }
 
 export const activity: DActivity[] = [
   { id: "a1", who: "Liam Chen", action: { tr: "imzaladı:", en: "signed" }, target: "PRO-2047", at: "2026-06-13T09:42:00Z", tone: "success" },
   { id: "a2", who: "Meridian", action: { tr: "ilk kez açtı:", en: "first opened" }, target: "PRO-2041", at: "2026-06-13T09:02:00Z", tone: "info" },
-  { id: "a3", who: "Tom Reilly", action: { tr: "fiyatlandırmayı görüntüledi:", en: "viewed pricing on" }, target: "PRO-2045", at: "2026-06-13T08:30:00Z", tone: "info" },
-  { id: "a4", who: "System", action: { tr: "hatırlatma gönderdi:", en: "sent a reminder for" }, target: "PRO-2048", at: "2026-06-12T18:00:00Z", tone: "warning" },
+  { id: "a3", who: "Tom Reilly", action: { tr: "fiyatlandırmayı görüntüledi:", en: "viewed pricing on" }, target: "PRO-2045", at: "2026-06-13T08:30:00Z", tone: "info", requires: "document_analytics" },
+  { id: "a4", who: "System", action: { tr: "hatırlatma gönderdi:", en: "sent a reminder for" }, target: "PRO-2048", at: "2026-06-12T18:00:00Z", tone: "warning", requires: "reminders" },
   { id: "a5", who: "Avery Rhodes", action: { tr: "AI ile taslak yazdı:", en: "AI-drafted" }, target: "PRO-2044", at: "2026-06-12T11:20:00Z", tone: "neutral" },
 ];
 

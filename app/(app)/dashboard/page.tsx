@@ -74,6 +74,40 @@ const FILTERS: { key: ProposalStatus | "all"; label: { tr: string; en: string } 
   { key: "accepted", label: { tr: "Kabul", en: "Accepted" } },
 ];
 
+/** Real (Supabase-backed) proposals have no hand-written timeline like the demo rows — build one from what we actually track: creation/send, each proposal_view row, and signed_at. */
+function buildRealTimeline(p: {
+  created_at?: string | null;
+  status?: string;
+  view_times?: string[];
+  signed_at?: string | null;
+  signed_by_name?: string | null;
+}) {
+  const events: { at: string; label: { tr: string; en: string }; kind?: "open" }[] = [];
+
+  if (p.created_at && p.status !== "draft") {
+    events.push({ at: p.created_at, label: { tr: "Gönderildi", en: "Sent" } });
+  }
+
+  (p.view_times ?? []).forEach((at, i) => {
+    events.push({
+      at,
+      label: i === 0 ? { tr: "İlk kez açıldı", en: "Opened first time" } : { tr: "Tekrar açıldı", en: "Re-opened" },
+      kind: "open",
+    });
+  });
+
+  if (p.signed_at) {
+    events.push({
+      at: p.signed_at,
+      label: p.signed_by_name
+        ? { tr: `Kabul edildi & imzalandı — ${p.signed_by_name}`, en: `Accepted & signed — ${p.signed_by_name}` }
+        : { tr: "Kabul edildi & imzalandı", en: "Accepted & signed" },
+    });
+  }
+
+  return events.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+}
+
 export default function DashboardPage() {
   const { t, lang } = useLang();
   const plan = usePlan();
@@ -119,7 +153,7 @@ export default function DashboardPage() {
               title: { tr: s.title, en: s.title },
               preview: { tr: s.body, en: s.body },
             })),
-            timeline: [],
+            timeline: buildRealTimeline(p),
             lineItems: p.line_items ?? [],
             template: { tr: "AI taslağı", en: "AI draft" },
           }));
@@ -971,7 +1005,9 @@ export default function DashboardPage() {
                 {lang === "tr" ? "Son hareketler" : "Recent activity"}
               </h3>
               <div className="mt-3.5 space-y-3.5">
-                {activity.map((a) => (
+                {activity
+                  .filter((a) => !a.requires || planAllows(plan, a.requires))
+                  .map((a) => (
                   <div key={a.id} className="flex items-start gap-2.5">
                     <span
                       className={cn(
