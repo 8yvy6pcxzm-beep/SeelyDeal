@@ -95,38 +95,46 @@ export default function DashboardPage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/proposals")
-      .then((res) => res.json())
-      .then((data) => {
-        if (cancelled) return;
-        const mapped = (data.proposals ?? []).map((p: any, i: number) => ({
-          id: p.id,
-          number: `AI-${String(i + 1).padStart(4, "0")}`,
-          title: { tr: p.title, en: p.title },
-          client: p.clients?.name ?? "—",
-          clientEmail: "",
-          clientInitials: (p.clients?.name ?? "?").slice(0, 2).toUpperCase(),
-          value: Number(p.value) || 0,
-          status: p.status,
-          sentDate: p.status !== "draft" ? p.created_at ?? null : null,
-          views: p.view_count ?? 0,
-          spark: p.view_spark ?? [0, 0, 0, 0, 0, 0, 0],
-          signed: p.status === "accepted",
-          viewSummary: { tr: "", en: "" },
-          sections: (p.sections ?? []).map((s: { title: string; body: string }, si: number) => ({
-            key: `s${si}`,
-            title: { tr: s.title, en: s.title },
-            preview: { tr: s.body, en: s.body },
-          })),
-          timeline: [],
-          lineItems: p.line_items ?? [],
-          template: { tr: "AI taslağı", en: "AI draft" },
-        }));
-        setRealRows(mapped);
-      })
-      .catch(() => setRealRows([]));
+    function loadReal() {
+      fetch("/api/proposals")
+        .then((res) => res.json())
+        .then((data) => {
+          if (cancelled) return;
+          const mapped = (data.proposals ?? []).map((p: any, i: number) => ({
+            id: p.id,
+            number: `AI-${String(i + 1).padStart(4, "0")}`,
+            title: { tr: p.title, en: p.title },
+            client: p.clients?.name ?? "—",
+            clientEmail: "",
+            clientInitials: (p.clients?.name ?? "?").slice(0, 2).toUpperCase(),
+            value: Number(p.value) || 0,
+            status: p.status,
+            sentDate: p.status !== "draft" ? p.created_at ?? null : null,
+            views: p.view_count ?? 0,
+            spark: p.view_spark ?? [0, 0, 0, 0, 0, 0, 0],
+            signed: p.status === "accepted",
+            viewSummary: { tr: "", en: "" },
+            sections: (p.sections ?? []).map((s: { title: string; body: string }, si: number) => ({
+              key: `s${si}`,
+              title: { tr: s.title, en: s.title },
+              preview: { tr: s.body, en: s.body },
+            })),
+            timeline: [],
+            lineItems: p.line_items ?? [],
+            template: { tr: "AI taslağı", en: "AI draft" },
+          }));
+          setRealRows(mapped);
+        })
+        .catch(() => setRealRows([]));
+    }
+    loadReal();
+    // Keeps e-sign / status in sync while the drawer is open, same cadence as
+    // the proposals list page — otherwise "Awaiting signature" can go stale
+    // for as long as the user stays on this screen.
+    const interval = setInterval(loadReal, 20000);
     return () => {
       cancelled = true;
+      clearInterval(interval);
     };
   }, []);
 
