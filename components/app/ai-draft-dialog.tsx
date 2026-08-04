@@ -358,7 +358,7 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
               {draft.billingOptions && draft.billingOptions.length > 0 && (
                 <div className="space-y-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {lang === "tr" ? "Ödeme sıklığı seçenekleri" : "Billing options"}
+                    {lang === "tr" ? "Ödeme sıklığı seçenekleri (linkler opsiyonel)" : "Billing options (links optional)"}
                   </p>
                   {draft.billingOptions.map((o) => (
                     <div key={o.key} className="rounded-lg border border-border p-2.5">
@@ -391,8 +391,8 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
                   ))}
                   <p className="text-xs text-muted-foreground">
                     {lang === "tr"
-                      ? "Müşteri hangi seçeneği seçip imzalarsa, o seçeneğin linkine yönlendirilir."
-                      : "Whichever option the client picks and signs, they're redirected to that option's link."}
+                      ? "Müşteri hangi seçeneği seçip imzalarsa, o seçeneğin linkine yönlendirilir. Boş bırakabilirsin — teklifi eklemek için link şart değil."
+                      : "Whichever option the client picks and signs, they're redirected to that option's link. You can leave these blank — a link isn't required to add the proposal."}
                   </p>
                 </div>
               )}
