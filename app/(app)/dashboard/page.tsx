@@ -33,7 +33,6 @@ import {
   stats,
   pipeline,
   proposals,
-  acceptance,
   acceptanceMeta,
   templates,
   activity,
@@ -259,6 +258,32 @@ export default function DashboardPage() {
     };
   });
   const maxPipeline = Math.max(1, ...computedPipeline.map((c) => c.value));
+
+  // Same "always matches the table" rule as computedStats/computedPipeline above,
+  // applied to the acceptance-over-time chart: group real rows by sent month
+  // instead of the static demo `acceptance` array.
+  const computedAcceptance = Array.from({ length: 6 }).map((_, i) => {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (5 - i), 1));
+    const y = d.getUTCFullYear();
+    const m = d.getUTCMonth();
+    const rows = allProposals.filter((p) => {
+      if (!p.sentDate) return false;
+      const sd = new Date(p.sentDate);
+      return sd.getUTCFullYear() === y && sd.getUTCMonth() === m;
+    });
+    return {
+      label: d.toLocaleString("en-US", { month: "short", timeZone: "UTC" }),
+      sent: rows.length,
+      accepted: rows.filter((p) => p.status === "accepted").length,
+    };
+  });
+  const firstMonthAccepted = computedAcceptance[0].accepted;
+  const lastMonthAccepted = computedAcceptance[computedAcceptance.length - 1].accepted;
+  const acceptanceDeltaPct = firstMonthAccepted
+    ? Math.round(((lastMonthAccepted - firstMonthAccepted) / firstMonthAccepted) * 100)
+    : lastMonthAccepted > 0
+      ? 100
+      : 0;
 
   return (
     <div className="mx-auto max-w-[1500px] animate-fade-in">
@@ -552,9 +577,15 @@ export default function DashboardPage() {
                   <h3 className="font-display text-[15px] font-semibold tracking-tight">{t(acceptanceMeta.title)}</h3>
                   <p className="text-xs text-muted-foreground">{t(acceptanceMeta.subtitle)}</p>
                 </div>
-                <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
-                  <ArrowUpRight className="h-3 w-3" />
-                  {acceptanceMeta.delta}
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                    acceptanceDeltaPct >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive",
+                  )}
+                >
+                  {acceptanceDeltaPct >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                  {acceptanceDeltaPct >= 0 ? "+" : ""}
+                  {acceptanceDeltaPct}%
                 </span>
               </div>
               <div className="mt-3 flex items-center gap-5 text-[11.5px] text-muted-foreground">
@@ -568,7 +599,7 @@ export default function DashboardPage() {
                 </span>
               </div>
               <div className="mt-2">
-                <AcceptanceChart data={acceptance} height={170} />
+                <AcceptanceChart data={computedAcceptance} height={170} />
               </div>
             </div>
 
@@ -711,22 +742,21 @@ export default function DashboardPage() {
           </div>
 
           {/* Templates strip */}
-          <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+          <div className="relative rounded-2xl border border-border bg-card p-5 shadow-soft opacity-60">
+            <span className="absolute right-4 top-4 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+              {lang === "tr" ? "Yakında" : "Soon"}
+            </span>
             <div className="flex items-center justify-between">
               <h3 className="font-display text-[15px] font-semibold tracking-tight">
                 {lang === "tr" ? "Şablonlar" : "Templates"}
               </h3>
-              <Link href="/templates" className="inline-flex items-center gap-1 text-[13px] font-medium text-primary hover:underline">
-                {lang === "tr" ? "Tümünü gör" : "View all"}
-                <ArrowUpRight className="h-3.5 w-3.5" />
-              </Link>
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {templates.map((tpl) => (
-                <button
+                <div
                   key={tpl.id}
-                  onClick={() => router.push(`/templates?use=${tpl.id}`)}
-                  className="group rounded-xl border border-border bg-card p-3.5 text-left shadow-pill transition-shadow hover:shadow-pop"
+                  title={lang === "tr" ? "Yakında" : "Coming soon"}
+                  className="cursor-default rounded-xl border border-border bg-card p-3.5 text-left shadow-pill"
                 >
                   <div className="flex h-16 items-center justify-center rounded-lg" style={{ background: `color-mix(in oklch, ${tpl.accent} 14%, white)` }}>
                     <span className="grid h-9 w-9 place-items-center rounded-lg text-white" style={{ background: tpl.accent }}>
@@ -738,7 +768,7 @@ export default function DashboardPage() {
                     <span>{t(tpl.category)}</span>
                     <span className="tnum">{tpl.uses} {lang === "tr" ? "kullanım" : "uses"}</span>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           </div>
