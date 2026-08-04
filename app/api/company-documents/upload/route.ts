@@ -4,6 +4,7 @@ import { getAuthedUser } from "@/lib/supabase/auth-user";
 import { planAllows } from "@/lib/plan";
 
 const DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20MB
 
 /** Extracts the exact text of an uploaded PDF/Word file and stores it as a company document (e.g. a proposal template). */
 export async function POST(req: Request) {
@@ -29,6 +30,11 @@ export async function POST(req: Request) {
 
   if (!base64 || !mediaType) {
     return NextResponse.json({ error: "Dosya eksik." }, { status: 400 });
+  }
+  // Checked on the base64 string itself (before decoding) so an oversized
+  // payload can't allocate a huge buffer just to get rejected afterward.
+  if (base64.length > (MAX_FILE_BYTES * 4) / 3) {
+    return NextResponse.json({ error: "Dosya çok büyük (en fazla 20MB)." }, { status: 413 });
   }
 
   const buffer = Buffer.from(base64, "base64");

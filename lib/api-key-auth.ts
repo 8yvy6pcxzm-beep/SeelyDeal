@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 import { createServiceClient } from "@/lib/supabase/server";
+
+export function hashApiKey(key: string) {
+  return crypto.createHash("sha256").update(key).digest("hex");
+}
 
 export type ApiKeyAuthResult =
   | { ok: true; companyId: string }
@@ -18,7 +23,7 @@ export async function authenticateApiKey(req: Request): Promise<ApiKeyAuthResult
   const { data: company } = await service
     .from("companies")
     .select("id, api_monthly_limit")
-    .eq("api_key", apiKey)
+    .eq("api_key_hash", hashApiKey(apiKey))
     .maybeSingle();
   if (!company) return { ok: false, reason: "invalid" };
 

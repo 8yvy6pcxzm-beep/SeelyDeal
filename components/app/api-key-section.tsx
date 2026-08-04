@@ -17,6 +17,7 @@ export function ApiKeySection() {
   const allowed = planAllows(plan, "api_access");
   const supabase = createClient();
   const [apiKey, setApiKey] = useState<string | null>(null);
+  const [last4, setLast4] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -36,8 +37,8 @@ export function ApiKeySection() {
         setLoading(false);
         return;
       }
-      const { data: company } = await supabase.from("companies").select("api_key").eq("id", profile.company_id).maybeSingle();
-      setApiKey(company?.api_key ?? null);
+      const { data: company } = await supabase.from("companies").select("api_key_last4").eq("id", profile.company_id).maybeSingle();
+      setLast4(company?.api_key_last4 ?? null);
       setLoading(false);
     })();
   }, []);
@@ -53,7 +54,10 @@ export function ApiKeySection() {
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
       const data = await res.json();
-      if (res.ok) setApiKey(data.apiKey);
+      if (res.ok) {
+        setApiKey(data.apiKey);
+        setLast4(data.apiKey.slice(-4));
+      }
     } finally {
       setGenerating(false);
     }
@@ -95,7 +99,18 @@ export function ApiKeySection() {
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
                 <KeyRound className="h-4 w-4" />
               </span>
-              <Input value={apiKey ?? (lang === "tr" ? "Henüz anahtar oluşturulmadı" : "No key generated yet")} readOnly className="font-mono text-xs" />
+              <Input
+                value={
+                  apiKey ??
+                  (last4
+                    ? `sk_live_${"•".repeat(20)}${last4}`
+                    : lang === "tr"
+                      ? "Henüz anahtar oluşturulmadı"
+                      : "No key generated yet")
+                }
+                readOnly
+                className="font-mono text-xs"
+              />
               {apiKey && (
                 <Button
                   variant="outline"
@@ -112,9 +127,16 @@ export function ApiKeySection() {
             </div>
             <Button variant="outline" onClick={generate} disabled={generating} className="gap-2">
               {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              {apiKey ? (lang === "tr" ? "Anahtarı yenile" : "Regenerate key") : (lang === "tr" ? "Anahtar oluştur" : "Generate key")}
+              {last4 ? (lang === "tr" ? "Anahtarı yenile" : "Regenerate key") : (lang === "tr" ? "Anahtar oluştur" : "Generate key")}
             </Button>
             {apiKey && (
+              <p className="text-xs font-medium text-destructive">
+                {lang === "tr"
+                  ? "Bu anahtar sadece şimdi gösteriliyor, şimdi kopyala — bir daha tam hâliyle gösterilmeyecek."
+                  : "This key is only shown now — copy it now, it won't be shown in full again."}
+              </p>
+            )}
+            {last4 && (
               <p className="text-xs text-muted-foreground">
                 {lang === "tr" ? "Yenilersen eski anahtar hemen geçersiz olur." : "Regenerating immediately invalidates the old key."}
               </p>

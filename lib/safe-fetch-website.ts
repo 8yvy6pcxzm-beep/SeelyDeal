@@ -16,6 +16,18 @@ function isPrivateIp(ip: string): boolean {
   );
 }
 
+async function isSafeUrl(url: URL): Promise<boolean> {
+  if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+  try {
+    const { address } = await dns.lookup(url.hostname);
+    return !isPrivateIp(address);
+  } catch {
+    return false;
+  }
+}
+
+const MAX_REDIRECTS = 5;
+
 /** Fetches a user-supplied website and returns a short plain-text excerpt for AI context. Never called automatically — only when the customer explicitly shares a URL. */
 export async function safeFetchWebsiteText(rawUrl: string): Promise<string | null> {
   let url: URL;
@@ -24,19 +36,25 @@ export async function safeFetchWebsiteText(rawUrl: string): Promise<string | nul
   } catch {
     return null;
   }
-  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-
-  try {
-    const { address } = await dns.lookup(url.hostname);
-    if (isPrivateIp(address)) return null;
-  } catch {
-    return null;
-  }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
   try {
-    const res = await fetch(url.toString(), { signal: controller.signal, redirect: "follow" });
+    // Re-checked on every hop: a redirect target's DNS is only known once we
+    // see it, so `redirect: "follow"` alone would let a 302 point at an
+    // internal address after the initial hostname passed the check.
+    let res: Response;
+    let current = url;
+    for (let hop = 0; ; hop++) {
+      if (!(await isSafeUrl(current))) return null;
+      res = await fetch(current.toString(), { signal: controller.signal, redirect: "manual" });
+      if (res.status >= 300 && res.status < 400 && res.headers.get("location")) {
+        if (hop >= MAX_REDIRECTS) return null;
+        current = new URL(res.headers.get("location")!, current);
+        continue;
+      }
+      break;
+    }
     if (!res.ok) return null;
     const buf = await res.arrayBuffer();
     const html = Buffer.from(buf.slice(0, 200_000)).toString("utf-8");

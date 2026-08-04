@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getAuthedUser } from "@/lib/supabase/auth-user";
 import { planAllows } from "@/lib/plan";
+import { hashApiKey } from "@/lib/api-key-auth";
 
 function generateKey() {
   return `sk_live_${randomBytes(24).toString("hex")}`;
@@ -22,8 +23,12 @@ export async function POST(req: Request) {
   }
 
   const apiKey = generateKey();
-  const { error } = await service.from("companies").update({ api_key: apiKey }).eq("id", profile.company_id);
+  const { error } = await service
+    .from("companies")
+    .update({ api_key_hash: hashApiKey(apiKey), api_key_last4: apiKey.slice(-4) })
+    .eq("id", profile.company_id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // Only returned here, right after generation — never stored or served in the clear again.
   return NextResponse.json({ apiKey });
 }
