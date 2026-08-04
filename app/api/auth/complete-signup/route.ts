@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/supabase/server";
 import { getAuthedUser } from "@/lib/supabase/auth-user";
+import { completeSignup } from "@/lib/supabase/complete-signup";
 
 /**
  * Bootstraps a brand-new signup: creates the company row and links the
@@ -18,36 +18,15 @@ export async function POST(req: Request) {
   if (!authedUser) {
     return NextResponse.json({ error: "Giriş yapmalısın." }, { status: 401 });
   }
-  const userId = authedUser.id;
 
   if (!email) {
     return NextResponse.json({ error: "Missing email" }, { status: 400 });
   }
 
-  const supabase = createServiceClient();
-
-  const { data: existing } = await supabase.from("profiles").select("id").eq("id", userId).maybeSingle();
-  if (existing) {
-    return NextResponse.json({ ok: true, alreadyLinked: true });
+  const result = await completeSignup(authedUser.id, email, companyName);
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: 500 });
   }
 
-  const { data: company, error: companyError } = await supabase
-    .from("companies")
-    .insert({ name: companyName || email.split("@")[0], email, plan: "lite" })
-    .select("id")
-    .single();
-
-  if (companyError) {
-    return NextResponse.json({ error: companyError.message }, { status: 500 });
-  }
-
-  const { error: profileError } = await supabase
-    .from("profiles")
-    .insert({ id: userId, company_id: company.id, role: "owner" });
-
-  if (profileError) {
-    return NextResponse.json({ error: profileError.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ ok: true, companyId: company.id });
+  return NextResponse.json(result);
 }

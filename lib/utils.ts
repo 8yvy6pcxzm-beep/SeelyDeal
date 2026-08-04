@@ -41,10 +41,19 @@ export function formatDate(d: Date | string, opts?: Intl.DateTimeFormatOptions) 
   ).format(date);
 }
 
-export function formatRelative(d: Date | string) {
+export function formatRelative(d: Date | string, lang: "tr" | "en" = "en") {
   const date = typeof d === "string" ? new Date(d) : d;
   const diff = Date.now() - date.getTime();
   const m = Math.floor(diff / 60000);
+  if (lang === "tr") {
+    if (m < 1) return "şimdi";
+    if (m < 60) return `${m}dk önce`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}sa önce`;
+    const days = Math.floor(h / 24);
+    if (days < 7) return `${days}g önce`;
+    return formatDate(date);
+  }
   if (m < 1) return "just now";
   if (m < 60) return `${m}m ago`;
   const h = Math.floor(m / 60);

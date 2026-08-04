@@ -102,6 +102,7 @@ export async function GET(req: Request) {
       ...p,
       view_count: rows.length,
       view_spark: spark,
+      view_times: rows.map((v: { viewed_at: string }) => v.viewed_at).sort(),
       last_viewed_at: lastViewedAt,
       live_now: liveNow,
       live_selection: liveSelectionFresh ? p.live_selection : null,

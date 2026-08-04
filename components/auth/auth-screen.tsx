@@ -13,9 +13,7 @@ import { LanguageToggle } from "@/components/ui/language-toggle";
 import { createClient } from "@/lib/supabase/client";
 
 /**
- * Login / signup with real Supabase Auth, plus a demo bypass ("Continue with
- * demo") that skips straight to the live demo dashboard for prospects trying
- * the product without an account.
+ * Login / signup with real Supabase Auth, including Google/GitHub OAuth.
  */
 export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
   const { ui, t, lang } = useLang();
@@ -26,10 +24,18 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
 
   const isLogin = mode === "login";
 
-  function enterDemo(e?: React.FormEvent) {
-    e?.preventDefault();
+  async function signInWithProvider(provider: "google" | "github") {
+    setError(null);
     setLoading(true);
-    setTimeout(() => router.push("/dashboard"), 450);
+    const supabase = createClient();
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (oauthError) {
+      setError(oauthError.message);
+      setLoading(false);
+    }
   }
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
@@ -161,12 +167,11 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
             </h2>
           </div>
 
-          {/* Social (decorative — drop into the demo dashboard) */}
           <div className="grid grid-cols-2 gap-3">
-            <Button variant="outline" onClick={enterDemo} className="gap-2">
+            <Button variant="outline" disabled={loading} onClick={() => signInWithProvider("google")} className="gap-2">
               <GoogleGlyph /> Google
             </Button>
-            <Button variant="outline" onClick={enterDemo} className="gap-2">
+            <Button variant="outline" disabled={loading} onClick={() => signInWithProvider("github")} className="gap-2">
               <GithubGlyph /> GitHub
             </Button>
           </div>
@@ -200,17 +205,6 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
               {!loading && <ArrowRight className="h-4 w-4" />}
             </Button>
           </form>
-
-          <button
-            onClick={enterDemo}
-            className="w-full rounded-lg border border-dashed border-border py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary cursor-pointer"
-          >
-            {ui.continueDemo} →
-          </button>
-
-          <p className="rounded-lg bg-muted px-3 py-2 text-center text-xs text-muted-foreground">
-            {ui.demoNote}
-          </p>
 
           <p className="text-center text-sm text-muted-foreground">
             {isLogin ? ui.noAccount : ui.haveAccount}{" "}
