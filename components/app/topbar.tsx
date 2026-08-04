@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Bell, Plus, Clock } from "lucide-react";
@@ -16,6 +17,7 @@ export function Topbar({ userName, userEmail }: { userName: string | null; userE
   const { t, lang } = useLang();
   const trialDaysLeft = useTrialDaysLeft();
   const openAiDraft = useOpenAiDraft();
+  const [notifOpen, setNotifOpen] = useState(false);
   const current =
     appConfig.nav.find((n) => pathname === n.href || pathname.startsWith(n.href + "/")) ??
     appConfig.navGroups.flatMap((g) => g.items).find((n) => pathname === n.href || pathname.startsWith(n.href + "/"));
@@ -51,13 +53,31 @@ export function Topbar({ userName, userEmail }: { userName: string | null; userE
           {lang === "tr" ? "Yeni teklif" : "New proposal"}
         </button>
         <LanguageToggle className="mr-1" />
-        <button
-          aria-label="Notifications"
-          className="relative grid h-9 w-9 cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <Bell className="h-[18px] w-[18px]" />
-          <span className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-background" />
-        </button>
+        <div className="relative">
+          <button
+            aria-label="Notifications"
+            onClick={() => setNotifOpen((v) => !v)}
+            className="grid h-9 w-9 cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <Bell className="h-[18px] w-[18px]" />
+          </button>
+          {notifOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setNotifOpen(false)} />
+              <div className="absolute right-0 top-11 z-20 w-64 rounded-xl border border-border bg-card p-4 text-center shadow-pop">
+                <Bell className="mx-auto h-5 w-5 text-muted-foreground" />
+                <p className="mt-2 text-[13px] font-medium">
+                  {lang === "tr" ? "Bildirimler yakında geliyor" : "Notifications are coming soon"}
+                </p>
+                <p className="mt-1 text-[11.5px] text-muted-foreground">
+                  {lang === "tr"
+                    ? "Teklif görüntülendiğinde/imzalandığında burada anlık uyarı alacaksın."
+                    : "You'll get a live alert here when a proposal is viewed or signed."}
+                </p>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </header>
   );

@@ -56,11 +56,21 @@ function TemplatesPageInner() {
               className="w-36 bg-transparent text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
             />
           </div>
-          <button className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90">
+          <button
+            disabled
+            title={lang === "tr" ? "Yakında" : "Coming soon"}
+            className="inline-flex h-9 cursor-not-allowed items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground opacity-50"
+          >
             <Plus className="h-4 w-4" />
             {lang === "tr" ? "Yeni şablon" : "New template"}
           </button>
         </div>
+      </div>
+
+      <div className="rounded-xl border border-primary/25 bg-primary/[0.06] px-4 py-2.5 text-[13px] text-primary">
+        {lang === "tr"
+          ? "Bu sayfa şu an örnek verilerle gösteriliyor — kendi şablonlarını oluşturma yakında geliyor."
+          : "This page currently shows sample data — creating your own templates is coming soon."}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
@@ -147,7 +157,11 @@ function TemplatesPageInner() {
               </div>
             </div>
 
-            <button className="mt-5 flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary py-2.5 text-[13px] font-semibold text-primary-foreground transition-opacity hover:opacity-90">
+            <button
+              disabled
+              title={lang === "tr" ? "Yakında" : "Coming soon"}
+              className="mt-5 flex w-full cursor-not-allowed items-center justify-center gap-1.5 rounded-lg bg-primary py-2.5 text-[13px] font-semibold text-primary-foreground opacity-50"
+            >
               <Sparkles className="h-4 w-4" />
               {lang === "tr" ? "Bu şablonla yaz" : "Draft from this template"}
             </button>

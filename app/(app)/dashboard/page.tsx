@@ -79,6 +79,7 @@ export default function DashboardPage() {
   const { t, lang } = useLang();
   const plan = usePlan();
   const remindersAllowed = planAllows(plan, "reminders");
+  const documentAnalyticsAllowed = planAllows(plan, "document_analytics");
   const router = useRouter();
   const [filter, setFilter] = useState<ProposalStatus | "all">("all");
   const [query, setQuery] = useState("");
@@ -817,8 +818,8 @@ export default function DashboardPage() {
                           <p className="font-medium leading-tight">{t(ev.label)}</p>
                           <p className="text-[11px] text-muted-foreground">
                             {fmtTime(ev.at)}
-                            {ev.section && ` · ${t(ev.section)}`}
-                            {ev.seconds ? ` · ${Math.round(ev.seconds / 60) || 1}m` : ""}
+                            {documentAnalyticsAllowed && ev.section && ` · ${t(ev.section)}`}
+                            {documentAnalyticsAllowed && ev.seconds ? ` · ${Math.round(ev.seconds / 60) || 1}m` : ""}
                           </p>
                         </div>
                       </div>
@@ -827,8 +828,21 @@ export default function DashboardPage() {
                 )}
                 <p className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-muted/60 px-2.5 py-1 text-[11.5px] font-medium text-muted-foreground">
                   <Eye className="h-3.5 w-3.5" />
-                  {t(current.viewSummary)}
+                  {documentAnalyticsAllowed
+                    ? t(current.viewSummary)
+                    : current.signed
+                      ? lang === "tr" ? "İmzalandı" : "Signed"
+                      : current.views > 0
+                        ? lang === "tr" ? "Görüntülendi" : "Viewed"
+                        : lang === "tr" ? "Henüz görüntülenmedi" : "Not viewed yet"}
                 </p>
+                {!documentAnalyticsAllowed && (
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    {lang === "tr"
+                      ? "Bölüm bazlı ve süreye dayalı detaylar Pro planda."
+                      : "Section-level and time-spent details are on the Pro plan."}
+                  </p>
+                )}
               </div>
 
               {/* e-sign status */}
