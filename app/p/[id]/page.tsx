@@ -304,7 +304,7 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
                 />
               </span>
             ) : company?.logo_url || company?.name ? (
-              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white text-sm font-bold" style={{ color: brandColor || "var(--primary)" }}>
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white text-sm font-bold" style={{ color: brandColor || "var(--color-primary)" }}>
                 {(company?.name?.trim().charAt(0) || "?").toUpperCase()}
               </span>
             ) : (
