@@ -152,7 +152,7 @@ KURALLAR:
 - Teklif hazırlamak için gerekli bilgiler eksikse (müşteri adı, sunulacak hizmet, fiyatlandırma yaklaşımı) TEK TEK, doğal bir sohbet diliyle sor. Kullanıcı "nelere ihtiyacın var" derse hepsini liste halinde sun.
 - Müşterinin web sitesini ASLA kendin tahmin etme veya arama; sadece kullanıcı paylaşırsa kullan. Paylaşmadıysa ve faydalı olacaksa nazikçe sor ("müşterinin web sitesini paylaşır mısın?").${
     !company?.logo_url || !company?.primary_color
-      ? `\n- Şirketin henüz ${!company?.logo_url && !company?.primary_color ? "logosu ve marka rengi" : !company?.logo_url ? "logosu" : "marka rengi"} ayarlanmamış. Sohbetin bir noktasında (ilk mesajlarda, doğal bir yerde) samimi bir şekilde sor: "Bu arada şirketinizin ${!company?.logo_url && !company?.primary_color ? "logosunu ve marka rengini" : !company?.logo_url ? "logosunu" : "marka rengini"} de alabilir miyim? Şirket Profili sayfasından bir kere ayarlaman yeterli, o andan sonra tüm tekliflerinde otomatik görünür." Bunu SADECE BİR KEZ sor, ısrar etme; kullanıcı buraya bir logo dosyası veya renk kodu eklerse bunu doğrudan kaydedemeyeceğini, Şirket Profili'nden ayarlaması gerektiğini nazikçe hatırlat.`
+      ? `\n- Şirketin henüz ${!company?.logo_url && !company?.primary_color ? "logosu ve marka rengi" : !company?.logo_url ? "logosu" : "marka rengi"} ayarlanmamış. Sohbetin bir noktasında (ilk mesajlarda, doğal bir yerde) samimi bir şekilde sor: "Bu arada şirketinizin ${!company?.logo_url && !company?.primary_color ? "logosunu ve marka rengini" : !company?.logo_url ? "logosunu" : "marka rengini"} de alabilir miyim? Logo resmini buraya yapıştırman ya da hex renk kodunu (örn. #5B3DF6) yazman yeterli, direkt kaydedeceğim." Bunu SADECE BİR KEZ sor, ısrar etme.\n- MARKA KAYDI: Kullanıcı bir hex renk kodu yazarsa (örn. "#5B3DF6" veya "marka rengimiz mor, 5b3df6") ya da bir resim ekleyip bunun logo olduğunu belirtirse (ya da bağlamdan logo olduğu açıksa — ör. "logomuz bu", "işte logo"), cevabının SONUNA (json bloğundan sonra, varsa) ayrı bir \`\`\`brand ... \`\`\` bloğu ekle: {"setLogo": true/false, "primaryColor": "#RRGGBB" veya null}. Resim logoysa \`setLogo: true\` yap VE resimdeki baskın/marka rengini (arka plan beyaz/gri/siyahsa onu değil, logonun kendi rengini) dikkatlice tahmin edip \`primaryColor\`'a hex olarak yaz. Sadece renk koduysa \`setLogo: false, primaryColor: "#..."\`. Bu durumların dışında (kullanıcı logo/renk belirtmediyse) bu bloğu HİÇ ekleme. Cevap metninde ne kaydettiğini kısaca teyit et (örn. "Logonu ve marka rengini (#5B3DF6) kaydettim.").`
       : ""
   }
 - Kullanıcı bir dosya (PDF, resim, ekran görüntüsü) eklerse, içeriğini oku ve teklif için gereken bilgileri (marka, fiyatlandırma, kapsam, müşteri bilgisi vb.) oradan çıkar — tekrar sorma.
@@ -161,7 +161,9 @@ ${isLite ? "" : `- Kullanıcı "standart sözleşmemi/teklif formatımı kullan,
 - Kullanıcı bir kalemi "opsiyonel" veya "ek hizmet" olarak belirtirse, o kalemi \`optional: true\` yap (müşteri bunu teklifi görüntülerken açıp kapatabilir). \`included\` alanı, opsiyonel kalemin varsayılan olarak işaretli gelip gelmeyeceğini belirtir (belirtilmediyse false).
 - Kullanıcı "aylık veya yıllık" gibi müşterinin ikisinden birini seçeceği farklı fiyatlı ödeme sıklığı/paket seçenekleri isterse, bunları \`billingOptions\` dizisine yaz (her biri ayrı fiyat, müşteri teklifi imzalamadan önce birini seçer). Bu, tekil kalemlerden farklıdır — kalemler teklife toplam olarak eklenir/çıkarılır, billingOptions ise birbirini DIŞLAYAN seçeneklerdir (biri seçilir, diğerleri değil).
 - Her \`billingOption\`a AYRI bir ödeme linki eklenebilir (müşteri o seçeneği seçip imzalarsa o linke yönlendirilir) — bunu SEN doldurmazsın, kullanıcı teklif önizlemesinde her seçeneğin altındaki link kutusuna kendisi yapıştırır. Kullanıcı "iki farklı ödeme sıklığı için iki ayrı ödeme linki ekleyebilir miyim" gibi bir şey sorarsa: EVET diye net cevap ver ve "teklif önizlemesinde her ödeme seçeneğinin altında kendi link kutusu var, oraya ayrı ayrı yapıştırabilirsin" diye açıkla.
+- ÇOK ÖNEMLİ — SESSİZ SÜRPRİZ BIRAKMA: Kullanıcı "hiç soru sorma, kendin hallet" gibi bir şey söylese bile, \`billingOptions\` oluşturduğunda cevap metninde MUTLAKA açıkça belirt ki her seçenek için ayrı bir ödeme linkini kendisinin önizlemede elle ekleyeceği — bu, gerçek ödeme linklerine (Ruul/Stripe/iyzico) sistemde erişimin olmadığı için senin dolduramayacağın TEK adım. Örnek cümle: "N. paket için ayrı fiyat ekledim; ödeme linklerini önizlemede kendin yapıştırman gerekiyor, çünkü gerçek ödeme linklerine erişimim yok." Bunu sessizce boş kutulara bırakma, baştan söyle.
 - Kullanıcı ödeme linki/IBAN eklemek istemediğini belirtirse (örn. "ödeme linki eklemiyecem", "eklemeyeceğim", "yok", "gerek yok"), bunu sorun etmeden onayla, ısrar etme veya tekrar sorma — teklif önizlemesindeki ödeme yöntemi alanı zaten opsiyoneldir, boş bırakılabilir.
+- ÇOK ÖNEMLİ — TEKRARDAN KAÇIN: Teklif zaten tamamlanmış ve önizlemede kullanıcının önündeyse, kullanıcının mesajı teklifte GERÇEK bir değişiklik gerektirmiyorsa (örn. sadece bir alanı boş bırakmayı onaylıyor, teşekkür ediyor, veya konuyla ilgisiz kısa bir şey yazıyorsa) \`\`\`json\`\`\` bloğunu TEKRAR EKLEME ve teklifi "İşte teklif"/"Kapsamlı teklif hazırladım" gibi baştan tanıtan bir cümleyle yeniden özetleme — sadece TEK KISA cümleyle onayla (örn. "Tamam, ödeme linkini boş bıraktım.") ve sohbeti orada bırak. json bloğunu sadece teklifte gerçekten içerik/fiyat/bölüm değişikliği olduğunda tekrar gönder.
 - ÇOK ÖNEMLİ: Hiçbir zaman CSV, PDF, HTML veya başka bir dosya "oluşturduğunu"/"kaydettiğini" söyleme — bu sistemde teklif dosya olarak üretilmez. Teklif sadece \`\`\`json\`\`\` bloğuyla döner, kullanıcı önizlemede "Teklife ekle" butonuna basınca uygulama içinde (veritabanında) kaydedilir. Kullanıcı "dosya nerede" diye sorarsa, teklifin uygulama içinde saklandığını ve dışa aktarma/indirme özelliği olmadığını net şekilde açıkla.
 - ÇOK ÖNEMLİ: Kullanıcının sorduğu her soruya MUTLAKA yazıyla cevap ver — teklifi güncelleyip \`\`\`json\`\`\` bloğunu tekrar döndürürken bile önüne/arkasına en az 1-2 cümlelik bir açıklama koy. Asla sadece json bloğu dönüp yazı kısmını boş bırakma.${
     isCustom
@@ -185,6 +187,8 @@ ${isLite ? "" : `- Kullanıcı "standart sözleşmemi/teklif formatımı kullan,
 - Bu json bloğunu SADECE teklif gerçekten tamamlandığında ekle; hâlâ soru soruyorsan ekleme.
 
 HAZIRLAYAN (bizim şirketimiz): ${companyBlock}
+
+KULLANICI TALİMATLARI (şirketin kendi eklediği kalıcı notlar — HER ZAMAN uygula, kullanıcı sohbette tekrar yazmasa bile geçerlidir): ${company?.ai_instructions?.trim() || "(yok)"}
 
 ŞİRKET EKİBİ: ${teamBlock || "(henüz eklenmedi)"}
 
@@ -240,6 +244,17 @@ ${pricingBlock}${websiteContext}${prefillBlock}`;
     }
   }
 
+  // Optional ```brand``` block — logo/color the model detected in this turn (see MARKA KAYDI rule above).
+  const brandMatch = replyText.match(/```brand\s*([\s\S]*?)```/);
+  let brand: { setLogo?: boolean; primaryColor?: string | null } | null = null;
+  if (brandMatch) {
+    try {
+      brand = JSON.parse(brandMatch[1]);
+    } catch {
+      brand = null;
+    }
+  }
+
   // The draft quota (customer-facing) only counts a produced proposal; the message
   // count (cost backstop) always increments, since every call is a real API charge.
   await service.from("ai_usage").upsert(
@@ -247,7 +262,7 @@ ${pricingBlock}${websiteContext}${prefillBlock}`;
     { onConflict: "company_id,month" },
   );
 
-  const reply = replyText.replace(/```json[\s\S]*?```/, "").trim();
+  const reply = replyText.replace(/```json[\s\S]*?```/, "").replace(/```brand[\s\S]*?```/, "").trim();
 
-  return NextResponse.json({ reply, draft, remaining: limit - (draft ? used + 1 : used) });
+  return NextResponse.json({ reply, draft, brand, remaining: limit - (draft ? used + 1 : used) });
 }

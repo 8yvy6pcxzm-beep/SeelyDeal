@@ -19,6 +19,7 @@ type Company = {
   font: string | null;
   email: string | null;
   overage_link: string | null;
+  ai_instructions: string | null;
   plan: Plan;
 };
 
@@ -136,6 +137,7 @@ export function CompanyProfileClient() {
         font: company.font,
         email: company.email,
         overage_link: company.overage_link,
+        ai_instructions: company.ai_instructions,
       })
       .eq("id", company.id);
     setSaving(false);
@@ -383,6 +385,25 @@ export function CompanyProfileClient() {
               onChange={(e) => setCompany({ ...company, primary_color: e.target.value })}
               placeholder="#7c5cf0"
             />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>{lang === "tr" ? "AI Talimatlarım" : "My AI instructions"}</Label>
+            <textarea
+              value={company.ai_instructions ?? ""}
+              onChange={(e) => setCompany({ ...company, ai_instructions: e.target.value })}
+              placeholder={
+                lang === "tr"
+                  ? "Örn: Opsiyonel kalemleri varsayılan olarak seçili bırakma. Ödeme linkini boş bırak, ben sonra eklerim."
+                  : "E.g.: Leave optional items unchecked by default. Leave the payment link empty, I'll add it myself."
+              }
+              rows={3}
+              className={textareaClass()}
+            />
+            <p className="text-xs text-muted-foreground">
+              {lang === "tr"
+                ? "Buraya yazdıkların her yeni AI teklif taslağında otomatik hatırlanır — aynı şeyi tekrar tekrar söylemene gerek kalmaz."
+                : "Whatever you write here is remembered automatically in every new AI proposal draft — no need to repeat yourself."}
+            </p>
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label>{lang === "tr" ? "Aşım ödeme linki (Ruul)" : "Overage payment link (Ruul)"}</Label>
