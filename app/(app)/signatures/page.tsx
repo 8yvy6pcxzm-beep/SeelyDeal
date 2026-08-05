@@ -23,7 +23,10 @@ function demoSignatureRows(): SignatureRow[] {
       status: p.status,
       client: p.client,
       signed_at: p.sentDate,
-      signed_by_name: p.clientEmail.split("@")[0].replace(".", " "),
+      signed_by_name: p.clientEmail
+        .split("@")[0]
+        .replace(".", " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
       signed_ip: i === 0 ? "88.230.14.2" : "51.15.201.44",
     }));
 }

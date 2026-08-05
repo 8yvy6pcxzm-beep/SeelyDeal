@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Loader2, FileText, TrendingUp, DollarSign, Target, Download } from "lucide-react";
 import { WinGauge, AcceptanceChart } from "@/components/app/charts";
 import { useLang } from "@/components/i18n/language-provider";
@@ -33,31 +34,32 @@ function downloadCsv(proposals: Proposal[]) {
 export default function AnalyticsPage() {
   const { lang } = useLang();
   const plan = usePlan();
+  const pathname = usePathname();
+  const isDemo = pathname?.startsWith("/demo") ?? false;
   const allowed = planAllows(plan, "analytics");
   const reportingAllowed = planAllows(plan, "advanced_reporting");
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [pdfLoading, setPdfLoading] = useState(false);
-  const [isDemo, setIsDemo] = useState(false);
 
   useEffect(() => {
     if (!allowed) {
       setLoading(false);
       return;
     }
+    // The public /demo shell has no session — /api/proposals would just
+    // return an empty list, so show the curated demo report instead of an
+    // empty "no proposals yet" state.
+    if (isDemo) {
+      setProposals(demoReportRows.map((r, i) => ({ id: `demo-${i}`, ...r })));
+      setLoading(false);
+      return;
+    }
     fetch("/api/proposals")
-      .then((res) => {
-        // Unauthenticated (the public /demo shell has no session) — show the
-        // curated demo report instead of an empty "no proposals yet" state.
-        if (res.status === 401) {
-          setIsDemo(true);
-          return { proposals: demoReportRows.map((r, i) => ({ id: `demo-${i}`, ...r })) };
-        }
-        return res.json();
-      })
+      .then((res) => res.json())
       .then((data) => setProposals(data.proposals ?? []))
       .finally(() => setLoading(false));
-  }, [allowed]);
+  }, [allowed, isDemo]);
 
   const stats = useMemo(() => {
     const total = proposals.length;
