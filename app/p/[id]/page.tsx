@@ -32,7 +32,14 @@ type PublicProposal = {
   valid_days: number;
   created_at: string;
   clients: { name: string } | null;
-  companies: { name: string; logo_url: string | null; primary_color: string | null; email: string | null; plan: string | null } | null;
+  companies: {
+    name: string;
+    logo_url: string | null;
+    cover_image_url: string | null;
+    primary_color: string | null;
+    email: string | null;
+    plan: string | null;
+  } | null;
   team: { name: string; title: string | null; photo_url: string | null }[];
 };
 
@@ -277,11 +284,18 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
   return (
     <div className="min-h-screen bg-muted/20 px-4 py-10 sm:py-16">
       <div className="mx-auto max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-pop">
-        {/* Cover */}
+        {/* Cover — Custom plan can replace the flat brand-color gradient with their own image ("premium design services"). */}
         <div
           className="relative overflow-hidden p-8 text-white sm:p-10"
-          style={{ background: brandColor ? `linear-gradient(135deg, ${brandColor}, color-mix(in oklch, ${brandColor} 60%, black))` : "var(--grad-brand)" }}
+          style={
+            company?.plan === "custom" && company.cover_image_url
+              ? { backgroundImage: `url(${company.cover_image_url})`, backgroundSize: "cover", backgroundPosition: "center" }
+              : { background: brandColor ? `linear-gradient(135deg, ${brandColor}, color-mix(in oklch, ${brandColor} 60%, black))` : "var(--grad-brand)" }
+          }
         >
+          {company?.plan === "custom" && company.cover_image_url && (
+            <span className="pointer-events-none absolute inset-0 bg-black/45" />
+          )}
           <span className="pointer-events-none absolute -right-12 -top-16 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
           <span className="pointer-events-none absolute -bottom-14 -left-8 h-48 w-48 rounded-full bg-black/10 blur-3xl" />
           <div className="relative flex items-center gap-2.5">

@@ -5,7 +5,16 @@ export type Plan = "lite" | "pro" | "custom";
  * Lite gets only what's built into the base app: AI proposal drafting (brief-only,
  * see app/api/draft-proposal/route.ts's isLite branch), simple e-signature, and view tracking.
  */
-export type GatedFeature = "crm_integrations" | "api_access" | "document_library" | "document_analytics" | "analytics" | "reminders" | "advanced_reporting";
+export type GatedFeature =
+  | "crm_integrations"
+  | "api_access"
+  | "document_library"
+  | "document_analytics"
+  | "analytics"
+  | "reminders"
+  | "advanced_reporting"
+  | "signatures"
+  | "premium_design";
 
 const GATED_FEATURE_MIN_PLAN: Record<GatedFeature, Plan> = {
   crm_integrations: "pro",
@@ -15,6 +24,8 @@ const GATED_FEATURE_MIN_PLAN: Record<GatedFeature, Plan> = {
   analytics: "pro",
   reminders: "pro",
   advanced_reporting: "custom",
+  signatures: "pro",
+  premium_design: "custom",
 };
 
 const PLAN_RANK: Record<Plan, number> = { lite: 0, pro: 1, custom: 2 };

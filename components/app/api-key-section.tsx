@@ -89,6 +89,13 @@ export function ApiKeySection() {
             ? `Kendi anahtarınla ${appConfig.domain}/api/v1/proposals uç noktasına erişebilirsin (kullanım ücretine tabi).`
             : `Use your key to call ${appConfig.domain}/api/v1/proposals (usage costs apply).`}
         </p>
+        {plan === "custom" && (
+          <p className="text-sm text-muted-foreground">
+            {lang === "tr"
+              ? `Custom pakette ayrıca ${appConfig.domain}/api/v1/clients uç noktasına ve daha yüksek aylık çağrı limitine erişimin var.`
+              : `On Custom you also get ${appConfig.domain}/api/v1/clients and a higher monthly call limit.`}
+          </p>
+        )}
       </CardHeader>
       <CardContent className="space-y-3">
         {loading ? (

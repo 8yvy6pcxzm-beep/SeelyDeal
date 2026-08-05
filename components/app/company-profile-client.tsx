@@ -15,6 +15,7 @@ type Company = {
   id: string;
   name: string;
   logo_url: string | null;
+  cover_image_url: string | null;
   primary_color: string | null;
   font: string | null;
   email: string | null;
@@ -69,6 +70,9 @@ export function CompanyProfileClient() {
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const [coverUploading, setCoverUploading] = useState(false);
+  const [coverError, setCoverError] = useState<string | null>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const [photoUploadingId, setPhotoUploadingId] = useState<string | null>(null);
   const [photoErrorId, setPhotoErrorId] = useState<{ id: string; message: string } | null>(null);
   const photoInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -133,6 +137,7 @@ export function CompanyProfileClient() {
       .update({
         name: company.name,
         logo_url: company.logo_url,
+        cover_image_url: company.cover_image_url,
         primary_color: company.primary_color,
         font: company.font,
         email: company.email,
@@ -251,6 +256,45 @@ export function CompanyProfileClient() {
     } finally {
       setLogoUploading(false);
       if (logoInputRef.current) logoInputRef.current.value = "";
+    }
+  }
+
+  async function uploadCoverImage(file: File) {
+    setCoverError(null);
+    setCoverUploading(true);
+    try {
+      const ACCEPTED = ["image/png", "image/jpeg", "image/webp"];
+      if (!ACCEPTED.includes(file.type)) {
+        setCoverError(lang === "tr" ? "Sadece PNG, JPG veya WEBP." : "PNG, JPG or WEBP only.");
+        return;
+      }
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const res = await fetch("/api/settings/cover-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ mediaType: file.type, base64 }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCoverError(data?.error || (lang === "tr" ? "Yüklenemedi." : "Upload failed."));
+        return;
+      }
+      setCompany((c) => (c ? { ...c, cover_image_url: data.url } : c));
+    } catch {
+      setCoverError(lang === "tr" ? "Yüklenemedi." : "Upload failed.");
+    } finally {
+      setCoverUploading(false);
+      if (coverInputRef.current) coverInputRef.current.value = "";
     }
   }
 
@@ -378,6 +422,34 @@ export function CompanyProfileClient() {
             </div>
             {logoError && <p className="text-xs text-destructive">{logoError}</p>}
           </div>
+          {planAllows(company.plan, "premium_design") && (
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>{lang === "tr" ? "Kapak görseli (Custom)" : "Cover image (Custom)"}</Label>
+              <p className="text-xs text-muted-foreground">
+                {lang === "tr"
+                  ? "Teklif sayfasının kapağında düz renk yerine kendi görselini göster."
+                  : "Show your own image on the proposal cover instead of the flat brand color."}
+              </p>
+              <div className="flex items-center gap-3">
+                {company.cover_image_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={company.cover_image_url} alt="" className="h-9 w-16 rounded-md border border-border object-cover" />
+                )}
+                <input
+                  ref={coverInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={(e) => e.target.files?.[0] && uploadCoverImage(e.target.files[0])}
+                  className="hidden"
+                />
+                <Button variant="outline" onClick={() => coverInputRef.current?.click()} disabled={coverUploading} className="gap-1.5">
+                  {coverUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  {lang === "tr" ? "Kapak görseli yükle" : "Upload cover image"}
+                </Button>
+              </div>
+              {coverError && <p className="text-xs text-destructive">{coverError}</p>}
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label>{lang === "tr" ? "Ana renk (hex)" : "Primary color (hex)"}</Label>
             <Input
