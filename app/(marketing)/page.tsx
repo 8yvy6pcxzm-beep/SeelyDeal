@@ -243,7 +243,7 @@ export default function LandingPage() {
                 {t(m.heroCtaPrimary)} <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
-                href="/login"
+                href="/demo/dashboard"
                 className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-border bg-card px-6 text-[15px] font-semibold text-foreground shadow-pill transition-colors hover:bg-muted"
               >
                 {t(m.heroCtaSecondary)}
@@ -860,7 +860,7 @@ export default function LandingPage() {
               {t(m.heroCtaPrimary)} <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
-              href="/login"
+              href="/demo/dashboard"
               className="inline-flex h-12 items-center justify-center rounded-xl border border-border bg-card px-7 text-[15px] font-semibold text-foreground shadow-pill transition-colors hover:bg-muted"
             >
               {t(m.heroCtaSecondary)}
