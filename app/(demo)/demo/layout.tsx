@@ -12,7 +12,7 @@ import { AiDraftProvider } from "@/components/app/ai-draft-provider";
  * as non-navigating so a prospect never lands on a broken, unauthenticated
  * real page.
  */
-const DEMO_ALLOWED_HREFS = ["/dashboard", "/analytics", "/templates", "/clients", "/content", "/team", "/settings"];
+const DEMO_ALLOWED_HREFS = ["/dashboard", "/analytics", "/proposals", "/templates", "/clients", "/content", "/team", "/settings"];
 
 export default function DemoLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
