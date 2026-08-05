@@ -10,7 +10,17 @@ import { useOpenAiDraft } from "@/components/app/ai-draft-provider";
 import { NavGroups } from "@/components/app/nav-groups";
 import appConfig from "@/app.config";
 
-export function Sidebar({ userName, userEmail }: { userName: string | null; userEmail: string | null }) {
+export function Sidebar({
+  userName,
+  userEmail,
+  basePath = "",
+  allowedHrefs,
+}: {
+  userName: string | null;
+  userEmail: string | null;
+  basePath?: string;
+  allowedHrefs?: string[];
+}) {
   const pathname = usePathname();
   const { lang } = useLang();
   const openAiDraft = useOpenAiDraft();
@@ -24,13 +34,14 @@ export function Sidebar({ userName, userEmail }: { userName: string | null; user
     .toUpperCase();
 
   const isActive = (href: string) =>
-    pathname === href || pathname.startsWith(href + "/");
+    pathname === basePath + href || pathname.startsWith(basePath + href + "/");
+  const settingsAllowed = !allowedHrefs || allowedHrefs.includes("/settings");
 
   return (
     <aside className="hidden w-[260px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex">
       {/* Brand */}
       <div className="flex h-16 items-center px-5">
-        <Link href="/dashboard" className="inline-flex">
+        <Link href={basePath + "/dashboard"} className="inline-flex">
           <Logo withChevron />
         </Link>
       </div>
@@ -48,20 +59,27 @@ export function Sidebar({ userName, userEmail }: { userName: string | null; user
       </div>
 
       {/* Grouped nav */}
-      <NavGroups />
+      <NavGroups basePath={basePath} allowedHrefs={allowedHrefs} />
 
       {/* Settings + Support */}
       <div className="space-y-0.5 px-3 pb-2">
-        <Link
-          href="/settings"
-          className={cn(
-            "flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium transition-colors",
-            isActive("/settings") ? "nav-pill-active text-foreground" : "text-foreground/70 hover:bg-muted hover:text-foreground",
-          )}
-        >
-          <Settings className="h-[17px] w-[17px] text-muted-foreground" />
-          {lang === "tr" ? "Ayarlar" : "Settings"}
-        </Link>
+        {settingsAllowed ? (
+          <Link
+            href={basePath + "/settings"}
+            className={cn(
+              "flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium transition-colors",
+              isActive("/settings") ? "nav-pill-active text-foreground" : "text-foreground/70 hover:bg-muted hover:text-foreground",
+            )}
+          >
+            <Settings className="h-[17px] w-[17px] text-muted-foreground" />
+            {lang === "tr" ? "Ayarlar" : "Settings"}
+          </Link>
+        ) : (
+          <span className="flex cursor-default items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium text-sidebar-muted">
+            <Settings className="h-[17px] w-[17px] text-muted-foreground" />
+            {lang === "tr" ? "Ayarlar" : "Settings"}
+          </span>
+        )}
         <a
           href={`mailto:${appConfig.contactEmail}`}
           className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium text-foreground/70 transition-colors hover:bg-muted hover:text-foreground"

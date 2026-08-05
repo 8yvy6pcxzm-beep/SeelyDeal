@@ -15,13 +15,28 @@ const NAV_GATE: Record<string, GatedFeature> = {
   "/content": "document_library",
 };
 
-/** The grouped nav list — shared by the desktop Sidebar and the mobile drawer. */
-export function NavGroups({ onNavigate }: { onNavigate?: () => void }) {
+/**
+ * The grouped nav list — shared by the desktop Sidebar and the mobile drawer.
+ *
+ * `basePath` / `allowedHrefs` exist for the public demo shell (`/demo`), which
+ * only has real routes for a subset of pages: links prefix with `basePath`,
+ * and anything not in `allowedHrefs` renders as non-navigating ("coming soon"
+ * in this shell) instead of 404ing.
+ */
+export function NavGroups({
+  onNavigate,
+  basePath = "",
+  allowedHrefs,
+}: {
+  onNavigate?: () => void;
+  basePath?: string;
+  allowedHrefs?: string[];
+}) {
   const pathname = usePathname();
   const { t } = useLang();
   const plan = usePlan();
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
+  const isActive = (href: string) => pathname === basePath + href || pathname.startsWith(basePath + href + "/");
 
   return (
     <nav className="flex-1 overflow-y-auto px-3 py-2">
@@ -35,6 +50,7 @@ export function NavGroups({ onNavigate }: { onNavigate?: () => void }) {
               const active = isActive(item.href);
               const gate = NAV_GATE[item.href];
               const locked = gate ? !planAllows(plan, gate) : false;
+              const demoDisabled = !!allowedHrefs && !allowedHrefs.includes(item.href);
               const inner = (
                 <>
                   <Icon
@@ -60,7 +76,7 @@ export function NavGroups({ onNavigate }: { onNavigate?: () => void }) {
                 </>
               );
               // Muted items are "coming soon" — render non-navigating.
-              if (item.muted) {
+              if (item.muted || demoDisabled) {
                 return (
                   <span
                     key={item.href}
@@ -73,7 +89,7 @@ export function NavGroups({ onNavigate }: { onNavigate?: () => void }) {
               return (
                 <Link
                   key={item.href}
-                  href={item.href}
+                  href={basePath + item.href}
                   onClick={onNavigate}
                   className={cn(
                     "group flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium transition-colors",

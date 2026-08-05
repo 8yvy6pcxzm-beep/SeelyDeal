@@ -417,3 +417,63 @@ export const builderPreview = {
   validUntil: "2026-06-30",
   rep: "Avery Rhodes",
 };
+
+/**
+ * Flat proposal rows for the Custom-plan "advanced reporting" demo (analytics
+ * page, unauthenticated /demo shell) — expanded from `acceptance` so the
+ * monthly trend chart and the CSV/PDF export both show the same story. Dated
+ * over the 6 months up to now so the trend always reads as "recent".
+ */
+export const demoReportRows: { status: ProposalStatus; value: number; created_at: string }[] = (() => {
+  const rows: { status: ProposalStatus; value: number; created_at: string }[] = [];
+  const now = new Date();
+  acceptance.forEach((m, i) => {
+    const monthDate = new Date(now.getFullYear(), now.getMonth() - (acceptance.length - 1 - i), 15);
+    const iso = monthDate.toISOString();
+    for (let a = 0; a < m.accepted; a++) rows.push({ status: "accepted", value: 9000 + ((a * 37) % 12) * 900, created_at: iso });
+    const remaining = m.sent - m.accepted;
+    const declined = Math.floor(remaining * 0.3);
+    for (let d = 0; d < declined; d++) rows.push({ status: "declined", value: 0, created_at: iso });
+    for (let s = 0; s < remaining - declined; s++) rows.push({ status: s % 2 === 0 ? "viewed" : "sent", value: 0, created_at: iso });
+  });
+  return rows;
+})();
+
+/**
+ * Read-only mock data for the unauthenticated /demo shell's Clients, Team,
+ * and Settings pages — these real pages query Supabase directly with the
+ * signed-in user's session, so the demo shell (no session) needs its own
+ * static stand-ins instead of reusing those client components.
+ */
+export interface DemoClient {
+  id: string;
+  name: string;
+  company: string;
+  proposalCount: number;
+  totalValue: number;
+  status: "active" | "lead";
+}
+
+export const demoClients: DemoClient[] = [
+  { id: "c1", name: "Liam Chen", company: "Northwind", proposalCount: 4, totalValue: 38400, status: "active" },
+  { id: "c2", name: "Priya Nair", company: "Meridian", proposalCount: 2, totalValue: 15200, status: "active" },
+  { id: "c3", name: "Tom Reilly", company: "Bellcastle", proposalCount: 3, totalValue: 22750, status: "active" },
+  { id: "c4", name: "Avery Rhodes", company: "Solace Group", proposalCount: 1, totalValue: 9000, status: "lead" },
+  { id: "c5", name: "Mia Kowalski", company: "Fjord & Co", proposalCount: 5, totalValue: 51300, status: "active" },
+  { id: "c6", name: "Diego Alvarez", company: "Lumen Works", proposalCount: 1, totalValue: 6800, status: "lead" },
+];
+
+export interface DemoTeamMember {
+  id: string;
+  name: string;
+  email: string;
+  role: { tr: string; en: string };
+  initials: string;
+}
+
+export const demoTeamMembers: DemoTeamMember[] = [
+  { id: "m1", name: "Elif Akyüz", email: "elif@seelynow.ink", role: { tr: "Sahip", en: "Owner" }, initials: "EA" },
+  { id: "m2", name: "Avery Rhodes", email: "avery@seelynow.ink", role: { tr: "Yönetici", en: "Admin" }, initials: "AR" },
+  { id: "m3", name: "Priya Nair", email: "priya@seelynow.ink", role: { tr: "Satış temsilcisi", en: "Sales rep" }, initials: "PN" },
+  { id: "m4", name: "Tom Reilly", email: "tom@seelynow.ink", role: { tr: "Görüntüleyici", en: "Viewer" }, initials: "TR" },
+];

@@ -1,22 +1,44 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, FileText, TrendingUp, DollarSign, Target } from "lucide-react";
-import { WinGauge } from "@/components/app/charts";
+import { Loader2, FileText, TrendingUp, DollarSign, Target, Download } from "lucide-react";
+import { WinGauge, AcceptanceChart } from "@/components/app/charts";
 import { useLang } from "@/components/i18n/language-provider";
 import { formatUsd } from "@/lib/utils";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePlan } from "@/components/app/plan-provider";
 import { planAllows } from "@/lib/plan";
+import { demoReportRows } from "@/lib/demo/data";
 
 type Proposal = { id: string; status: string; value: number; created_at: string };
+
+function monthKey(iso: string) {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function downloadCsv(proposals: Proposal[]) {
+  const header = ["id", "status", "value", "created_at"];
+  const lines = proposals.map((p) => [p.id, p.status, String(p.value ?? 0), p.created_at].join(","));
+  const csv = [header.join(","), ...lines].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "teklif-raporu.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export default function AnalyticsPage() {
   const { lang } = useLang();
   const plan = usePlan();
   const allowed = planAllows(plan, "analytics");
+  const reportingAllowed = planAllows(plan, "advanced_reporting");
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [isDemo, setIsDemo] = useState(false);
 
   useEffect(() => {
     if (!allowed) {
@@ -24,7 +46,15 @@ export default function AnalyticsPage() {
       return;
     }
     fetch("/api/proposals")
-      .then((res) => res.json())
+      .then((res) => {
+        // Unauthenticated (the public /demo shell has no session) — show the
+        // curated demo report instead of an empty "no proposals yet" state.
+        if (res.status === 401) {
+          setIsDemo(true);
+          return { proposals: demoReportRows.map((r, i) => ({ id: `demo-${i}`, ...r })) };
+        }
+        return res.json();
+      })
       .then((data) => setProposals(data.proposals ?? []))
       .finally(() => setLoading(false));
   }, [allowed]);
@@ -42,6 +72,38 @@ export default function AnalyticsPage() {
     const avgDeal = byStatus.accepted > 0 ? acceptedValue / byStatus.accepted : 0;
     return { total, byStatus, acceptedValue, winRate, avgDeal, decided };
   }, [proposals]);
+
+  const monthlyTrend = useMemo(() => {
+    const byMonth = new Map<string, { sent: number; accepted: number }>();
+    for (const p of proposals) {
+      const key = monthKey(p.created_at);
+      const entry = byMonth.get(key) ?? { sent: 0, accepted: 0 };
+      entry.sent += 1;
+      if (p.status === "accepted") entry.accepted += 1;
+      byMonth.set(key, entry);
+    }
+    return [...byMonth.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-6)
+      .map(([key, v]) => ({ label: key.slice(2), sent: v.sent, accepted: v.accepted }));
+  }, [proposals]);
+
+  async function downloadPdf() {
+    setPdfLoading(true);
+    try {
+      const res = await fetch(`/api/reports/proposals${isDemo ? "?demo=1" : ""}`);
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "teklif-raporu.pdf";
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setPdfLoading(false);
+    }
+  }
 
   const STATUS_LABEL: Record<string, { tr: string; en: string }> = {
     draft: { tr: "Taslak", en: "Draft" },
@@ -167,6 +229,39 @@ export default function AnalyticsPage() {
               </div>
             </div>
           </div>
+
+          {reportingAllowed && monthlyTrend.length > 0 && (
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-display text-[15px] font-semibold tracking-tight">
+                    {lang === "tr" ? "Aylık trend" : "Monthly trend"}
+                  </h3>
+                  <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+                    {lang === "tr" ? "Custom pakete özel raporlama." : "Custom-plan reporting."}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => downloadCsv(proposals)}
+                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-[12.5px] font-medium text-foreground transition-colors hover:bg-muted"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    CSV
+                  </button>
+                  <button
+                    onClick={downloadPdf}
+                    disabled={pdfLoading}
+                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-[12.5px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                  >
+                    {pdfLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                    PDF
+                  </button>
+                </div>
+              </div>
+              <AcceptanceChart data={monthlyTrend} height={180} />
+            </div>
+          )}
         </>
       )}
     </div>
