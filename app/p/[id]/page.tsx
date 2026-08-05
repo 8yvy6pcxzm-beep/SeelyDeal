@@ -286,8 +286,10 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
           <span className="pointer-events-none absolute -bottom-14 -left-8 h-48 w-48 rounded-full bg-black/10 blur-3xl" />
           <div className="relative flex items-center gap-2.5">
             {company?.logo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={company.logo_url} alt={company.name} className="h-8 w-8 rounded-lg object-cover" />
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white p-1">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={company.logo_url} alt={company.name} className="h-full w-full object-contain" />
+              </span>
             ) : (
               <span className="grid h-8 w-8 place-items-center rounded-lg bg-white/15">
                 <FileText className="h-4 w-4" />
