@@ -25,6 +25,7 @@ type Draft = {
   nextSteps?: { title: string; body: string }[];
   validDays?: number;
   contractText?: string;
+  confirmed?: boolean;
 };
 
 /** Renders "**bold**" markdown segments as real <strong> text instead of literal asterisks. */
@@ -220,7 +221,12 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
           ? "Teklifi güncelledim, aşağıdaki önizlemeden kontrol edebilirsin."
           : "Updated the proposal — check the preview below.";
       setMessages((m) => [...m, { role: "assistant", content: reply }]);
-      if (data.draft) setDraft(data.draft);
+      if (data.draft) {
+        setDraft(data.draft);
+        // The model only sets this after the user explicitly confirmed the final
+        // proposal in chat — save it immediately instead of waiting for a manual click.
+        if (data.draft.confirmed) saveDraft(data.draft);
+      }
       if (data.instruction) {
         fetch("/api/settings/ai-instructions", {
           method: "POST",
@@ -284,15 +290,16 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
     }
   }
 
-  async function saveDraft() {
-    if (!draft) return;
+  async function saveDraft(draftOverride?: Draft) {
+    const toSave = draftOverride ?? draft;
+    if (!toSave) return;
     setLoading(true);
     setError(null);
     try {
       const res = await fetch(savedProposalId ? `/api/proposals/${savedProposalId}` : "/api/proposals", {
         method: savedProposalId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...draft, paymentLink: paymentLink.trim() || undefined }),
+        body: JSON.stringify({ ...toSave, paymentLink: paymentLink.trim() || undefined }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -536,7 +543,7 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
                     {lang === "tr" ? "Ödeme linki ekle (opsiyonel)" : "Add a payment link (optional)"}
                   </button>
                 ))}
-              <Button onClick={saveDraft} disabled={loading} className="w-full gap-2">
+              <Button onClick={() => saveDraft()} disabled={loading} className="w-full gap-2">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                 {savedProposalId
                   ? lang === "tr" ? "Değişiklikleri kaydet" : "Save changes"
