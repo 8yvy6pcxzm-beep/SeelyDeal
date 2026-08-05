@@ -339,7 +339,7 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
     >
       <div
         className={cn(
-          "relative flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-pop",
+          "relative flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-pop",
           dragOver && "ring-2 ring-primary",
         )}
         onClick={(e) => e.stopPropagation()}
