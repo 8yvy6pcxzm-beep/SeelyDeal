@@ -49,6 +49,7 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
   const [sending, setSending] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [paymentLink, setPaymentLink] = useState("");
+  const [showPaymentField, setShowPaymentField] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [overage, setOverage] = useState<{ link: string | null; price: number; drafts: number } | null>(null);
   // Once set, "Teklife ekle" becomes "Değişiklikleri kaydet" and saves PATCH this
@@ -311,6 +312,7 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
     setMessages([]);
     setDraft(null);
     setPaymentLink("");
+    setShowPaymentField(false);
     setSavedProposalId(null);
     setError(null);
     setOverage(null);
@@ -321,16 +323,19 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
+      onClick={onClose}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       <div
         className={cn(
           "relative flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-pop",
           dragOver && "ring-2 ring-primary",
         )}
         onClick={(e) => e.stopPropagation()}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
       >
         {dragOver && (
           <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-primary/5">
@@ -499,29 +504,38 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
                   <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{draft.contractText}</p>
                 </div>
               )}
-              {(!draft.billingOptions || draft.billingOptions.length === 0) && (
-                <div>
-                  <label className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {(!draft.billingOptions || draft.billingOptions.length === 0) &&
+                (showPaymentField || paymentLink ? (
+                  <div>
+                    <label className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      <CreditCard className="h-3.5 w-3.5" />
+                      {lang === "tr" ? "Ödeme Yöntemi (opsiyonel)" : "Payment Method (optional)"}
+                    </label>
+                    <Input
+                      value={paymentLink}
+                      onChange={(e) => setPaymentLink(e.target.value)}
+                      placeholder={
+                        lang === "tr"
+                          ? "Ödeme linki (Ruul, Stripe, iyzico) ya da IBAN"
+                          : "Payment link (Ruul, Stripe, iyzico) or IBAN"
+                      }
+                      className="text-sm"
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {lang === "tr"
+                        ? "Müşteri imzaladığında buraya yönlendirilir."
+                        : "The client is redirected here once they sign."}
+                    </p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowPaymentField(true)}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary"
+                  >
                     <CreditCard className="h-3.5 w-3.5" />
-                    {lang === "tr" ? "Ödeme Yöntemi (opsiyonel)" : "Payment Method (optional)"}
-                  </label>
-                  <Input
-                    value={paymentLink}
-                    onChange={(e) => setPaymentLink(e.target.value)}
-                    placeholder={
-                      lang === "tr"
-                        ? "Ödeme linki (Ruul, Stripe, iyzico) ya da IBAN"
-                        : "Payment link (Ruul, Stripe, iyzico) or IBAN"
-                    }
-                    className="text-sm"
-                  />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {lang === "tr"
-                      ? "Müşteri imzaladığında buraya yönlendirilir."
-                      : "The client is redirected here once they sign."}
-                  </p>
-                </div>
-              )}
+                    {lang === "tr" ? "Ödeme linki ekle (opsiyonel)" : "Add a payment link (optional)"}
+                  </button>
+                ))}
               <Button onClick={saveDraft} disabled={loading} className="w-full gap-2">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                 {savedProposalId
@@ -622,9 +636,9 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
                       : "Type a message… (you can paste an image, Shift+Enter for a new line)"
                 }
                 disabled={loading}
-                rows={3}
+                rows={2}
                 className={cn(
-                  "flex w-full resize-none rounded-lg border border-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring transition-colors",
+                  "flex w-full resize-none rounded-3xl border border-input px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring transition-colors",
                   loading ? "bg-muted opacity-70 cursor-not-allowed" : "bg-card",
                 )}
               />
