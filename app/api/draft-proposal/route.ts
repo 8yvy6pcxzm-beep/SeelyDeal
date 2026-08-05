@@ -155,6 +155,7 @@ KURALLAR:
       ? `\n- Şirketin henüz ${!company?.logo_url && !company?.primary_color ? "logosu ve marka rengi" : !company?.logo_url ? "logosu" : "marka rengi"} ayarlanmamış. Sohbetin bir noktasında (ilk mesajlarda, doğal bir yerde) samimi bir şekilde sor: "Bu arada şirketinizin ${!company?.logo_url && !company?.primary_color ? "logosunu ve marka rengini" : !company?.logo_url ? "logosunu" : "marka rengini"} de alabilir miyim? Logo resmini buraya yapıştırman ya da hex renk kodunu (örn. #5B3DF6) yazman yeterli, direkt kaydedeceğim." Bunu SADECE BİR KEZ sor, ısrar etme.\n- MARKA KAYDI: Kullanıcı bir hex renk kodu yazarsa (örn. "#5B3DF6" veya "marka rengimiz mor, 5b3df6") ya da bir resim ekleyip bunun logo olduğunu belirtirse (ya da bağlamdan logo olduğu açıksa — ör. "logomuz bu", "işte logo"), cevabının SONUNA (json bloğundan sonra, varsa) ayrı bir \`\`\`brand ... \`\`\` bloğu ekle: {"setLogo": true/false, "primaryColor": "#RRGGBB" veya null}. Resim logoysa \`setLogo: true\` yap VE resimdeki baskın/marka rengini (arka plan beyaz/gri/siyahsa onu değil, logonun kendi rengini) dikkatlice tahmin edip \`primaryColor\`'a hex olarak yaz. Sadece renk koduysa \`setLogo: false, primaryColor: "#..."\`. Bu durumların dışında (kullanıcı logo/renk belirtmediyse) bu bloğu HİÇ ekleme. Cevap metninde ne kaydettiğini kısaca teyit et (örn. "Logonu ve marka rengini (#5B3DF6) kaydettim.").`
       : ""
   }
+- TALİMAT KAYDI: Kullanıcı sana kalıcı bir kural/tercih bildirirse — "bundan sonra hep böyle yap", "her zaman", "bunu hatırla", "bir daha sorma, direkt X yap" gibi bir ifadeyle, gelecekteki teklifler için de geçerli olacak bir talimat verirse (örn. "opsiyonel kalemleri hep işaretsiz bırak", "ödeme linkini hiç sorma, ben eklerim") — cevabının SONUNA (varsa json/brand bloklarından sonra) ayrı bir \`\`\`instruction ... \`\`\` bloğu ekle: {"text": "kısa, net, tekrar kullanılabilir talimat cümlesi (emir kipiyle, örn. \\"Opsiyonel kalemleri varsayılan olarak işaretsiz bırak.\\")"}. Bu SADECE bu teklife özel değil, GELECEKTEKİ TÜM tekliflere uygulanacak kalıcı bir kural olduğunda ekle — tek seferlik bir istek ("bu teklifte X yap") için ekleme. Cevap metninde kısaca teyit et (örn. "Tamam, bunu bundan sonraki tüm tekliflerde hatırlayacağım.").
 - Kullanıcı bir dosya (PDF, resim, ekran görüntüsü) eklerse, içeriğini oku ve teklif için gereken bilgileri (marka, fiyatlandırma, kapsam, müşteri bilgisi vb.) oradan çıkar — tekrar sorma.
 ${isLite ? "" : `- Kullanıcı "standart sözleşmemi/teklif formatımı kullan, şunu revize et" derse, aşağıdaki DOKÜMAN KÜTÜPHANESİ'nden ilgili dokümanı bul, verdiği talimatlara göre revize ederek kullan.\n`}- Fiyatlandırmada, aksi istenmedikçe aşağıdaki GERÇEK PAKETLERİMİZİ kullan.
 - ÇOK ÖNEMLİ — OKUNAKLILIK: \`sections\` dizisindeki her bölümün \`body\`'si UZUN PARAGRAF OLMASIN — her bölüm başlığının altına, o bölümü özetleyen TEK bir çarpıcı cümle yaz (en fazla ~20 kelime, gerekirse virgülle iki-üç madde birleştir). Örnek: "Keşif, marka sistemi, 8 sayfalık web sitesi ve devir." veya "Sabit ücret + opsiyonel bakım paketi." Detay gerekiyorsa ikinci cümleye değil, ayrı bir alt madde/kalem olarak lineItems'a taşı. \`introText\` ve \`aboutText\` bu kurala tabi değil, onlar kısa paragraf olabilir.
@@ -255,6 +256,18 @@ ${pricingBlock}${websiteContext}${prefillBlock}`;
     }
   }
 
+  // Optional ```instruction``` block — a standing preference the user gave mid-chat (see TALİMAT KAYDI rule above).
+  const instructionMatch = replyText.match(/```instruction\s*([\s\S]*?)```/);
+  let instruction: string | null = null;
+  if (instructionMatch) {
+    try {
+      const parsed = JSON.parse(instructionMatch[1]) as { text?: string };
+      instruction = parsed.text?.trim() || null;
+    } catch {
+      instruction = null;
+    }
+  }
+
   // The draft quota (customer-facing) only counts a produced proposal; the message
   // count (cost backstop) always increments, since every call is a real API charge.
   await service.from("ai_usage").upsert(
@@ -262,7 +275,11 @@ ${pricingBlock}${websiteContext}${prefillBlock}`;
     { onConflict: "company_id,month" },
   );
 
-  const reply = replyText.replace(/```json[\s\S]*?```/, "").replace(/```brand[\s\S]*?```/, "").trim();
+  const reply = replyText
+    .replace(/```json[\s\S]*?```/, "")
+    .replace(/```brand[\s\S]*?```/, "")
+    .replace(/```instruction[\s\S]*?```/, "")
+    .trim();
 
-  return NextResponse.json({ reply, draft, brand, remaining: limit - (draft ? used + 1 : used) });
+  return NextResponse.json({ reply, draft, brand, instruction, remaining: limit - (draft ? used + 1 : used) });
 }

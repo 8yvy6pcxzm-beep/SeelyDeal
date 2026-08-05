@@ -51,9 +51,13 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
   const [paymentLink, setPaymentLink] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [overage, setOverage] = useState<{ link: string | null; price: number; drafts: number } | null>(null);
-  const [saved, setSaved] = useState(false);
+  // Once set, "Teklife ekle" becomes "Değişiklikleri kaydet" and saves PATCH this
+  // proposal instead of creating a new one — the dialog stays open and chattable
+  // after the first save so the user can keep refining it, on every plan.
+  const [savedProposalId, setSavedProposalId] = useState<string | null>(null);
   const [attachment, setAttachment] = useState<Attachment | null>(null);
   const [attachError, setAttachError] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -114,6 +118,22 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
     processFile(file);
   }
 
+  function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    if (e.dataTransfer.types.includes("Files")) setDragOver(true);
+  }
+
+  function handleDragLeave(e: React.DragEvent<HTMLDivElement>) {
+    if (e.currentTarget === e.target) setDragOver(false);
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
+  }
+
   function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
     const items = e.clipboardData?.items;
     if (!items) return;
@@ -139,12 +159,28 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
 
   if (!open || !mounted) return null;
 
+  /** Matches a bare "save it" message ("kaydet", "teklife ekle", "save") — nothing else in the sentence, so it doesn't misfire on "kaydettim ama..." or similar. */
+  function isSaveIntent(text: string) {
+    return /^(kaydet(?:sene)?|kaydediver|teklife ekle|ekle|save( it| this)?)[.!?]*$/i.test(text.trim());
+  }
+
   async function send(override?: string) {
     if ((!override?.trim() && !input.trim() && !attachment) || loading) return;
     const text =
       override?.trim() ||
       input.trim() ||
       (lang === "tr" ? "Ektesindeki dokümanı incele ve teklif için kullan." : "Review the attached document and use it for the proposal.");
+
+    // Draft's already complete and sitting in the preview — "kaydet"/"save" means
+    // save it (or save the latest edits, if already saved once), not "chat about
+    // saving." Skip the round-trip to the AI entirely.
+    if (draft && !override && isSaveIntent(text)) {
+      setMessages((m) => [...m, { role: "user", content: text }]);
+      setInput("");
+      saveDraft();
+      return;
+    }
+
     const next = [...messages, { role: "user" as const, content: text, attachmentName: attachment?.name }];
     setMessages(next);
     setInput("");
@@ -184,6 +220,52 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
           : "Updated the proposal — check the preview below.";
       setMessages((m) => [...m, { role: "assistant", content: reply }]);
       if (data.draft) setDraft(data.draft);
+      if (data.instruction) {
+        fetch("/api/settings/ai-instructions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ instruction: data.instruction }),
+        })
+          .then(async (r) => {
+            if (!r.ok) {
+              const d = await r.json().catch(() => null);
+              setError(d?.error || (lang === "tr" ? "Talimat kaydedilemedi." : "Couldn't save the instruction."));
+            }
+          })
+          .catch(() => setError(lang === "tr" ? "Talimat kaydedilemedi." : "Couldn't save the instruction."));
+      }
+      if (data.brand) {
+        // The reply text already claims what got saved — if either call actually
+        // fails, surface it instead of silently leaving the user believing it worked.
+        if (data.brand.setLogo && sentAttachment?.mediaType.startsWith("image/")) {
+          fetch("/api/settings/logo", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ mediaType: sentAttachment.mediaType, base64: sentAttachment.base64 }),
+          })
+            .then(async (r) => {
+              if (!r.ok) {
+                const d = await r.json().catch(() => null);
+                setError(d?.error || (lang === "tr" ? "Logo kaydedilemedi." : "Couldn't save the logo."));
+              }
+            })
+            .catch(() => setError(lang === "tr" ? "Logo kaydedilemedi." : "Couldn't save the logo."));
+        }
+        if (data.brand.primaryColor) {
+          fetch("/api/settings/brand-color", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ primaryColor: data.brand.primaryColor }),
+          })
+            .then(async (r) => {
+              if (!r.ok) {
+                const d = await r.json().catch(() => null);
+                setError(d?.error || (lang === "tr" ? "Marka rengi kaydedilemedi." : "Couldn't save the brand color."));
+              }
+            })
+            .catch(() => setError(lang === "tr" ? "Marka rengi kaydedilemedi." : "Couldn't save the brand color."));
+        }
+      }
     } catch (err) {
       setError(
         err instanceof DOMException && err.name === "AbortError"
@@ -206,8 +288,8 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/proposals", {
-        method: "POST",
+      const res = await fetch(savedProposalId ? `/api/proposals/${savedProposalId}` : "/api/proposals", {
+        method: savedProposalId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...draft, paymentLink: paymentLink.trim() || undefined }),
       });
@@ -216,7 +298,7 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
         setError(data?.error || (lang === "tr" ? "Teklif kaydedilemedi." : "Couldn't save the proposal."));
         return;
       }
-      setSaved(true);
+      if (!savedProposalId && data?.id) setSavedProposalId(data.id);
       onSaved();
     } catch {
       setError(lang === "tr" ? "Bağlantı hatası." : "Connection error.");
@@ -229,7 +311,7 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
     setMessages([]);
     setDraft(null);
     setPaymentLink("");
-    setSaved(false);
+    setSavedProposalId(null);
     setError(null);
     setOverage(null);
     setWebsiteUrl("");
@@ -241,9 +323,22 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-pop"
+        className={cn(
+          "relative flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-pop",
+          dragOver && "ring-2 ring-primary",
+        )}
         onClick={(e) => e.stopPropagation()}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
       >
+        {dragOver && (
+          <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-primary/5">
+            <p className="rounded-lg bg-card px-4 py-2 text-sm font-medium text-primary shadow-pop">
+              {lang === "tr" ? "Dosyayı buraya bırak" : "Drop the file here"}
+            </p>
+          </div>
+        )}
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
@@ -326,7 +421,7 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
             </div>
           )}
 
-          {draft && !saved && (
+          {draft && (
             <div className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
               <h4 className="font-display text-lg font-semibold">{draft.title}</h4>
               <p className="text-sm text-muted-foreground">{draft.client}</p>
@@ -429,14 +524,15 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
               )}
               <Button onClick={saveDraft} disabled={loading} className="w-full gap-2">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                {lang === "tr" ? "Teklife ekle" : "Add to proposals"}
+                {savedProposalId
+                  ? lang === "tr" ? "Değişiklikleri kaydet" : "Save changes"
+                  : lang === "tr" ? "Teklife ekle" : "Add to proposals"}
               </Button>
-            </div>
-          )}
-
-          {saved && (
-            <div className="rounded-xl border border-success/30 bg-success/10 p-4 text-center text-sm text-success">
-              {lang === "tr" ? "Teklif kaydedildi." : "Proposal saved."}
+              {savedProposalId && (
+                <p className="text-center text-xs text-success">
+                  {lang === "tr" ? "✓ Kaydedildi — düzenlemeye devam edebilirsin." : "✓ Saved — you can keep editing."}
+                </p>
+              )}
             </div>
           )}
 
@@ -469,8 +565,7 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
           <div ref={endRef} />
         </div>
 
-        {!saved && (
-          <div className="space-y-2 border-t border-border p-4">
+        <div className="space-y-2 border-t border-border p-4">
             {showWebsiteField ? (
               <Input
                 value={websiteUrl}
@@ -537,8 +632,7 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </div>
-          </div>
-        )}
+        </div>
       </div>
     </div>,
     document.body,
