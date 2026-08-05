@@ -29,40 +29,42 @@ export default function DemoProposalsPage() {
       </div>
 
       <Card className="overflow-hidden">
-        <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 border-b border-border px-6 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          <span>{lang === "tr" ? "Müşteri / Teklif" : "Client / Proposal"}</span>
-          <span>{lang === "tr" ? "Durum" : "Status"}</span>
-          <span>{lang === "tr" ? "Görüntüleme" : "Views"}</span>
-          <span>{lang === "tr" ? "Değer" : "Value"}</span>
-          <span />
-        </div>
-        <div className="divide-y divide-border">
-          {proposals.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => setOpenId(p.id)}
-              className="grid w-full grid-cols-[1fr_auto_auto_auto_auto] items-center gap-4 px-6 py-3.5 text-left transition-colors hover:bg-muted"
-            >
-              <div className="flex min-w-0 items-center gap-3">
-                <ClientAvatar initials={p.clientInitials} />
-                <div className="min-w-0">
-                  <p className="truncate text-[13.5px] font-medium">{p.client}</p>
-                  <p className="truncate text-[12px] text-muted-foreground">
-                    {p.number} · {t(p.title)}
-                  </p>
+        <div className="overflow-x-auto">
+          <div className="grid min-w-[720px] grid-cols-[1fr_auto_auto_auto_auto] gap-4 border-b border-border px-6 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <span>{lang === "tr" ? "Müşteri / Teklif" : "Client / Proposal"}</span>
+            <span>{lang === "tr" ? "Durum" : "Status"}</span>
+            <span>{lang === "tr" ? "Görüntüleme" : "Views"}</span>
+            <span>{lang === "tr" ? "Değer" : "Value"}</span>
+            <span />
+          </div>
+          <div className="min-w-[720px] divide-y divide-border">
+            {proposals.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setOpenId(p.id)}
+                className="grid w-full grid-cols-[1fr_auto_auto_auto_auto] items-center gap-4 px-6 py-3.5 text-left transition-colors hover:bg-muted"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <ClientAvatar initials={p.clientInitials} />
+                  <div className="min-w-0">
+                    <p className="truncate text-[13.5px] font-medium">{p.client}</p>
+                    <p className="truncate text-[12px] text-muted-foreground">
+                      {p.number} · {t(p.title)}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <StatusPill status={p.status} lang={lang} />
-              <div className="flex items-center gap-2">
-                <Sparkline data={p.spark} className="h-6 w-16" />
-                <span className="flex items-center gap-1 text-[12.5px] tabular-nums text-muted-foreground">
-                  <Eye className="h-3.5 w-3.5" /> {p.views}
-                </span>
-              </div>
-              <span className="text-[13.5px] font-medium tabular-nums">{formatUsd(p.value)}</span>
-              <span />
-            </button>
-          ))}
+                <StatusPill status={p.status} lang={lang} />
+                <div className="flex items-center gap-2">
+                  <Sparkline data={p.spark} className="h-6 w-16" />
+                  <span className="flex items-center gap-1 text-[12.5px] tabular-nums text-muted-foreground">
+                    <Eye className="h-3.5 w-3.5" /> {p.views}
+                  </span>
+                </div>
+                <span className="text-[13.5px] font-medium tabular-nums">{formatUsd(p.value)}</span>
+                <span />
+              </button>
+            ))}
+          </div>
         </div>
       </Card>
 

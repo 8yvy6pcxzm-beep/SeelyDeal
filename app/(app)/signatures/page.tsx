@@ -117,13 +117,14 @@ export default function SignaturesPage() {
         </Card>
       ) : (
         <Card className="overflow-hidden">
-          <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 border-b border-border px-6 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+         <div className="overflow-x-auto">
+          <div className="grid min-w-[640px] grid-cols-[1fr_auto_auto_auto] gap-4 border-b border-border px-6 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             <span>{lang === "tr" ? "Teklif" : "Proposal"}</span>
             <span>{lang === "tr" ? "İmzalayan" : "Signed by"}</span>
             <span>{lang === "tr" ? "Tarih" : "Date"}</span>
             <span>{lang === "tr" ? "Değer" : "Value"}</span>
           </div>
-          <div className="divide-y divide-border">
+          <div className="min-w-[640px] divide-y divide-border">
             {rows.map((r) => (
               <div key={r.id} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-4 px-6 py-3.5">
                 <div className="min-w-0">
@@ -148,6 +149,7 @@ export default function SignaturesPage() {
               </div>
             ))}
           </div>
+         </div>
         </Card>
       )}
     </div>
