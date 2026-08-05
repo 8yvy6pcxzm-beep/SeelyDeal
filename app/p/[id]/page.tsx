@@ -67,6 +67,7 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
   const [otpSent, setOtpSent] = useState(false);
   const [requestingOtp, setRequestingOtp] = useState(false);
   const [viewId, setViewId] = useState<string | null>(null);
+  const [logoIsWordmark, setLogoIsWordmark] = useState(false);
   const skipLiveSelection = useRef(true);
 
   // Smart Proposal (Custom only): report the buyer's live toggle state so the seller can watch it in real time.
@@ -285,10 +286,26 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
           <span className="pointer-events-none absolute -right-12 -top-16 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
           <span className="pointer-events-none absolute -bottom-14 -left-8 h-48 w-48 rounded-full bg-black/10 blur-3xl" />
           <div className="relative flex items-center gap-2.5">
-            {company?.logo_url ? (
+            {company?.logo_url && !logoIsWordmark ? (
               <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white p-1">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={company.logo_url} alt={company.name} className="h-full w-full object-contain" />
+                <img
+                  src={company.logo_url}
+                  alt={company.name}
+                  className="h-full w-full object-contain"
+                  onLoad={(e) => {
+                    const img = e.currentTarget;
+                    const ratio = img.naturalWidth / (img.naturalHeight || 1);
+                    // A logo this far from square is a wordmark, not an icon — it'd just show an
+                    // illegible sliver of text in a 32px circle, so fall back to an initial instead.
+                    if (ratio > 1.4 || ratio < 0.7) setLogoIsWordmark(true);
+                  }}
+                  onError={() => setLogoIsWordmark(true)}
+                />
+              </span>
+            ) : company?.logo_url || company?.name ? (
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white text-sm font-bold" style={{ color: brandColor || "var(--primary)" }}>
+                {(company?.name?.trim().charAt(0) || "?").toUpperCase()}
               </span>
             ) : (
               <span className="grid h-8 w-8 place-items-center rounded-lg bg-white/15">
