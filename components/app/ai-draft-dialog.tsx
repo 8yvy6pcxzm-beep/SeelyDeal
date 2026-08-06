@@ -28,14 +28,26 @@ type Draft = {
   confirmed?: boolean;
 };
 
-/** Renders "**bold**" markdown segments as real <strong> text instead of literal asterisks. */
+/** Renders "**bold**" markdown segments as real <strong> text, and splits numbered/bulleted
+ * list items onto their own line even when the model runs them together in one paragraph. */
 function renderFormatted(text: string) {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith("**") && part.endsWith("**")) {
-      return <strong key={i} className="font-semibold">{part.slice(2, -2)}</strong>;
-    }
-    return <span key={i}>{part}</span>;
+  const withBreaks = text
+    .replace(/([^\n])(\s)(\d+\.\s)/g, "$1\n$3")
+    .replace(/([^\n])(\s)([-•]\s)/g, "$1\n$3");
+
+  return withBreaks.split("\n").map((line, i) => {
+    const parts = line.split(/(\*\*[^*]+\*\*)/g);
+    return (
+      <p key={i} className={i > 0 ? "mt-1.5" : undefined}>
+        {parts.map((part, j) =>
+          part.startsWith("**") && part.endsWith("**") ? (
+            <strong key={j} className="font-semibold">{part.slice(2, -2)}</strong>
+          ) : (
+            <span key={j}>{part}</span>
+          ),
+        )}
+      </p>
+    );
   });
 }
 
