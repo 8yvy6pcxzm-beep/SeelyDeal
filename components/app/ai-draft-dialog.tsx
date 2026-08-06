@@ -31,9 +31,27 @@ type Draft = {
 /** Renders "**bold**" markdown segments as real <strong> text, and splits numbered/bulleted
  * list items onto their own line even when the model runs them together in one paragraph. */
 function renderFormatted(text: string) {
-  const withBreaks = text
+  let withBreaks = text
     .replace(/([^\n])(\s)(\d+\.\s)/g, "$1\n$3")
     .replace(/([^\n])(\s)([-•]\s)/g, "$1\n$3");
+
+  // If the last list item is followed by a closing remark in the same line
+  // ("...? Bunları paylaşırsan hemen hazırlayayım."), break before that
+  // trailing sentence too, so it reads as its own paragraph.
+  const lines = withBreaks.split("\n");
+  const lastIsListItem = /^\s*(\d+\.|[-•])\s/.test(lines[lines.length - 1] ?? "");
+  if (lastIsListItem) {
+    const last = lines[lines.length - 1];
+    const boundary = /[.!?]\s+(?=[A-ZÇĞİÖŞÜ])/g;
+    let match: RegExpExecArray | null;
+    let lastMatchEnd = -1;
+    while ((match = boundary.exec(last))) lastMatchEnd = match.index + match[0].length;
+    if (lastMatchEnd > 0) {
+      lines[lines.length - 1] = last.slice(0, lastMatchEnd).trimEnd();
+      lines.push(last.slice(lastMatchEnd));
+    }
+  }
+  withBreaks = lines.join("\n");
 
   return withBreaks.split("\n").map((line, i) => {
     const parts = line.split(/(\*\*[^*]+\*\*)/g);
@@ -386,9 +404,6 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
                 {lang === "tr"
                   ? "Örn: \"Acme için web sitesi tasarımı teklifi hazırla, Growth paketiyle.\""
                   : "E.g. \"Draft a website design proposal for Acme, using the Growth package.\""}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {lang === "tr" ? "Eksik bir şey olursa sana soracağım." : "I'll ask if anything's missing."}
               </p>
               {!showChecklist ? (
                 <button
