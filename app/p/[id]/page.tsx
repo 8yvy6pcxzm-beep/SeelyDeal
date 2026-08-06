@@ -309,7 +309,6 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
                 <FileText className="h-4 w-4" />
               </span>
             )}
-            <p className="text-sm font-medium text-white/85">{company?.name}</p>
           </div>
 
           <h1 className="font-display relative mt-6 text-2xl font-bold tracking-tight sm:text-3xl">{proposal.title}</h1>
