@@ -40,6 +40,38 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (body.billingOptions !== undefined) patch.billing_options = body.billingOptions;
   if (body.lineItems !== undefined) patch.line_items = body.lineItems;
 
+  // Full-content fields — set when the AI draft chat updates an already-saved
+  // proposal (see components/app/ai-draft-dialog.tsx: continues editing after
+  // the first save instead of only being able to create new proposals).
+  if (body.title !== undefined) patch.title = body.title || "Yeni teklif";
+  if (body.value !== undefined) {
+    const numericValue = Number(body.value);
+    patch.value = Number.isFinite(numericValue) ? numericValue : 0;
+  }
+  if (body.sections !== undefined) patch.sections = Array.isArray(body.sections) ? body.sections : [];
+  if (body.contractText !== undefined) patch.contract_text = body.contractText || null;
+  if (body.introText !== undefined) patch.intro_text = body.introText || null;
+  if (body.aboutText !== undefined) patch.about_text = body.aboutText || null;
+  if (body.clientContact !== undefined) {
+    patch.client_contact = body.clientContact && typeof body.clientContact === "object" ? body.clientContact : {};
+  }
+  if (body.nextSteps !== undefined) patch.next_steps = Array.isArray(body.nextSteps) ? body.nextSteps : [];
+  if (body.validDays !== undefined) {
+    const validDays = Number(body.validDays);
+    patch.valid_days = Number.isFinite(validDays) ? validDays : 15;
+  }
+  if (body.client) {
+    const { data: existing } = await service
+      .from("clients")
+      .select("id")
+      .eq("company_id", profile.company_id)
+      .eq("name", body.client)
+      .maybeSingle();
+    patch.client_id = existing
+      ? existing.id
+      : (await service.from("clients").insert({ company_id: profile.company_id, name: body.client }).select("id").single()).data?.id ?? null;
+  }
+
   const { error } = await service
     .from("proposals")
     .update(patch)

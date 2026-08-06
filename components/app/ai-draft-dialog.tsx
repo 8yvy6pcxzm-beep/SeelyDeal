@@ -372,8 +372,11 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
                 {lang === "tr"
-                  ? "Örn: \"Acme için web sitesi tasarımı teklifi hazırla, Growth paketiyle.\" Eksik bir şey olursa sana soracağım."
-                  : "E.g. \"Draft a website design proposal for Acme, using the Growth package.\" I'll ask if anything's missing."}
+                  ? "Örn: \"Acme için web sitesi tasarımı teklifi hazırla, Growth paketiyle.\""
+                  : "E.g. \"Draft a website design proposal for Acme, using the Growth package.\""}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {lang === "tr" ? "Eksik bir şey olursa sana soracağım." : "I'll ask if anything's missing."}
               </p>
               {!showChecklist ? (
                 <button

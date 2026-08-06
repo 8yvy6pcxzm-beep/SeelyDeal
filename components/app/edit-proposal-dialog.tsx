@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X, Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
@@ -19,12 +20,17 @@ export function EditProposalDialog({
   onSaved: () => void;
 }) {
   const { lang } = useLang();
+  const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paymentLink, setPaymentLink] = useState("");
   const [billingOptions, setBillingOptions] = useState<BillingOption[]>([]);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!proposalId) return;
@@ -45,7 +51,7 @@ export function EditProposalDialog({
       .finally(() => setLoading(false));
   }, [proposalId, lang]);
 
-  if (!proposalId) return null;
+  if (!proposalId || !mounted) return null;
 
   function addBillingOption(key: string, trLabel: string, enLabel: string) {
     if (billingOptions.some((o) => o.key === key)) return;
@@ -95,8 +101,8 @@ export function EditProposalDialog({
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
         className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-pop"
         onClick={(e) => e.stopPropagation()}

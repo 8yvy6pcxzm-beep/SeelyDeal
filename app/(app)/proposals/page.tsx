@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Search, Sparkles, PenLine, Eye, ArrowUpDown, Download, Link2, Settings2, Clock } from "lucide-react";
 import { Sparkline } from "@/components/app/charts";
-import { StatusPill, ClientAvatar, Checkbox } from "@/components/app/proposal-bits";
+import { StatusPill, ClientAvatar } from "@/components/app/proposal-bits";
 import { AiDraftDialog } from "@/components/app/ai-draft-dialog";
 import { EditProposalDialog } from "@/components/app/edit-proposal-dialog";
 import { SectionTimesDialog } from "@/components/app/section-times-dialog";
+import { ProposalPreviewDialog } from "@/components/app/proposal-preview-dialog";
 import { useLang } from "@/components/i18n/language-provider";
 import { cn, formatUsd } from "@/lib/utils";
 import { proposals, pipeline, type ProposalStatus } from "@/lib/demo/data";
@@ -37,6 +38,7 @@ export default function ProposalsPage() {
   const [aiOpen, setAiOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [sectionTimesId, setSectionTimesId] = useState<string | null>(null);
+  const [previewId, setPreviewId] = useState<string | null>(null);
   const [realRows, setRealRows] = useState<typeof proposals>([]);
   const [liveIds, setLiveIds] = useState<Set<string>>(new Set());
   const [liveSelections, setLiveSelections] = useState<Map<string, { lineItems: { name: string; included?: boolean }[]; billingKey: string | null }>>(new Map());
@@ -59,9 +61,20 @@ export default function ProposalsPage() {
         spark: p.view_spark ?? [0, 0, 0, 0, 0, 0, 0],
         signed: p.status === "accepted",
         viewSummary: { tr: "", en: "" },
-        sections: p.sections ?? [],
+        sections: (p.sections ?? []).map((s: { title: string; body: string }, si: number) => ({
+          key: `s${si}`,
+          title: { tr: s.title, en: s.title },
+          preview: { tr: s.body, en: s.body },
+        })),
         timeline: [],
-        lineItems: p.line_items ?? [],
+        lineItems: (p.line_items ?? []).map((li: { name: string; qty: number; unit: number; optional?: boolean; included?: boolean }, li_i: number) => ({
+          id: `li${li_i}`,
+          name: { tr: li.name, en: li.name },
+          unit: li.unit,
+          qty: li.qty,
+          optional: li.optional,
+          included: li.included,
+        })),
         template: { tr: "AI taslağı", en: "AI draft" },
       }));
       setRealRows(mapped);
@@ -187,8 +200,7 @@ export default function ProposalsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left">
-                <th className="w-10 py-2.5 pl-4"><Checkbox /></th>
-                <th className="label-mono py-2.5 font-medium text-muted-foreground">{lang === "tr" ? "Teklif" : "Proposal"}</th>
+                <th className="label-mono py-2.5 pl-4 font-medium text-muted-foreground">{lang === "tr" ? "Teklif" : "Proposal"}</th>
                 <th className="label-mono py-2.5 font-medium text-muted-foreground">{lang === "tr" ? "Şablon" : "Template"}</th>
                 <th className="label-mono py-2.5 font-medium text-muted-foreground">{lang === "tr" ? "Durum" : "Status"}</th>
                 <th className="label-mono py-2.5 font-medium text-muted-foreground">{lang === "tr" ? "Gönderim" : "Sent"}</th>
@@ -199,9 +211,12 @@ export default function ProposalsPage() {
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.id} className="cursor-pointer border-b border-border/60 transition-colors last:border-0 hover:bg-muted/50">
-                  <td className="py-3 pl-4"><Checkbox /></td>
-                  <td className="py-3">
+                <tr
+                  key={row.id}
+                  onClick={() => setPreviewId(row.id)}
+                  className="cursor-pointer border-b border-border/60 transition-colors last:border-0 hover:bg-muted/50"
+                >
+                  <td className="py-3 pl-4">
                     <div className="flex items-center gap-2.5">
                       <ClientAvatar initials={row.clientInitials} size={32} />
                       <div className="min-w-0">
@@ -309,7 +324,7 @@ export default function ProposalsPage() {
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
+                  <td colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
                     {lang === "tr" ? "Bu filtreyle teklif yok." : "No proposals match this filter."}
                   </td>
                 </tr>
@@ -318,7 +333,7 @@ export default function ProposalsPage() {
             {rows.length > 0 && (
               <tfoot>
                 <tr className="border-t border-border">
-                  <td colSpan={6} className="py-3 pl-4 text-[13px] font-medium text-muted-foreground">
+                  <td colSpan={5} className="py-3 pl-4 text-[13px] font-medium text-muted-foreground">
                     {rows.length} {lang === "tr" ? "teklif" : "proposals"}
                   </td>
                   <td className="py-3 pr-4 text-right">
@@ -334,12 +349,17 @@ export default function ProposalsPage() {
 
       <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
         <Eye className="h-3.5 w-3.5" />
-        {lang === "tr" ? "Bir satıra tıkla — panelden detay sürgüsünü aç." : "Row detail drawer lives on the Dashboard cockpit."}
+        {lang === "tr" ? "Bir satıra tıkla — içeriğini hızlıca önizle." : "Click a row to quickly preview its content."}
       </p>
 
       <AiDraftDialog open={aiOpen} onClose={() => setAiOpen(false)} onSaved={loadReal} />
       <EditProposalDialog proposalId={editingId} onClose={() => setEditingId(null)} onSaved={loadReal} />
       <SectionTimesDialog proposalId={sectionTimesId} onClose={() => setSectionTimesId(null)} />
+      <ProposalPreviewDialog
+        proposal={rows.find((r) => r.id === previewId) ?? null}
+        clientLinkHref={previewId && realIds.has(previewId) ? `/p/${previewId}` : null}
+        onClose={() => setPreviewId(null)}
+      />
     </div>
   );
 }

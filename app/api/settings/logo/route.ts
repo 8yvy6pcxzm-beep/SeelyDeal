@@ -8,7 +8,7 @@ const ACCEPTED_TYPES: Record<string, string> = {
   "image/webp": "webp",
   "image/svg+xml": "svg",
 };
-const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_BYTES = 10 * 1024 * 1024;
 
 /** Uploads a company logo to the public `logos` storage bucket and points companies.logo_url at it. */
 export async function POST(req: Request) {
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
 
   const buffer = Buffer.from(base64, "base64");
   if (buffer.byteLength > MAX_BYTES) {
-    return NextResponse.json({ error: "Logo en fazla 5MB olabilir." }, { status: 400 });
+    return NextResponse.json({ error: "Logo en fazla 10MB olabilir." }, { status: 400 });
   }
 
   const service = createServiceClient();
