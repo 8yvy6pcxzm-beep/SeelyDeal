@@ -54,9 +54,13 @@ function renderFormatted(text: string) {
   withBreaks = lines.join("\n");
 
   return withBreaks.split("\n").map((line, i) => {
-    const parts = line.split(/(\*\*[^*]+\*\*)/g);
+    const markerMatch = line.match(/^(\s*(?:\d+\.|[-•])\s)/);
+    const marker = markerMatch?.[1];
+    const rest = marker ? line.slice(marker.length) : line;
+    const parts = rest.split(/(\*\*[^*]+\*\*)/g);
     return (
       <p key={i} className={i > 0 ? "mt-1.5" : undefined}>
+        {marker && <strong className="font-semibold">{marker}</strong>}
         {parts.map((part, j) =>
           part.startsWith("**") && part.endsWith("**") ? (
             <strong key={j} className="font-semibold">{part.slice(2, -2)}</strong>
@@ -92,6 +96,8 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
   const [dragOver, setDragOver] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const controllerRef = useRef<AbortController | null>(null);
+  const stoppedRef = useRef(false);
 
   const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
   const ACCEPTED_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/webp", "image/gif"];
@@ -189,6 +195,35 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
     setMounted(true);
   }, []);
 
+  /** Esc while Seely is replying stops the request and puts the last message back
+   * in the input so the user can fix a typo/instruction and resend — mirrors how
+   * Esc interrupts an in-progress agent turn here in Claude Code. */
+  function stopGeneration() {
+    if (!loading) return;
+    stoppedRef.current = true;
+    controllerRef.current?.abort();
+    setMessages((m) => {
+      const last = m[m.length - 1];
+      if (last?.role === "user") {
+        setInput(last.content);
+        return m.slice(0, -1);
+      }
+      return m;
+    });
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && loading) {
+        e.stopPropagation();
+        stopGeneration();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [open, loading]);
+
   if (!open || !mounted) return null;
 
   /** Matches a bare "save it" message ("kaydet", "teklife ekle", "save") — nothing else in the sentence, so it doesn't misfire on "kaydettim ama..." or similar. */
@@ -224,6 +259,8 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
     setOverage(null);
 
     const controller = new AbortController();
+    controllerRef.current = controller;
+    stoppedRef.current = false;
     const timeoutId = window.setTimeout(() => controller.abort(), 130_000);
 
     try {
@@ -304,17 +341,23 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
         }
       }
     } catch (err) {
-      setError(
-        err instanceof DOMException && err.name === "AbortError"
-          ? lang === "tr"
-            ? "Yanıt çok uzun sürdü, lütfen tekrar dene."
-            : "That took too long — please try again."
-          : lang === "tr"
-            ? "Bağlantı hatası."
-            : "Connection error.",
-      );
+      if (err instanceof DOMException && err.name === "AbortError" && stoppedRef.current) {
+        // User hit Esc — silently stop, no error toast; stopGeneration() already
+        // restored their message into the input so they can fix and resend it.
+      } else {
+        setError(
+          err instanceof DOMException && err.name === "AbortError"
+            ? lang === "tr"
+              ? "Yanıt çok uzun sürdü, lütfen tekrar dene."
+              : "That took too long — please try again."
+            : lang === "tr"
+              ? "Bağlantı hatası."
+              : "Connection error.",
+        );
+      }
     } finally {
       window.clearTimeout(timeoutId);
+      controllerRef.current = null;
       setLoading(false);
       setSending(false);
     }
@@ -666,8 +709,8 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
                 placeholder={
                   sending
                     ? lang === "tr"
-                      ? "Seely yazıyor…"
-                      : "Seely is typing…"
+                      ? "Seely yazıyor… (durdurmak için Esc)"
+                      : "Seely is typing… (Esc to stop)"
                     : lang === "tr"
                       ? "Mesajını yaz… (resim yapıştırabilirsin, yeni satır için Shift+Enter)"
                       : "Type a message… (you can paste an image, Shift+Enter for a new line)"
@@ -679,8 +722,13 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
                   loading ? "bg-muted opacity-70 cursor-not-allowed" : "bg-card",
                 )}
               />
-              <Button size="icon" onClick={() => send()} disabled={loading}>
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              <Button
+                size="icon"
+                onClick={loading ? stopGeneration : () => send()}
+                disabled={false}
+                title={loading ? (lang === "tr" ? "Durdur (Esc)" : "Stop (Esc)") : undefined}
+              >
+                {loading ? <X className="h-4 w-4" /> : <Send className="h-4 w-4" />}
               </Button>
             </div>
         </div>
