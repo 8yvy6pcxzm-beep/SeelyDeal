@@ -300,7 +300,7 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
           <span className="pointer-events-none absolute -bottom-14 -left-8 h-48 w-48 rounded-full bg-black/10 blur-3xl" />
           <div className="relative flex items-center gap-2.5">
             {company?.logo_url ? (
-              <span className="shadow-pill flex h-8 max-w-[140px] shrink-0 items-center rounded-lg bg-white px-1.5">
+              <span className="shadow-pill flex h-8 max-w-[140px] shrink-0 items-center overflow-hidden rounded-lg bg-white px-1.5">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={company.logo_url} alt={company.name} className="h-full w-auto max-w-full object-contain" />
               </span>
