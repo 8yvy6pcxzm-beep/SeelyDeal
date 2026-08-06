@@ -34,15 +34,15 @@ export function SettingsClient({
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label>{ui.productName}</Label>
-            <Input defaultValue={appConfig.name} readOnly />
+            <Input defaultValue={appConfig.name} readOnly disabled />
           </div>
           <div className="space-y-1.5">
             <Label>{ui.domain}</Label>
-            <Input defaultValue={appConfig.domain} readOnly />
+            <Input defaultValue={appConfig.domain} readOnly disabled />
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label>{ui.tagline}</Label>
-            <Input defaultValue={t(appConfig.tagline)} readOnly />
+            <Input defaultValue={t(appConfig.tagline)} readOnly disabled />
           </div>
         </CardContent>
       </Card>
