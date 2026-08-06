@@ -312,9 +312,6 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
           </div>
 
           <h1 className="font-display relative mt-6 text-2xl font-bold tracking-tight sm:text-3xl">{proposal.title}</h1>
-          <p className="relative mt-1.5 text-sm text-white/70">
-            {client.company || proposal.clients?.name} {lang === "tr" ? "için hazırlanmıştır" : "— prepared for"}
-          </p>
 
           <div className="relative mt-6 grid grid-cols-2 gap-4 border-t border-white/15 pt-5 text-xs sm:grid-cols-4">
             <div>
