@@ -168,6 +168,31 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
     };
   }, [viewId, id, proposal?.sections?.length]);
 
+  // Scroll-spy for the top nav: tracks which full-width section band is currently under the nav bar.
+  const [activeNav, setActiveNav] = useState<string>("kapak");
+  const navSectionRefs = useRef<Record<string, HTMLElement | null>>({});
+
+  useEffect(() => {
+    const els = Object.entries(navSectionRefs.current).filter(([, el]) => el) as [string, HTMLElement][];
+    if (els.length === 0) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting);
+        if (visible.length === 0) return;
+        const top = visible.reduce((a, b) => (a.boundingClientRect.top < b.boundingClientRect.top ? a : b));
+        const key = els.find(([, el]) => el === top.target)?.[0];
+        if (key) setActiveNav(key);
+      },
+      { rootMargin: "-15% 0px -70% 0px", threshold: 0 },
+    );
+    els.forEach(([, el]) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [proposal]);
+
+  function scrollToNav(key: string) {
+    navSectionRefs.current[key]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   const requiresOtp = !!(proposal?.companies?.plan && proposal.companies.plan !== "lite");
 
   async function requestOtp() {
@@ -281,272 +306,365 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
   const sectionLabel = (n: number) =>
     lang === "tr" ? `Bölüm ${n}` : `Section ${n}`;
 
+  const hasSummary = !!(proposal.intro_text || proposal.about_text || company || client.contactName || client.company);
+  const hasScope = visibleSections.length > 0;
+  const hasPricing = items.length > 0 || billingOptions.length > 0;
+  const hasContract = !!proposal.contract_text || proposal.next_steps?.length > 0;
+
+  // The site-style top nav — only lists bands that actually exist in this proposal.
+  const navItems: { key: string; label: string }[] = [
+    { key: "kapak", label: lang === "tr" ? "Kapak" : "Cover" },
+    ...(hasSummary ? [{ key: "ozet", label: lang === "tr" ? "Özet" : "Summary" }] : []),
+    ...(hasScope ? [{ key: "kapsam", label: lang === "tr" ? "Kapsam" : "Scope" }] : []),
+    ...(hasPricing ? [{ key: "fiyat", label: lang === "tr" ? "Fiyatlandırma" : "Pricing" }] : []),
+    ...(hasContract ? [{ key: "sozlesme", label: lang === "tr" ? "Sözleşme" : "Contract" }] : []),
+  ];
+
   return (
-    <div className="min-h-screen bg-muted/20 px-4 py-10 sm:py-16">
-      <div className="mx-auto max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-pop">
-        {/* Cover — Custom plan can replace the flat brand-color gradient with their own image ("premium design services"). */}
-        <div
-          className="relative overflow-hidden p-8 text-white sm:p-10"
-          style={
-            company?.plan === "custom" && company.cover_image_url
-              ? { backgroundImage: `url(${company.cover_image_url})`, backgroundSize: "cover", backgroundPosition: "center" }
-              : { background: brandColor ? `linear-gradient(135deg, ${brandColor}, color-mix(in oklch, ${brandColor} 60%, black))` : "var(--grad-brand)" }
-          }
-        >
-          {company?.plan === "custom" && company.cover_image_url && (
-            <span className="pointer-events-none absolute inset-0 bg-black/45" />
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Site-style top nav */}
+      <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-border bg-card/95 px-4 backdrop-blur sm:px-8">
+        <div className="flex min-w-0 items-center gap-2.5">
+          {company?.logo_url ? (
+            <span className="flex h-7 max-w-[120px] shrink-0 items-center overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={company.logo_url} alt={company.name} className="h-full w-auto max-w-full object-contain" />
+            </span>
+          ) : (
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg" style={{ background: brandColor || "var(--grad-brand)" }}>
+              <FileText className="h-3.5 w-3.5 text-white" />
+            </span>
           )}
-          <span className="pointer-events-none absolute -right-12 -top-16 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
-          <span className="pointer-events-none absolute -bottom-14 -left-8 h-48 w-48 rounded-full bg-black/10 blur-3xl" />
-          <div className="relative flex items-center gap-2.5">
-            {company?.logo_url ? (
-              <span className="shadow-pill flex h-8 max-w-[140px] shrink-0 items-center overflow-hidden rounded-lg bg-white px-1.5">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={company.logo_url} alt={company.name} className="h-full w-auto max-w-full object-contain" />
-              </span>
-            ) : (
-              <span className="grid h-8 w-8 place-items-center rounded-lg bg-white/15">
-                <FileText className="h-4 w-4" />
-              </span>
-            )}
-          </div>
+          {company?.name && <span className="truncate font-display text-sm font-bold">{company.name}</span>}
+        </div>
+        <nav className="hidden items-center gap-6 md:flex">
+          {navItems.map((n) => (
+            <button
+              key={n.key}
+              onClick={() => scrollToNav(n.key)}
+              className={cn(
+                "border-b-2 pb-4 pt-4 text-xs font-medium transition-colors",
+                activeNav === n.key ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {n.label}
+            </button>
+          ))}
+        </nav>
+        {signed ? (
+          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-success/10 px-3 py-1.5 text-xs font-semibold text-success">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            {lang === "tr" ? "İmzalandı" : "Signed"}
+          </span>
+        ) : (
+          <Button size="sm" onClick={() => scrollToNav("onayla")} className="shrink-0">
+            {lang === "tr" ? "Teklifi Onayla" : "Accept Proposal"}
+          </Button>
+        )}
+      </header>
 
-          <h1 className="font-display relative mt-6 text-2xl font-bold tracking-tight sm:text-3xl">{proposal.title}</h1>
+      {/* Kapak / hero — Custom plan can replace the flat brand-color gradient with their own image. */}
+      <section
+        id="kapak"
+        ref={(el) => {
+          navSectionRefs.current.kapak = el;
+        }}
+        className="relative overflow-hidden px-4 py-20 text-white sm:px-8 sm:py-28"
+        style={
+          company?.plan === "custom" && company.cover_image_url
+            ? { backgroundImage: `url(${company.cover_image_url})`, backgroundSize: "cover", backgroundPosition: "center" }
+            : { background: brandColor ? `linear-gradient(135deg, ${brandColor}, color-mix(in oklch, ${brandColor} 60%, black))` : "var(--grad-brand)" }
+        }
+      >
+        {company?.plan === "custom" && company.cover_image_url && (
+          <span className="pointer-events-none absolute inset-0 bg-black/45" />
+        )}
+        <span className="pointer-events-none absolute -right-12 -top-16 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
+        <span className="pointer-events-none absolute -bottom-14 -left-8 h-48 w-48 rounded-full bg-black/10 blur-3xl" />
+        <div className="relative mx-auto max-w-3xl">
+          <p className="text-xs font-semibold uppercase tracking-widest text-white/60">
+            {lang === "tr" ? "Teklif" : "Proposal"}
+          </p>
+          <h1 className="font-display mt-4 text-4xl font-bold tracking-tight sm:text-5xl">{proposal.title}</h1>
 
-          <div className="relative mt-6 grid grid-cols-2 gap-4 border-t border-white/15 pt-5 text-xs sm:grid-cols-4">
+          <div className="mt-10 grid grid-cols-2 gap-6 border-t border-white/15 pt-6 text-xs sm:grid-cols-4">
             <div>
               <p className="uppercase tracking-wide text-white/60">{lang === "tr" ? "Hazırlayan" : "From"}</p>
-              <p className="mt-0.5 font-medium">{company?.name}</p>
+              <p className="mt-1 font-medium">{company?.name}</p>
             </div>
             <div>
               <p className="uppercase tracking-wide text-white/60">{lang === "tr" ? "Muhatap" : "To"}</p>
-              <p className="mt-0.5 font-medium">{client.contactName || proposal.clients?.name || "—"}</p>
+              <p className="mt-1 font-medium">{client.contactName || proposal.clients?.name || "—"}</p>
             </div>
             <div>
               <p className="uppercase tracking-wide text-white/60">{lang === "tr" ? "Teklif Tarihi" : "Date"}</p>
-              <p className="tnum mt-0.5 font-medium">{fmtDate(proposal.created_at, lang)}</p>
+              <p className="tnum mt-1 font-medium">{fmtDate(proposal.created_at, lang)}</p>
             </div>
             <div>
               <p className="uppercase tracking-wide text-white/60">{lang === "tr" ? "Geçerlilik" : "Valid for"}</p>
-              <p className="mt-0.5 font-medium">{proposal.valid_days} {lang === "tr" ? "gün" : "days"}</p>
+              <p className="mt-1 font-medium">{proposal.valid_days} {lang === "tr" ? "gün" : "days"}</p>
             </div>
           </div>
         </div>
+      </section>
 
-        <div className="space-y-8 p-6 sm:p-8">
-          {/* Ön yazı */}
-          {proposal.intro_text && (
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">
-                {lang === "tr" ? "Ön Yazı" : "Cover Letter"}
-              </p>
-              <p className="whitespace-pre-wrap text-sm leading-relaxed">{proposal.intro_text}</p>
-            </div>
-          )}
+      {/* Özet — cover letter, about, parties */}
+      {hasSummary && (
+        <section
+          id="ozet"
+          ref={(el) => {
+            navSectionRefs.current.ozet = el;
+          }}
+          className="border-t border-border px-4 py-16 sm:px-8 sm:py-20"
+        >
+          <div className="mx-auto max-w-3xl space-y-10">
+            <h2 className="font-display text-2xl font-bold">{lang === "tr" ? "Özet" : "Summary"}</h2>
 
-          {/* Hakkımızda */}
-          {proposal.about_text && (
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">
-                {lang === "tr" ? "Hakkımızda" : "About Us"}
-              </p>
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{proposal.about_text}</p>
-            </div>
-          )}
+            {proposal.intro_text && (
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">
+                  {lang === "tr" ? "Ön Yazı" : "Cover Letter"}
+                </p>
+                <p className="whitespace-pre-wrap text-sm leading-relaxed">{proposal.intro_text}</p>
+              </div>
+            )}
 
-          {/* Taraflar */}
-          {(company || client.contactName || client.company) && (
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">
-                {lang === "tr" ? "Taraflar" : "Parties"}
-              </p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-border p-3.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    {lang === "tr" ? "Hizmeti Sunan" : "Provider"}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold">{company?.name}</p>
-                  {company?.email && <p className="text-xs text-muted-foreground">{company.email}</p>}
-                  <p className="text-xs text-muted-foreground">{appConfig.domain}</p>
-                </div>
-                <div className="rounded-xl border border-border p-3.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    {lang === "tr" ? "Hizmeti Alan" : "Client"}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold">{client.company || proposal.clients?.name}</p>
-                  {client.contactName && (
-                    <p className="text-xs text-muted-foreground">
-                      {client.contactName}{client.title ? ` — ${client.title}` : ""}
+            {proposal.about_text && (
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">
+                  {lang === "tr" ? "Hakkımızda" : "About Us"}
+                </p>
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{proposal.about_text}</p>
+              </div>
+            )}
+
+            {(company || client.contactName || client.company) && (
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">
+                  {lang === "tr" ? "Taraflar" : "Parties"}
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl border border-border p-3.5">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      {lang === "tr" ? "Hizmeti Sunan" : "Provider"}
                     </p>
-                  )}
-                  {client.address && <p className="text-xs text-muted-foreground">{client.address}</p>}
-                  {client.phone && <p className="text-xs text-muted-foreground">{client.phone}</p>}
-                  {client.email && <p className="text-xs text-muted-foreground">{client.email}</p>}
-                  {client.website && <p className="text-xs text-muted-foreground">{client.website}</p>}
+                    <p className="mt-1 text-sm font-semibold">{company?.name}</p>
+                    {company?.email && <p className="text-xs text-muted-foreground">{company.email}</p>}
+                    <p className="text-xs text-muted-foreground">{appConfig.domain}</p>
+                  </div>
+                  <div className="rounded-xl border border-border p-3.5">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      {lang === "tr" ? "Hizmeti Alan" : "Client"}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold">{client.company || proposal.clients?.name}</p>
+                    {client.contactName && (
+                      <p className="text-xs text-muted-foreground">
+                        {client.contactName}{client.title ? ` — ${client.title}` : ""}
+                      </p>
+                    )}
+                    {client.address && <p className="text-xs text-muted-foreground">{client.address}</p>}
+                    {client.phone && <p className="text-xs text-muted-foreground">{client.phone}</p>}
+                    {client.email && <p className="text-xs text-muted-foreground">{client.email}</p>}
+                    {client.website && <p className="text-xs text-muted-foreground">{client.website}</p>}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
+        </section>
+      )}
 
-          {/* Hizmet kapsamı — checklist */}
-          {visibleSections.length > 0 && (
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">
-                {lang === "tr" ? "Hizmet Kapsamı" : "Scope of Service"}
-              </p>
-              <div className="space-y-3">
-                {visibleSections.map((s) => (
+      {/* Kapsam — hizmet kapsamı checklist */}
+      {hasScope && (
+        <section
+          id="kapsam"
+          ref={(el) => {
+            navSectionRefs.current.kapsam = el;
+          }}
+          className="border-t border-border bg-muted/20 px-4 py-16 sm:px-8 sm:py-20"
+        >
+          <div className="mx-auto max-w-3xl">
+            <h2 className="font-display mb-8 text-2xl font-bold">{lang === "tr" ? "Hizmet Kapsamı" : "Scope of Service"}</h2>
+            <div className="space-y-3">
+              {visibleSections.map((s) => (
+                <div
+                  key={s.index}
+                  ref={(el) => {
+                    sectionRefs.current[s.index] = el;
+                  }}
+                  data-section-index={s.index}
+                  className="flex items-start gap-2.5 rounded-xl border border-border bg-card p-4"
+                >
+                  <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+                    <Check className="h-3 w-3" strokeWidth={3} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold">{s.title || sectionLabel(s.index + 1)}</p>
+                    <p className="mt-0.5 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{s.body}</p>
+                    {TEAM_SECTION_RE.test(s.title) && proposal.team.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-3">
+                        {proposal.team.map((m) => (
+                          <div key={m.name} className="flex items-center gap-2 rounded-full border border-border bg-card py-1 pl-1 pr-3 shadow-pill">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={m.photo_url!} alt={m.name} className="h-7 w-7 rounded-full object-cover" />
+                            <span className="text-xs">
+                              <span className="font-semibold">{m.name}</span>
+                              {m.title && <span className="text-muted-foreground"> · {m.title}</span>}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Fiyatlandırma */}
+      {hasPricing && (
+        <section
+          id="fiyat"
+          ref={(el) => {
+            navSectionRefs.current.fiyat = el;
+          }}
+          className="border-t border-border px-4 py-16 sm:px-8 sm:py-20"
+        >
+          <div className="mx-auto max-w-3xl">
+            <h2 className="font-display mb-8 text-2xl font-bold">{lang === "tr" ? "Paket ve Ücret" : "Package & Pricing"}</h2>
+            <div className="overflow-hidden rounded-2xl border border-border">
+              {billingOptions.map((o) => {
+                const selected = billingKey === o.key;
+                const clickable = !signed;
+                return (
                   <div
-                    key={s.index}
-                    ref={(el) => {
-                      sectionRefs.current[s.index] = el;
-                    }}
-                    data-section-index={s.index}
-                    className="flex items-start gap-2.5"
+                    key={o.key}
+                    onClick={() => clickable && setBillingKey(o.key)}
+                    className={cn(
+                      "flex items-center gap-3 border-b border-border/70 px-4 py-3",
+                      clickable && "cursor-pointer hover:bg-muted/40",
+                    )}
                   >
-                    <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
-                      <Check className="h-3 w-3" strokeWidth={3} />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold">{s.title || sectionLabel(s.index + 1)}</p>
-                      <p className="mt-0.5 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{s.body}</p>
-                      {TEAM_SECTION_RE.test(s.title) && proposal.team.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-3">
-                          {proposal.team.map((m) => (
-                            <div key={m.name} className="flex items-center gap-2 rounded-full border border-border bg-card py-1 pl-1 pr-3 shadow-pill">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={m.photo_url!} alt={m.name} className="h-7 w-7 rounded-full object-cover" />
-                              <span className="text-xs">
-                                <span className="font-semibold">{m.name}</span>
-                                {m.title && <span className="text-muted-foreground"> · {m.title}</span>}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Paket ve ücret */}
-          {(items.length > 0 || billingOptions.length > 0) && (
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">
-                {lang === "tr" ? "Paket ve Ücret" : "Package & Pricing"}
-              </p>
-              <div className="overflow-hidden rounded-2xl border border-border">
-                {billingOptions.map((o) => {
-                  const selected = billingKey === o.key;
-                  const clickable = !signed;
-                  return (
-                    <div
-                      key={o.key}
-                      onClick={() => clickable && setBillingKey(o.key)}
+                    <span
                       className={cn(
-                        "flex items-center gap-3 border-b border-border/70 px-4 py-3",
-                        clickable && "cursor-pointer hover:bg-muted/40",
+                        "grid h-5 w-5 shrink-0 place-items-center rounded-full",
+                        selected ? "bg-primary text-primary-foreground" : "border border-border bg-card",
                       )}
                     >
-                      <span
-                        className={cn(
-                          "grid h-5 w-5 shrink-0 place-items-center rounded-full",
-                          selected ? "bg-primary text-primary-foreground" : "border border-border bg-card",
-                        )}
-                      >
-                        {selected && <Check className="h-3 w-3" strokeWidth={3} />}
-                      </span>
-                      <span className="min-w-0 flex-1 text-sm font-medium">{lang === "tr" ? o.label.tr : o.label.en}</span>
-                      <span className="tnum text-sm font-semibold">{formatUsd(o.price)}</span>
-                    </div>
-                  );
-                })}
-                {items.map((li, i) => {
-                  const active = !li.optional || li.included;
-                  const clickable = li.optional && !signed;
-                  return (
-                    <div
-                      key={i}
-                      onClick={() => clickable && setItems((prev) => prev.map((x, idx) => (idx === i ? { ...x, included: !x.included } : x)))}
+                      {selected && <Check className="h-3 w-3" strokeWidth={3} />}
+                    </span>
+                    <span className="min-w-0 flex-1 text-sm font-medium">{lang === "tr" ? o.label.tr : o.label.en}</span>
+                    <span className="tnum text-sm font-semibold">{formatUsd(o.price)}</span>
+                  </div>
+                );
+              })}
+              {items.map((li, i) => {
+                const active = !li.optional || li.included;
+                const clickable = li.optional && !signed;
+                return (
+                  <div
+                    key={i}
+                    onClick={() => clickable && setItems((prev) => prev.map((x, idx) => (idx === i ? { ...x, included: !x.included } : x)))}
+                    className={cn(
+                      "flex items-center gap-3 border-b border-border/70 px-4 py-3 last:border-0",
+                      clickable && "cursor-pointer hover:bg-muted/40",
+                      !active && "opacity-50",
+                    )}
+                  >
+                    <span
                       className={cn(
-                        "flex items-center gap-3 border-b border-border/70 px-4 py-3 last:border-0",
-                        clickable && "cursor-pointer hover:bg-muted/40",
-                        !active && "opacity-50",
+                        "grid h-5 w-5 shrink-0 place-items-center rounded-full",
+                        active ? (li.optional ? "bg-primary text-primary-foreground" : "bg-success text-white") : "border border-border bg-card",
                       )}
                     >
-                      <span
-                        className={cn(
-                          "grid h-5 w-5 shrink-0 place-items-center rounded-full",
-                          active ? (li.optional ? "bg-primary text-primary-foreground" : "bg-success text-white") : "border border-border bg-card",
-                        )}
-                      >
-                        {active && <Check className="h-3 w-3" strokeWidth={3} />}
-                      </span>
-                      <span className="min-w-0 flex-1 text-sm font-medium">
-                        {li.name}
-                        <span className="ml-1.5 text-xs font-normal text-muted-foreground">× {li.qty}</span>
-                        {li.optional && (
-                          <span className="ml-1.5 text-[10px] font-normal text-muted-foreground">
-                            ({lang === "tr" ? "opsiyonel" : "optional"})
-                          </span>
-                        )}
-                      </span>
-                      <span className="tnum text-sm font-semibold">{formatUsd(active ? li.unit * li.qty : 0)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="mt-3 flex items-center justify-between rounded-xl bg-muted/50 px-4 py-3">
-                <span className="text-sm font-semibold">{lang === "tr" ? "Toplam" : "Total"}</span>
-                <span className="tnum text-xl font-bold text-primary">{formatUsd(total)}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Sözleşme koşulları */}
-          {proposal.contract_text && (
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">
-                {lang === "tr" ? "Sözleşme Koşulları" : "Contract Terms"}
-              </p>
-              <div className="space-y-2">
-                {splitClauses(proposal.contract_text).map((clause, i) => (
-                  <p key={i} className="whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
-                    {clause}
-                  </p>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Sonraki adımlar */}
-          {proposal.next_steps?.length > 0 && (
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">
-                {lang === "tr" ? "Sonraki Adımlar" : "Next Steps"}
-              </p>
-              <div className="space-y-3">
-                {proposal.next_steps.map((step, i) => (
-                  <div key={i} className="flex items-start gap-2.5">
-                    <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-success/10 text-success">
-                      <Check className="h-3 w-3" strokeWidth={3} />
+                      {active && <Check className="h-3 w-3" strokeWidth={3} />}
                     </span>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold">
-                        {i + 1}. {step.title}
-                      </p>
-                      <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">{step.body}</p>
-                    </div>
+                    <span className="min-w-0 flex-1 text-sm font-medium">
+                      {li.name}
+                      <span className="ml-1.5 text-xs font-normal text-muted-foreground">× {li.qty}</span>
+                      {li.optional && (
+                        <span className="ml-1.5 text-[10px] font-normal text-muted-foreground">
+                          ({lang === "tr" ? "opsiyonel" : "optional"})
+                        </span>
+                      )}
+                    </span>
+                    <span className="tnum text-sm font-semibold">{formatUsd(active ? li.unit * li.qty : 0)}</span>
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
-          )}
-        </div>
+            <div className="mt-3 flex items-center justify-between rounded-xl bg-muted/50 px-4 py-3">
+              <span className="text-sm font-semibold">{lang === "tr" ? "Toplam" : "Total"}</span>
+              <span className="tnum text-xl font-bold text-primary">{formatUsd(total)}</span>
+            </div>
+          </div>
+        </section>
+      )}
 
-        <div className="border-t border-border bg-muted/30 p-6 sm:p-8">
+      {/* Sözleşme + sonraki adımlar */}
+      {hasContract && (
+        <section
+          id="sozlesme"
+          ref={(el) => {
+            navSectionRefs.current.sozlesme = el;
+          }}
+          className="border-t border-border bg-muted/20 px-4 py-16 sm:px-8 sm:py-20"
+        >
+          <div className="mx-auto max-w-3xl space-y-10">
+            <h2 className="font-display text-2xl font-bold">{lang === "tr" ? "Sözleşme" : "Contract"}</h2>
+
+            {proposal.contract_text && (
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">
+                  {lang === "tr" ? "Sözleşme Koşulları" : "Contract Terms"}
+                </p>
+                <div className="space-y-2">
+                  {splitClauses(proposal.contract_text).map((clause, i) => (
+                    <p key={i} className="whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
+                      {clause}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {proposal.next_steps?.length > 0 && (
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">
+                  {lang === "tr" ? "Sonraki Adımlar" : "Next Steps"}
+                </p>
+                <div className="space-y-3">
+                  {proposal.next_steps.map((step, i) => (
+                    <div key={i} className="flex items-start gap-2.5">
+                      <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-success/10 text-success">
+                        <Check className="h-3 w-3" strokeWidth={3} />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold">
+                          {i + 1}. {step.title}
+                        </p>
+                        <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">{step.body}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Onayla — imza */}
+      <section
+        id="onayla"
+        ref={(el) => {
+          navSectionRefs.current.onayla = el;
+        }}
+        className="border-t border-border px-4 py-16 sm:px-8 sm:py-20"
+      >
+        <div className="mx-auto max-w-xl rounded-2xl border border-border bg-card p-6 shadow-pop sm:p-8">
           {signed ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2 rounded-xl border border-success/30 bg-success/10 p-4 text-sm text-success">
@@ -590,6 +708,7 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
             </div>
           ) : (
             <>
+              <h2 className="font-display mb-4 text-xl font-bold">{lang === "tr" ? "Teklifi Onayla" : "Accept Proposal"}</h2>
               <div className="mb-3 space-y-1.5">
                 <Label htmlFor="signer-name">
                   {lang === "tr" ? "Adın (imza olarak kaydedilecek)" : "Your name (recorded as your signature)"}
@@ -643,14 +762,14 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
           )}
           {error && <p className="mt-2 text-center text-sm text-destructive">{error}</p>}
         </div>
+      </section>
 
-        <div className="flex items-center justify-center gap-1.5 border-t border-border p-4 text-xs text-muted-foreground">
-          <CalendarClock className="h-3.5 w-3.5" />
-          {lang === "tr"
-            ? `${appConfig.name} — ${company?.name} · Bu teklif ${fmtDate(proposal.created_at, lang)} tarihinden itibaren ${proposal.valid_days} gün geçerlidir (${fmtDate(validUntil.toISOString(), lang)}'e kadar).`
-            : `${appConfig.name} — ${company?.name} · This proposal is valid for ${proposal.valid_days} days from ${fmtDate(proposal.created_at, lang)} (until ${fmtDate(validUntil.toISOString(), lang)}).`}
-        </div>
-      </div>
+      <footer className="flex items-center justify-center gap-1.5 border-t border-border bg-muted/30 p-4 text-center text-xs text-muted-foreground">
+        <CalendarClock className="h-3.5 w-3.5 shrink-0" />
+        {lang === "tr"
+          ? `${appConfig.name} — ${company?.name} · Bu teklif ${fmtDate(proposal.created_at, lang)} tarihinden itibaren ${proposal.valid_days} gün geçerlidir (${fmtDate(validUntil.toISOString(), lang)}'e kadar).`
+          : `${appConfig.name} — ${company?.name} · This proposal is valid for ${proposal.valid_days} days from ${fmtDate(proposal.created_at, lang)} (until ${fmtDate(validUntil.toISOString(), lang)}).`}
+      </footer>
     </div>
   );
 }

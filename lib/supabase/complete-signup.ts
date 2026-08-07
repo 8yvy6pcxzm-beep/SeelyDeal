@@ -16,7 +16,7 @@ export async function completeSignup(userId: string, email: string, companyName?
 
   const { data: company, error: companyError } = await supabase
     .from("companies")
-    .insert({ name: companyName || email.split("@")[0], email, plan: "lite" })
+    .insert({ name: companyName || "", email, plan: "lite" })
     .select("id")
     .single();
 
