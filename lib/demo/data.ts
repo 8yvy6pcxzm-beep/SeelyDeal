@@ -374,6 +374,13 @@ export const acceptanceMeta = {
 };
 
 /* ── Templates strip ───────────────────────────────────────────────────────── */
+export interface TemplateSection {
+  title: L;
+  body: L;
+  /** Sanitized HTML override for this section (e.g. a design exported from an external tool). Rendered instead of `body` when present. */
+  html?: string;
+}
+
 export interface Template {
   id: string;
   name: L;
@@ -381,13 +388,246 @@ export interface Template {
   uses: number;
   winRate: number;
   accent: string;
+  sections: TemplateSection[];
+  /** Optional richer fields — carried through to a real proposal draft when "Bu şablonla yaz" is used. */
+  introText?: L;
+  aboutText?: L;
+  lineItems?: { name: L; qty: number; unit: number }[];
+  contractText?: L;
+  /** Optional per-template visual theme, carried into the proposal draft and applied only to
+   *  proposals created from this template (see app/p/[id]/page.tsx) — never touches global CSS. */
+  theme?: { primaryColor: string; accentColor: string; font?: string };
+  /** "sade" = short/neutral, no special theme. "kapsamli" = rich content, usually paired with a theme. */
+  variant?: "sade" | "kapsamli";
+  /** Short name recognized in AI chat (e.g. "leo") — only set on kapsamlı variants. See app/api/draft-proposal/route.ts. */
+  nickname?: string;
 }
 
+const GENERIC_SECTIONS: TemplateSection[] = [
+  { title: { tr: "Kapak", en: "Cover" }, body: { tr: "Logo, şirket adı, müşteri bilgileri ve proje başlığı.", en: "Logo, company name, client details, and project title." } },
+  { title: { tr: "Kapsam", en: "Scope" }, body: { tr: "İşin kapsamı, teslim edilecekler ve zaman planı.", en: "Scope of work, deliverables, and timeline." } },
+  { title: { tr: "Fiyatlandırma", en: "Pricing" }, body: { tr: "Kalem bazlı fiyat tablosu.", en: "Itemized pricing table." } },
+  { title: { tr: "Şartlar", en: "Terms" }, body: { tr: "Ödeme ve teslim şartları.", en: "Payment and delivery terms." } },
+  { title: { tr: "İmza", en: "Signature" }, body: { tr: "E-imza onay alanı.", en: "E-signature approval area." } },
+];
+
 export const templates: Template[] = [
-  { id: "t1", name: { tr: "Tasarım hizmeti", en: "Design retainer" }, category: { tr: "Yaratıcı", en: "Creative" }, uses: 42, winRate: 58, accent: "var(--seg-1)" },
-  { id: "t2", name: { tr: "Pazarlama retainer", en: "Marketing retainer" }, category: { tr: "Pazarlama", en: "Marketing" }, uses: 36, winRate: 51, accent: "var(--seg-2)" },
-  { id: "t3", name: { tr: "Yazılım projesi", en: "Software project" }, category: { tr: "Teknoloji", en: "Technology" }, uses: 29, winRate: 44, accent: "var(--seg-3)" },
-  { id: "t4", name: { tr: "Danışmanlık", en: "Consulting" }, category: { tr: "Hizmet", en: "Services" }, uses: 21, winRate: 62, accent: "var(--seg-4)" },
+  { id: "t1", name: { tr: "Tasarım hizmeti", en: "Design retainer" }, category: { tr: "Yaratıcı", en: "Creative" }, uses: 42, winRate: 58, accent: "var(--seg-1)", sections: GENERIC_SECTIONS },
+  { id: "t2", name: { tr: "Pazarlama retainer", en: "Marketing retainer" }, category: { tr: "Pazarlama", en: "Marketing" }, uses: 36, winRate: 51, accent: "var(--seg-2)", sections: GENERIC_SECTIONS },
+  { id: "t3", name: { tr: "Yazılım projesi", en: "Software project" }, category: { tr: "Teknoloji", en: "Technology" }, uses: 29, winRate: 44, accent: "var(--seg-3)", sections: GENERIC_SECTIONS },
+  { id: "t4", name: { tr: "Danışmanlık", en: "Consulting" }, category: { tr: "Hizmet", en: "Services" }, uses: 21, winRate: 62, accent: "var(--seg-4)", sections: GENERIC_SECTIONS },
+  {
+    id: "t5",
+    name: { tr: "İnşaat — Sade", en: "Construction — Simple" },
+    category: { tr: "İnşaat", en: "Construction" },
+    uses: 0,
+    winRate: 0,
+    accent: "var(--seg-1)",
+    variant: "sade",
+    introText: {
+      tr: "Sayın Ahmet Yılmaz,\n\nVizyoner hedeflerinizi yakından takip ediyor ve Ticari Kompleks Cephe Yenileme Projesi'nde sizlere değer katmak için bu kapsamlı teklifi sunmaktan onur duyuyoruz. Projenin çevresel sürdürülebilirlik ve modern mimari estetik gereksinimlerini derinden anlıyoruz.\n\nAmacımız sadece bir cephe yenileme işlemi gerçekleştirmek değil, aynı zamanda binanın enerji verimliliğini artırarak uzun vadeli operasyonel maliyetlerinizi optimize etmektir. Yenilikçi malzeme seçimlerimiz ve detaylı iş planımızla, projenin günlük faaliyetlerinizi aksatmadan, belirlenen bütçe ve takvim sınırları içerisinde tamamlanmasını taahhüt ediyoruz.\n\nİşbirliğimizin her iki tarafa da uzun vadeli değer katacağına inancımız tamdır. Saygılarımızla.",
+      en: "Dear Client,\n\nWe are honored to submit this comprehensive proposal for your Commercial Complex Facade Renovation Project. We understand the environmental sustainability and modern architectural aesthetic requirements of the project.\n\nOur goal is not only to complete a facade renovation, but to reduce your long-term operating costs by improving the building's energy efficiency — delivered on budget and on schedule without disrupting your daily operations.\n\nWe believe this partnership will create lasting value for both sides. Best regards.",
+    },
+    aboutText: {
+      tr: "Yirmi yılı aşkın süredir endüstriyel tesisler, ticari kompleksler ve nitelikli üst yapı projelerinde anahtar teslim taahhüt hizmetleri sunuyoruz. Mühendislik disiplini ve yenilikçi inşaat teknolojilerini harmanlayarak, sektörde güvenilirliğin ve kalitenin sembolü haline geldik.\n\n\"Zorlu hava koşullarına ve sıkışık takvime rağmen, projeyi beklediğimizden çok daha yüksek bir kalite standardıyla ve bütçe sınırları içinde teslim ettiler.\" — Mehmet Demir, Genel Müdür, XYZ Lojistik A.Ş.",
+      en: "For over twenty years we've delivered turnkey contracting services for industrial facilities, commercial complexes, and premium structures — combining engineering discipline with innovative construction technology.\n\n\"Despite tough weather and a tight schedule, they delivered well above our quality expectations and within budget.\" — Mehmet Demir, General Manager, XYZ Logistics.",
+    },
+    sections: [
+      {
+        title: { tr: "Kapsam Dahilinde", en: "Included in Scope" },
+        body: {
+          tr: "• Mevcut dış cephe kaplamalarının güvenli şekilde sökülmesi ve bertarafı.\n• Yeni nesil, enerji verimli alüminyum kompozit panel montajı (yaklaşık 15.000 m²).\n• Yüksek performanslı ısı yalıtım malzemelerinin uygulanması.\n• Cephe temizlik sistemi (gondol) altyapı hazırlığı ve montajı.\n• Şantiye güvenliği, iskele kurulumu ve trafik yönetimi.",
+          en: "• Safe removal and disposal of existing facade cladding.\n• Next-gen, energy-efficient aluminum composite panel installation (~15,000 m²).\n• High-performance thermal insulation application.\n• Facade cleaning system (gondola) infrastructure and installation.\n• Site safety, scaffolding, and traffic management for the duration.",
+        },
+      },
+      {
+        title: { tr: "Kapsam Dışında", en: "Excluded from Scope" },
+        body: {
+          tr: "• İç mekan boya, badana ve dekorasyon işleri.\n• Doğramalar hariç cam değişimi (talep edilirse ek teklif sunulur).\n• Yapı ruhsatı/izin harçları (müşteri sorumluluğundadır).",
+          en: "• Interior painting and decoration work.\n• Window glass replacement excluding frames (available as an add-on quote).\n• Building permit fees (client's responsibility).",
+        },
+      },
+      {
+        title: { tr: "Ekip", en: "Team" },
+        body: {
+          tr: "Proje müdürü, baş mühendis ve şantiye şefinden oluşan ekibimiz, sahada güvenli ve zamanında ilerleme için birlikte çalışır.",
+          en: "Our project manager, lead engineer, and site supervisor work together to keep the job on schedule and on safety standard.",
+        },
+      },
+      {
+        title: { tr: "Kritik Tarihler", en: "Key Dates" },
+        body: {
+          tr: "Planlanan başlangıç: 15 Kasım 2024. Planlanan bitiş: 30 Mayıs 2025 (196 gün).",
+          en: "Planned start: Nov 15, 2024. Planned completion: May 30, 2025 (196 days).",
+        },
+      },
+    ],
+    lineItems: [
+      { name: { tr: "Malzeme: Alüminyum kompozit panel ve yalıtım", en: "Materials: Aluminum composite panel & insulation" }, qty: 15000, unit: 2.5 },
+      { name: { tr: "İşçilik: Söküm, iskele kurulumu ve montaj", en: "Labor: Removal, scaffolding & installation" }, qty: 196, unit: 45 },
+      { name: { tr: "Ekipman: Vinç kiralama ve güvenlik ağları", en: "Equipment: Crane rental & safety netting" }, qty: 6, unit: 300 },
+      { name: { tr: "Taşeron: Cephe temizlik sistemi altyapısı", en: "Subcontractor: Facade cleaning system infra" }, qty: 1, unit: 1200 },
+    ],
+    contractText: {
+      tr: "Bu teklif belgesi, taraflarca elektronik ortamda onaylandığı andan itibaren yasal bağlayıcılığı olan bir ön sözleşme niteliği taşır. Onay, işbu belgede belirtilen kapsam, takvim ve bedel üzerinden verilmiş sayılır; kapsam değişiklikleri yazılı ek sözleşme ile yapılır.",
+      en: "This proposal becomes a legally binding preliminary agreement once approved electronically by both parties, on the scope, schedule and price stated herein; scope changes require a written change order.",
+    },
+  },
+  {
+    id: "t6",
+    name: { tr: "İnşaat — Leo (Kapsamlı)", en: "Construction — Leo (Comprehensive)" },
+    category: { tr: "İnşaat", en: "Construction" },
+    uses: 0,
+    winRate: 0,
+    accent: "var(--seg-1)",
+    variant: "kapsamli",
+    nickname: "leo",
+    theme: { primaryColor: "#00173c", accentColor: "#a04100", font: "Hanken Grotesk" },
+    introText: {
+      tr: "Sayın [Müşteri Yetkilisi],\n\n[Müşteri firma]nın hedeflerini yakından takip ediyor ve [proje adı]nda sizlere değer katmak için bu kapsamlı teklifi sunmaktan onur duyuyoruz. Projenin çevresel sürdürülebilirlik ve modern mimari estetik gereksinimlerini derinden anlıyoruz.\n\nAmacımız, sadece işi tamamlamak değil, aynı zamanda uzun vadeli operasyonel maliyetlerinizi optimize etmektir. Yenilikçi malzeme seçimlerimiz ve detaylı iş planımızla, belirlenen bütçe ve takvim sınırları içerisinde tamamlanmasını taahhüt ediyoruz.\n\nİşbirliğimizin her iki tarafa da uzun vadeli değer katacağına inancımız tamdır. Saygılarımızla.",
+      en: "Dear [Client Contact],\n\nWe are honored to submit this comprehensive proposal for [project name]. We understand the environmental sustainability and modern architectural aesthetic requirements of the project.\n\nOur goal is not only to complete the work, but to optimize your long-term operating costs — delivered on budget and on schedule.\n\nWe believe this partnership will create lasting value for both sides. Best regards.",
+    },
+    aboutText: {
+      tr: "Firmamız, yirmi yılı aşkın süredir endüstriyel tesisler, ticari kompleksler ve nitelikli üst yapı projelerinde anahtar teslim taahhüt hizmetleri sunmaktadır. Mühendislik disiplini ve yenilikçi inşaat teknolojilerini harmanlayarak, sektörde güvenilirliğin ve kalitenin sembolü haline geldik.\n\n\"Zorlu hava koşullarına ve sıkışık takvime rağmen, projeyi beklediğimizden çok daha yüksek bir kalite standardıyla ve bütçe sınırları içinde teslim ettiler.\" — [Referans Adı], [Unvan], [Referans Firma]",
+      en: "For over twenty years we've delivered turnkey contracting services for industrial facilities, commercial complexes, and premium structures — combining engineering discipline with innovative construction technology.\n\n\"Despite tough weather and a tight schedule, they delivered well above our quality expectations and within budget.\" — [Reference Name], [Title], [Reference Company]",
+    },
+    sections: [
+      {
+        title: { tr: "Kapsam Dahilinde", en: "Included in Scope" },
+        body: {
+          tr: "• [Kapsam maddesi 1]\n• [Kapsam maddesi 2]\n• [Kapsam maddesi 3]\n• [Kapsam maddesi 4]\n• Şantiye güvenliği, iskele kurulumu ve trafik yönetimi.",
+          en: "• [Scope item 1]\n• [Scope item 2]\n• [Scope item 3]\n• [Scope item 4]\n• Site safety, scaffolding, and traffic management for the duration.",
+        },
+      },
+      {
+        title: { tr: "Kapsam Dışında", en: "Excluded from Scope" },
+        body: {
+          tr: "• [Kapsam dışı madde 1]\n• [Kapsam dışı madde 2]\n• Yapı ruhsatı/izin harçları (müşteri sorumluluğundadır).",
+          en: "• [Excluded item 1]\n• [Excluded item 2]\n• Building permit fees (client's responsibility).",
+        },
+      },
+      {
+        title: { tr: "Ekip", en: "Team" },
+        body: {
+          tr: "Proje müdürü, baş mühendis ve şantiye şefinden oluşan ekibimiz, sahada güvenli ve zamanında ilerleme için birlikte çalışır.",
+          en: "Our project manager, lead engineer, and site supervisor work together to keep the job on schedule and on safety standard.",
+        },
+      },
+      {
+        title: { tr: "Kritik Tarihler", en: "Key Dates" },
+        body: {
+          tr: "Planlanan başlangıç: [tarih]. Planlanan bitiş: [tarih] ([X] gün).",
+          en: "Planned start: [date]. Planned completion: [date] ([X] days).",
+        },
+      },
+    ],
+    lineItems: [
+      { name: { tr: "Malzeme", en: "Materials" }, qty: 1, unit: 0 },
+      { name: { tr: "İşçilik", en: "Labor" }, qty: 1, unit: 0 },
+      { name: { tr: "Ekipman", en: "Equipment" }, qty: 1, unit: 0 },
+      { name: { tr: "Taşeron", en: "Subcontractor" }, qty: 1, unit: 0 },
+    ],
+    contractText: {
+      tr: "Bu teklif belgesi, taraflarca elektronik ortamda onaylandığı andan itibaren yasal bağlayıcılığı olan bir ön sözleşme niteliği taşır. Onay, işbu belgede belirtilen kapsam, takvim ve bedel üzerinden verilmiş sayılır; kapsam değişiklikleri yazılı ek sözleşme ile yapılır.",
+      en: "This proposal becomes a legally binding preliminary agreement once approved electronically by both parties, on the scope, schedule and price stated herein; scope changes require a written change order.",
+    },
+  },
+  {
+    id: "t7",
+    name: { tr: "Genel — Sade", en: "General — Simple" },
+    category: { tr: "Genel", en: "General" },
+    uses: 0,
+    winRate: 0,
+    accent: "var(--seg-2)",
+    variant: "sade",
+    introText: {
+      tr: "Sayın [Müşteri Yetkilisi],\n\n[Proje/iş adı] için ihtiyaçlarınızı dinledik ve size en uygun çözümü bu teklifte topladık. Aşağıda kapsamı, takvimi ve fiyatlandırmayı bulabilirsiniz.\n\nSorularınız için her zaman buradayız. Saygılarımızla.",
+      en: "Dear [Client Contact],\n\nWe listened to your needs for [project/work name] and put together the right solution for you below — scope, timeline, and pricing.\n\nWe're here for any questions. Best regards.",
+    },
+    aboutText: {
+      tr: "[Firma adı], [sektör] alanında müşterilerine güvenilir ve hızlı çözümler sunar.",
+      en: "[Company name] delivers reliable, fast solutions for clients in [industry].",
+    },
+    sections: [
+      {
+        title: { tr: "Kapsam", en: "Scope" },
+        body: {
+          tr: "• [Kapsam maddesi 1]\n• [Kapsam maddesi 2]\n• [Kapsam maddesi 3]",
+          en: "• [Scope item 1]\n• [Scope item 2]\n• [Scope item 3]",
+        },
+      },
+      {
+        title: { tr: "Şartlar", en: "Terms" },
+        body: {
+          tr: "Ödeme ve teslim şartları [buraya].",
+          en: "Payment and delivery terms [here].",
+        },
+      },
+    ],
+    lineItems: [
+      { name: { tr: "Hizmet", en: "Service" }, qty: 1, unit: 0 },
+    ],
+    contractText: {
+      tr: "Bu teklif, taraflarca elektronik ortamda onaylandığı andan itibaren yasal bağlayıcılığı olan bir ön sözleşme niteliği taşır.",
+      en: "This proposal becomes a legally binding preliminary agreement once approved electronically by both parties.",
+    },
+  },
+  {
+    id: "t8",
+    name: { tr: "Genel — Leo (Kapsamlı)", en: "General — Leo (Comprehensive)" },
+    category: { tr: "Genel", en: "General" },
+    uses: 0,
+    winRate: 0,
+    accent: "var(--seg-2)",
+    variant: "kapsamli",
+    nickname: "leo",
+    introText: {
+      tr: "Sayın [Müşteri Yetkilisi],\n\n[Müşteri firma]nın hedeflerini yakından takip ediyor ve [proje/iş adı]nda sizlere değer katmak için bu kapsamlı teklifi sunmaktan onur duyuyoruz.\n\nAmacımız, işi zamanında ve bütçe dahilinde teslim ederken uzun vadeli değer yaratmaktır.\n\nİşbirliğimizin her iki tarafa da uzun vadeli değer katacağına inancımız tamdır. Saygılarımızla.",
+      en: "Dear [Client Contact],\n\nWe are honored to submit this comprehensive proposal for [project/work name] to help you reach your goals.\n\nOur aim is to deliver on time and on budget while creating lasting value.\n\nWe believe this partnership will create lasting value for both sides. Best regards.",
+    },
+    aboutText: {
+      tr: "[Firma adı], yılların verdiği tecrübeyle [sektör] alanında güvenilir, kaliteli ve zamanında sonuçlar sunuyor.\n\n\"[Referans cümlesi].\" — [Referans Adı], [Unvan], [Referans Firma]",
+      en: "[Company name] brings years of experience to deliver reliable, quality, on-time results in [industry].\n\n\"[Reference quote].\" — [Reference Name], [Title], [Reference Company]",
+    },
+    sections: [
+      {
+        title: { tr: "Kapsam Dahilinde", en: "Included in Scope" },
+        body: {
+          tr: "• [Kapsam maddesi 1]\n• [Kapsam maddesi 2]\n• [Kapsam maddesi 3]",
+          en: "• [Scope item 1]\n• [Scope item 2]\n• [Scope item 3]",
+        },
+      },
+      {
+        title: { tr: "Kapsam Dışında", en: "Excluded from Scope" },
+        body: {
+          tr: "• [Kapsam dışı madde 1]\n• [Kapsam dışı madde 2]",
+          en: "• [Excluded item 1]\n• [Excluded item 2]",
+        },
+      },
+      {
+        title: { tr: "Ekip", en: "Team" },
+        body: {
+          tr: "Projede yer alacak ekibimiz, sahada güvenli ve zamanında ilerleme için birlikte çalışır.",
+          en: "Our team works together to keep the job on schedule and to standard.",
+        },
+      },
+      {
+        title: { tr: "Kritik Tarihler", en: "Key Dates" },
+        body: {
+          tr: "Planlanan başlangıç: [tarih]. Planlanan bitiş: [tarih] ([X] gün).",
+          en: "Planned start: [date]. Planned completion: [date] ([X] days).",
+        },
+      },
+    ],
+    lineItems: [
+      { name: { tr: "Hizmet / kalem 1", en: "Service / item 1" }, qty: 1, unit: 0 },
+      { name: { tr: "Hizmet / kalem 2", en: "Service / item 2" }, qty: 1, unit: 0 },
+    ],
+    contractText: {
+      tr: "Bu teklif belgesi, taraflarca elektronik ortamda onaylandığı andan itibaren yasal bağlayıcılığı olan bir ön sözleşme niteliği taşır. Onay, işbu belgede belirtilen kapsam, takvim ve bedel üzerinden verilmiş sayılır; kapsam değişiklikleri yazılı ek sözleşme ile yapılır.",
+      en: "This proposal becomes a legally binding preliminary agreement once approved electronically by both parties, on the scope, schedule and price stated herein; scope changes require a written change order.",
+    },
+  },
 ];
 
 /* ── Recent activity feed ──────────────────────────────────────────────────── */

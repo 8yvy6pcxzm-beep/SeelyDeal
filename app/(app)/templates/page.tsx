@@ -1,21 +1,30 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, FileText, Sparkles, ArrowUpRight, Search } from "lucide-react";
 import { WinGauge } from "@/components/app/charts";
 import { useLang } from "@/components/i18n/language-provider";
 import { cn } from "@/lib/utils";
-import { templates } from "@/lib/demo/data";
-import type { L } from "@/lib/i18n/config";
+import { templates as demoTemplates, type Template } from "@/lib/demo/data";
+import { TemplateHtmlBlock } from "@/components/app/template-html-block";
+import { AiDraftDialog } from "@/components/app/ai-draft-dialog";
+import { usePlan } from "@/components/app/plan-provider";
+import { planAllows } from "@/lib/plan";
 
-const SECTIONS: L[] = [
-  { tr: "Kapak", en: "Cover" },
-  { tr: "Kapsam", en: "Scope" },
-  { tr: "Fiyatlandırma", en: "Pricing" },
-  { tr: "Şartlar", en: "Terms" },
-  { tr: "İmza", en: "Signature" },
-];
+type RealTemplateRow = {
+  id: string;
+  name: string;
+  industry: string | null;
+  sections: { title: string; body: string }[];
+  line_items: unknown[];
+  contract_text: string | null;
+  intro_text: string | null;
+  about_text: string | null;
+  next_steps: unknown[];
+  billing_options: unknown[];
+  valid_days: number;
+};
 
 export default function TemplatesPage() {
   return (
@@ -27,12 +36,79 @@ export default function TemplatesPage() {
 
 function TemplatesPageInner() {
   const { t, lang } = useLang();
+  const plan = usePlan();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const useParam = searchParams.get("use");
+  const [realRows, setRealRows] = useState<RealTemplateRow[]>([]);
+  const [aiOpen, setAiOpen] = useState(false);
+
+  async function loadReal() {
+    try {
+      const res = await fetch("/api/templates");
+      const data = await res.json();
+      setRealRows(data.templates ?? []);
+    } catch {
+      setRealRows([]);
+    }
+  }
+
+  useEffect(() => {
+    loadReal();
+  }, []);
+
+  const templates: Template[] = useMemo(
+    () => [
+      ...realRows.map((r) => ({
+        id: r.id,
+        name: { tr: r.name, en: r.name },
+        category: { tr: r.industry || "Özel", en: r.industry || "Custom" },
+        uses: 0,
+        winRate: 0,
+        accent: "var(--seg-1)",
+        sections: r.sections.map((s) => ({ title: { tr: s.title, en: s.title }, body: { tr: s.body, en: s.body } })),
+      })),
+      ...demoTemplates,
+    ],
+    [realRows],
+  );
+
   const [selected, setSelected] = useState(
     (useParam && templates.some((tpl) => tpl.id === useParam)) ? useParam : templates[0].id,
   );
   const current = templates.find((tpl) => tpl.id === selected) ?? templates[0];
+  const currentReal = realRows.find((r) => r.id === current.id);
+  const canCreateTemplates = planAllows(plan, "templates_create");
+
+  function draftFromCurrent() {
+    const initialDraft = currentReal
+      ? {
+          title: currentReal.name,
+          client: "",
+          value: 0,
+          introText: currentReal.intro_text ?? undefined,
+          aboutText: currentReal.about_text ?? undefined,
+          sections: currentReal.sections,
+          lineItems: currentReal.line_items,
+          billingOptions: currentReal.billing_options,
+          nextSteps: currentReal.next_steps,
+          validDays: currentReal.valid_days,
+          contractText: currentReal.contract_text ?? undefined,
+        }
+      : {
+          title: t(current.name),
+          client: "",
+          value: 0,
+          introText: current.introText ? t(current.introText) : undefined,
+          aboutText: current.aboutText ? t(current.aboutText) : undefined,
+          sections: current.sections.map((s) => ({ title: t(s.title), body: t(s.body) })),
+          lineItems: (current.lineItems ?? []).map((li) => ({ name: t(li.name), qty: li.qty, unit: li.unit })),
+          contractText: current.contractText ? t(current.contractText) : undefined,
+          themeJson: current.theme ?? undefined,
+        };
+    sessionStorage.setItem("seelydeal:draftFromTemplate", JSON.stringify(initialDraft));
+    router.push("/proposals?fromTemplate=1");
+  }
 
   return (
     <div className="mx-auto max-w-[1200px] animate-fade-in space-y-6">
@@ -57,9 +133,10 @@ function TemplatesPageInner() {
             />
           </div>
           <button
-            disabled
-            title={lang === "tr" ? "Yakında" : "Coming soon"}
-            className="inline-flex h-9 cursor-not-allowed items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground opacity-50"
+            onClick={() => setAiOpen(true)}
+            disabled={!canCreateTemplates}
+            title={!canCreateTemplates ? (lang === "tr" ? "Pro veya üstü plan gerekir" : "Requires Pro plan or higher") : undefined}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Plus className="h-4 w-4" />
             {lang === "tr" ? "Yeni şablon" : "New template"}
@@ -69,8 +146,8 @@ function TemplatesPageInner() {
 
       <div className="rounded-xl border border-primary/25 bg-primary/[0.06] px-4 py-2.5 text-[13px] text-primary">
         {lang === "tr"
-          ? "Bu sayfa şu an örnek verilerle gösteriliyor — kendi şablonlarını oluşturma yakında geliyor."
-          : "This page currently shows sample data — creating your own templates is coming soon."}
+          ? "Örnek şablonlar + kendi oluşturduğun şablonlar."
+          : "Sample templates + the ones you've created."}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
@@ -106,7 +183,14 @@ function TemplatesPageInner() {
                 <div className="mt-3 flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate font-semibold tracking-tight">{t(tpl.name)}</p>
-                    <p className="text-[11px] text-muted-foreground">{t(tpl.category)}</p>
+                    <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      {t(tpl.category)}
+                      {tpl.variant && (
+                        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                          {tpl.nickname ? tpl.nickname : tpl.variant === "kapsamli" ? (lang === "tr" ? "Kapsamlı" : "Comprehensive") : lang === "tr" ? "Sade" : "Simple"}
+                        </span>
+                      )}
+                    </p>
                   </div>
                   <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
                     {tpl.winRate}% {lang === "tr" ? "kazanç" : "win"}
@@ -132,7 +216,14 @@ function TemplatesPageInner() {
               </span>
               <div className="min-w-0">
                 <p className="truncate font-display text-[15px] font-semibold tracking-tight">{t(current.name)}</p>
-                <p className="text-[11.5px] text-muted-foreground">{t(current.category)}</p>
+                <p className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+                  {t(current.category)}
+                  {current.variant && (
+                    <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                      {current.nickname ? current.nickname : lang === "tr" ? "Sade" : "Simple"}
+                    </span>
+                  )}
+                </p>
               </div>
             </div>
 
@@ -147,20 +238,26 @@ function TemplatesPageInner() {
 
             <div className="mt-5">
               <p className="label-mono pb-2 text-muted-foreground">{lang === "tr" ? "Bölümler" : "Sections"}</p>
-              <div className="space-y-1.5">
-                {SECTIONS.map((sec, i) => (
-                  <div key={sec.en} className="flex items-center gap-2.5 rounded-lg border border-border bg-card px-2.5 py-2">
-                    <span className="tnum text-[10px] text-muted-foreground">{String(i + 1).padStart(2, "0")}</span>
-                    <span className="text-[13px] font-medium">{t(sec)}</span>
+              <div className="space-y-2">
+                {current.sections.map((sec, i) => (
+                  <div key={sec.title.en} className="rounded-lg border border-border bg-card px-2.5 py-2">
+                    <div className="flex items-center gap-2.5">
+                      <span className="tnum text-[10px] text-muted-foreground">{String(i + 1).padStart(2, "0")}</span>
+                      <span className="text-[13px] font-medium">{t(sec.title)}</span>
+                    </div>
+                    {sec.html ? (
+                      <TemplateHtmlBlock html={sec.html} />
+                    ) : (
+                      <p className="mt-1 pl-[26px] text-[12px] leading-relaxed text-muted-foreground">{t(sec.body)}</p>
+                    )}
                   </div>
                 ))}
               </div>
             </div>
 
             <button
-              disabled
-              title={lang === "tr" ? "Yakında" : "Coming soon"}
-              className="mt-5 flex w-full cursor-not-allowed items-center justify-center gap-1.5 rounded-lg bg-primary py-2.5 text-[13px] font-semibold text-primary-foreground opacity-50"
+              onClick={draftFromCurrent}
+              className="mt-5 flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary py-2.5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
             >
               <Sparkles className="h-4 w-4" />
               {lang === "tr" ? "Bu şablonla yaz" : "Draft from this template"}
@@ -177,6 +274,16 @@ function TemplatesPageInner() {
           </div>
         </aside>
       </div>
+
+      <AiDraftDialog
+        open={aiOpen}
+        onClose={() => setAiOpen(false)}
+        onSaved={() => {
+          setAiOpen(false);
+          loadReal();
+        }}
+        mode="template"
+      />
     </div>
   );
 }

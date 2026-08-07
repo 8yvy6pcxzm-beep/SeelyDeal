@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Search, Sparkles, PenLine, Eye, ArrowUpDown, Download, Link2, Settings2, Clock } from "lucide-react";
 import { Sparkline } from "@/components/app/charts";
 import { StatusPill, ClientAvatar } from "@/components/app/proposal-bits";
@@ -30,12 +31,23 @@ function fmtDate(iso: string | null) {
 }
 
 export default function ProposalsPage() {
+  return (
+    <Suspense fallback={null}>
+      <ProposalsPageInner />
+    </Suspense>
+  );
+}
+
+function ProposalsPageInner() {
   const { t, lang } = useLang();
   const plan = usePlan();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const documentAnalyticsAllowed = planAllows(plan, "document_analytics");
   const [filter, setFilter] = useState<ProposalStatus | "all">("all");
   const [query, setQuery] = useState("");
   const [aiOpen, setAiOpen] = useState(false);
+  const [initialDraft, setInitialDraft] = useState<any>(undefined);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [sectionTimesId, setSectionTimesId] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -96,6 +108,24 @@ export default function ProposalsPage() {
     // Poll so the "şu an bakıyor" badge stays roughly live without a websocket.
     const interval = setInterval(loadReal, 20000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Coming from Templates → "Bu şablonla yaz": pick up the template content stashed
+  // in sessionStorage and open the AI dialog pre-filled with it.
+  useEffect(() => {
+    if (searchParams.get("fromTemplate") !== "1") return;
+    const raw = sessionStorage.getItem("seelydeal:draftFromTemplate");
+    sessionStorage.removeItem("seelydeal:draftFromTemplate");
+    if (raw) {
+      try {
+        setInitialDraft(JSON.parse(raw));
+        setAiOpen(true);
+      } catch {
+        // ignore malformed stash
+      }
+    }
+    router.replace("/proposals");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const allProposals = useMemo(() => [...realRows, ...proposals], [realRows]);
@@ -352,7 +382,15 @@ export default function ProposalsPage() {
         {lang === "tr" ? "Bir satıra tıkla — içeriğini hızlıca önizle." : "Click a row to quickly preview its content."}
       </p>
 
-      <AiDraftDialog open={aiOpen} onClose={() => setAiOpen(false)} onSaved={loadReal} />
+      <AiDraftDialog
+        open={aiOpen}
+        onClose={() => {
+          setAiOpen(false);
+          setInitialDraft(undefined);
+        }}
+        onSaved={loadReal}
+        initialDraft={initialDraft}
+      />
       <EditProposalDialog proposalId={editingId} onClose={() => setEditingId(null)} onSaved={loadReal} />
       <SectionTimesDialog proposalId={sectionTimesId} onClose={() => setSectionTimesId(null)} />
       <ProposalPreviewDialog

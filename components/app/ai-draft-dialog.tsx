@@ -26,6 +26,8 @@ type Draft = {
   validDays?: number;
   contractText?: string;
   confirmed?: boolean;
+  /** Per-template visual theme (e.g. from the construction template) — passed through untouched. */
+  themeJson?: { primaryColor: string; accentColor: string; font?: string };
 };
 
 /** Renders "**bold**" markdown segments as real <strong> text, and splits numbered/bulleted
@@ -73,7 +75,21 @@ function renderFormatted(text: string) {
   });
 }
 
-export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => void; onSaved: () => void }) {
+export function AiDraftDialog({
+  open,
+  onClose,
+  onSaved,
+  mode = "proposal",
+  initialDraft,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSaved: () => void;
+  /** "template" builds/saves a reusable template (POST /api/templates) instead of a proposal. */
+  mode?: "proposal" | "template";
+  /** Pre-fills the preview/save panel — used when drafting a new proposal from a saved template. */
+  initialDraft?: Draft;
+}) {
   const { lang } = useLang();
   const [mounted, setMounted] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -82,7 +98,7 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
   const [showWebsiteField, setShowWebsiteField] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
-  const [draft, setDraft] = useState<Draft | null>(null);
+  const [draft, setDraft] = useState<Draft | null>(initialDraft ?? null);
   const [paymentLink, setPaymentLink] = useState("");
   const [showPaymentField, setShowPaymentField] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -195,6 +211,11 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (open && initialDraft) setDraft(initialDraft);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialDraft]);
+
   /** Esc while Seely is replying stops the request and puts the last message back
    * in the input so the user can fix a typo/instruction and resend — mirrors how
    * Esc interrupts an in-progress agent turn here in Claude Code. */
@@ -289,7 +310,9 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
           : "Updated the proposal — check the preview below.";
       setMessages((m) => [...m, { role: "assistant", content: reply }]);
       if (data.draft) {
-        setDraft(data.draft);
+        // The AI response never knows about the template's theme — carry it forward
+        // from whatever draft was already loaded instead of losing it on every turn.
+        setDraft((d) => ({ ...data.draft, themeJson: data.draft.themeJson ?? d?.themeJson }));
         // The model only sets this after the user explicitly confirmed the final
         // proposal in chat — save it immediately instead of waiting for a manual click.
         if (data.draft.confirmed) saveDraft(data.draft);
@@ -369,17 +392,39 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(savedProposalId ? `/api/proposals/${savedProposalId}` : "/api/proposals", {
-        method: savedProposalId ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...toSave, paymentLink: paymentLink.trim() || undefined }),
-      });
+      const res =
+        mode === "template"
+          ? await fetch("/api/templates", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                name: toSave.title,
+                sections: toSave.sections,
+                lineItems: toSave.lineItems,
+                contractText: toSave.contractText,
+                introText: toSave.introText,
+                aboutText: toSave.aboutText,
+                nextSteps: toSave.nextSteps,
+                billingOptions: toSave.billingOptions,
+                validDays: toSave.validDays,
+              }),
+            })
+          : await fetch(savedProposalId ? `/api/proposals/${savedProposalId}` : "/api/proposals", {
+              method: savedProposalId ? "PATCH" : "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...toSave, paymentLink: paymentLink.trim() || undefined }),
+            });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error || (lang === "tr" ? "Teklif kaydedilemedi." : "Couldn't save the proposal."));
+        setError(
+          data?.error ||
+            (mode === "template"
+              ? lang === "tr" ? "Şablon kaydedilemedi." : "Couldn't save the template."
+              : lang === "tr" ? "Teklif kaydedilemedi." : "Couldn't save the proposal."),
+        );
         return;
       }
-      if (!savedProposalId && data?.id) setSavedProposalId(data.id);
+      if (mode !== "template" && !savedProposalId && data?.id) setSavedProposalId(data.id);
       onSaved();
     } catch {
       setError(lang === "tr" ? "Bağlantı hatası." : "Connection error.");
@@ -427,7 +472,11 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
-            <h3 className="font-semibold">{lang === "tr" ? "AI ile teklif yaz" : "Draft with AI"}</h3>
+            <h3 className="font-semibold">
+              {mode === "template"
+                ? lang === "tr" ? "AI ile şablon yaz" : "Draft a template with AI"
+                : lang === "tr" ? "AI ile teklif yaz" : "Draft with AI"}
+            </h3>
           </div>
           <button
             onClick={() => {
@@ -509,7 +558,7 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
           {draft && (
             <div className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
               <h4 className="font-display text-lg font-semibold">{draft.title}</h4>
-              <p className="text-sm text-muted-foreground">{draft.client}</p>
+              {mode !== "template" && <p className="text-sm text-muted-foreground">{draft.client}</p>}
               {draft.sections?.map((s, i) => (
                 <div key={i}>
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{s.title}</p>
@@ -618,11 +667,13 @@ export function AiDraftDialog({ open, onClose, onSaved }: { open: boolean; onClo
                 ))}
               <Button onClick={() => saveDraft()} disabled={loading} className="w-full gap-2">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                {savedProposalId
-                  ? lang === "tr" ? "Değişiklikleri kaydet" : "Save changes"
-                  : lang === "tr" ? "Teklife ekle" : "Add to proposals"}
+                {mode === "template"
+                  ? lang === "tr" ? "Şablon olarak kaydet" : "Save as template"
+                  : savedProposalId
+                    ? lang === "tr" ? "Değişiklikleri kaydet" : "Save changes"
+                    : lang === "tr" ? "Teklife ekle" : "Add to proposals"}
               </Button>
-              {savedProposalId && (
+              {savedProposalId && mode !== "template" && (
                 <p className="text-center text-xs text-success">
                   {lang === "tr" ? "✓ Kaydedildi — düzenlemeye devam edebilirsin." : "✓ Saved — you can keep editing."}
                 </p>

@@ -4,7 +4,7 @@ import { getAuthedUser } from "@/lib/supabase/auth-user";
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const { title, client, value, sections, lineItems, contractText, paymentLink, billingOptions, introText, aboutText, clientContact, nextSteps, validDays } = body;
+  const { title, client, value, sections, lineItems, contractText, paymentLink, billingOptions, introText, aboutText, clientContact, nextSteps, validDays, themeJson } = body;
 
   const user = await getAuthedUser(req);
   if (!user) return NextResponse.json({ error: "Giriş yapmalısın." }, { status: 401 });
@@ -53,6 +53,7 @@ export async function POST(req: Request) {
       client_contact: clientContact && typeof clientContact === "object" ? clientContact : {},
       next_steps: Array.isArray(nextSteps) ? nextSteps : [],
       valid_days: Number.isFinite(Number(validDays)) ? Number(validDays) : 15,
+      theme_json: themeJson && typeof themeJson === "object" ? themeJson : null,
     })
     .select("id")
     .single();

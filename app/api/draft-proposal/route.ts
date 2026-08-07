@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { getAuthedUser } from "@/lib/supabase/auth-user";
 import appConfig, { aiOveragePack } from "@/app.config";
 import { safeFetchWebsiteText } from "@/lib/safe-fetch-website";
+import { templates } from "@/lib/demo/data";
 
 // AI drafting (company context + template docs + an optional attachment) routinely
 // runs past the platform's default serverless timeout; give it real headroom so the
@@ -14,6 +15,20 @@ const MODEL = "claude-sonnet-5";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 type Attachment = { name: string; mediaType: string; base64: string };
+
+/** Finds the named ("Leo" etc.) template a chat is asking for, if any. Nicknames only
+ *  exist on kapsamlı-variant templates (see lib/demo/data.ts). When the same nickname
+ *  exists in more than one sector (e.g. "leo" in both İnşaat and Genel), prefer the one
+ *  whose sector name also appears in the chat, falling back to the sector-neutral "Genel" one. */
+function matchNamedTemplate(chatText: string) {
+  const hits = templates.filter((t) => t.nickname && new RegExp(`\\b${t.nickname}\\b`, "i").test(chatText));
+  if (hits.length <= 1) return hits[0];
+  return (
+    hits.find((t) => chatText.includes(t.category.tr.toLowerCase())) ??
+    hits.find((t) => t.category.tr === "Genel") ??
+    hits[0]
+  );
+}
 
 export async function POST(req: Request) {
   const { messages, websiteUrl, attachment } = (await req.json()) as {
@@ -77,6 +92,20 @@ export async function POST(req: Request) {
       { status: 429 },
     );
   }
+
+  // Named ("Leo" etc.) templates — if the chat mentions a nickname, follow that
+  // template's section structure and stamp its theme onto the resulting draft,
+  // instead of relying on the model to invent or remember either.
+  const fullChatText = messages.map((m) => m.content).join("\n").toLowerCase();
+  const namedTemplate = matchNamedTemplate(fullChatText);
+  const namedTemplateBlock = namedTemplate
+    ? `"${namedTemplate.name.tr}" (kod adı "${namedTemplate.nickname}"):
+Ön Yazı: ${namedTemplate.introText?.tr}
+Hakkımızda: ${namedTemplate.aboutText?.tr}
+${namedTemplate.sections.map((s) => `${s.title.tr}: ${s.body.tr}`).join("\n")}
+Örnek kalemler: ${(namedTemplate.lineItems ?? []).map((li) => li.name.tr).join(", ")}
+Sözleşme: ${namedTemplate.contractText?.tr}`
+    : "";
 
   let websiteContext = "";
   if (websiteUrl) {
@@ -202,10 +231,11 @@ ${
 ${docsBlock || "(henüz doküman eklenmedi)"}
 
 `
-  }VARSAYILAN TEKLİF ŞABLONU:
-${defaultTemplate ? `"${defaultTemplate.title}":\n${defaultTemplate.content}` : builtInComprehensiveTemplate}
-
-GERÇEK PAKETLERİMİZ:
+  }${
+    namedTemplate
+      ? `ÖZEL ŞABLON — "${namedTemplate.nickname}": kullanıcı bu teklif için bu şablonu istedi. VARSAYILAN TEKLİF ŞABLONU'nu YOK SAY, bunun yerine AŞAĞIDAKİ yapıyı ve bölüm başlıklarını birebir takip et (metinleri brief'e göre uyarla, ama bölüm sırasını ve başlıklarını değiştirme):\n${namedTemplateBlock}\n${namedTemplate.theme ? "Renk teması ve font otomatik uygulanacak, bunu ayrıca söylemene gerek yok.\n" : ""}\n`
+      : `VARSAYILAN TEKLİF ŞABLONU:\n${defaultTemplate ? `"${defaultTemplate.title}":\n${defaultTemplate.content}` : builtInComprehensiveTemplate}\n\n`
+  }GERÇEK PAKETLERİMİZ:
 ${pricingBlock}${websiteContext}${prefillBlock}`;
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -245,6 +275,12 @@ ${pricingBlock}${websiteContext}${prefillBlock}`;
     } catch {
       draft = null;
     }
+  }
+  // Stamp the theme ourselves rather than trusting the model to remember/emit it —
+  // deterministic, so a given nickname always gets the same look. Templates without
+  // a theme (e.g. "Genel Leo") leave themeJson unset — the proposal keeps the company's own color.
+  if (draft && namedTemplate?.theme) {
+    draft.themeJson = namedTemplate.theme;
   }
 
   // Optional ```brand``` block — logo/color the model detected in this turn (see MARKA KAYDI rule above).

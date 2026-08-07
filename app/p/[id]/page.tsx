@@ -1,12 +1,17 @@
 "use client";
 
 import { use, useEffect, useRef, useState } from "react";
+import { Hanken_Grotesk } from "next/font/google";
 import { CheckCircle2, Loader2, PenLine, ExternalLink, Copy, Check, FileText, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { useLang } from "@/components/i18n/language-provider";
 import { cn, formatUsd } from "@/lib/utils";
 import appConfig from "@/app.config";
+
+// Loaded only for proposals whose template declares theme.font (e.g. the construction
+// template) — applied via inline style below, so it never touches the app-wide font.
+const hankenGrotesk = Hanken_Grotesk({ subsets: ["latin"], weight: ["700", "800"] });
 
 type BillingOption = { key: string; label: { tr: string; en: string }; price: number; paymentLink?: string };
 type LineItem = { name: string; qty: number; unit: number; optional?: boolean; included?: boolean };
@@ -41,6 +46,9 @@ type PublicProposal = {
     plan: string | null;
   } | null;
   team: { name: string; title: string | null; photo_url: string | null }[];
+  /** Optional per-proposal theme carried from a template (e.g. the construction template) —
+   *  only overrides colors/font for this one proposal, never the app-wide defaults. */
+  theme_json: { primaryColor: string; accentColor: string; font?: string } | null;
 };
 
 const TEAM_SECTION_RE = /ekib|ekip|team/i;
@@ -287,7 +295,9 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
   const signed = proposal.status === "accepted";
   const company = proposal.companies;
   const client = proposal.client_contact ?? {};
-  const brandColor = company?.primary_color || undefined;
+  const theme = proposal.theme_json;
+  const brandColor = theme?.primaryColor || company?.primary_color || undefined;
+  const accentColor = theme?.accentColor || undefined;
   const validUntil = new Date(new Date(proposal.created_at).getTime() + (proposal.valid_days || 15) * 86400000);
 
   // A section bound to a lineItem or billingKey only shows while that exact choice is currently selected — mutually exclusive with any other choice.
@@ -321,7 +331,10 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
   ];
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div
+      className="min-h-screen bg-background text-foreground"
+      style={theme?.font ? ({ "--font-display": hankenGrotesk.style.fontFamily } as React.CSSProperties) : undefined}
+    >
       {/* Site-style top nav */}
       <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-border bg-card/95 px-4 backdrop-blur sm:px-8">
         <div className="flex min-w-0 items-center gap-2.5">
@@ -357,7 +370,12 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
             {lang === "tr" ? "İmzalandı" : "Signed"}
           </span>
         ) : (
-          <Button size="sm" onClick={() => scrollToNav("onayla")} className="shrink-0">
+          <Button
+            size="sm"
+            onClick={() => scrollToNav("onayla")}
+            className="shrink-0"
+            style={accentColor ? { backgroundColor: accentColor, borderColor: accentColor } : undefined}
+          >
             {lang === "tr" ? "Teklifi Onayla" : "Accept Proposal"}
           </Button>
         )}
@@ -748,7 +766,13 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
                   )}
                 </div>
               )}
-              <Button onClick={sign} disabled={signing || (requiresOtp && !otpSent)} className="w-full gap-2" size="lg">
+              <Button
+                onClick={sign}
+                disabled={signing || (requiresOtp && !otpSent)}
+                className="w-full gap-2"
+                size="lg"
+                style={accentColor ? { backgroundColor: accentColor, borderColor: accentColor } : undefined}
+              >
                 {signing ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenLine className="h-4 w-4" />}
                 {lang === "tr" ? "Kabul Et & İmzala" : "Accept & Sign"}
               </Button>

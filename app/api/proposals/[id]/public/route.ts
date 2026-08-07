@@ -9,7 +9,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const { data: proposal } = await service
     .from("proposals")
     .select(
-      "id, company_id, title, status, value, sections, line_items, contract_text, signed_at, signed_by_name, billing_options, selected_billing, intro_text, about_text, client_contact, next_steps, valid_days, created_at, clients(name), companies(name, logo_url, cover_image_url, primary_color, email, plan)",
+      "id, company_id, title, status, value, sections, line_items, contract_text, signed_at, signed_by_name, billing_options, selected_billing, intro_text, about_text, client_contact, next_steps, valid_days, created_at, theme_json, clients(name), companies(name, logo_url, cover_image_url, primary_color, email, plan)",
     )
     .eq("id", id)
     .maybeSingle();

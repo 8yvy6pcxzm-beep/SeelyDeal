@@ -65,6 +65,23 @@ create table if not exists proposals (
   updated_at timestamptz not null default now()
 );
 
+-- Reusable proposal templates a company builds once and drafts new proposals from.
+create table if not exists templates (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references companies(id) on delete cascade,
+  name text not null,
+  industry text,
+  sections jsonb not null default '[]'::jsonb,
+  line_items jsonb not null default '[]'::jsonb,
+  contract_text text,
+  intro_text text,
+  about_text text,
+  next_steps jsonb not null default '[]'::jsonb,
+  billing_options jsonb not null default '[]'::jsonb,
+  valid_days integer not null default 15,
+  created_at timestamptz not null default now()
+);
+
 -- One row per company per calendar month, counts AI drafting calls against the plan limit.
 create table if not exists ai_usage (
   id uuid primary key default gen_random_uuid(),
@@ -88,6 +105,7 @@ alter table team_members enable row level security;
 alter table company_documents enable row level security;
 alter table clients enable row level security;
 alter table proposals enable row level security;
+alter table templates enable row level security;
 alter table ai_usage enable row level security;
 alter table profiles enable row level security;
 
@@ -105,6 +123,7 @@ create policy "own team" on team_members for all using (company_id = auth_compan
 create policy "own documents" on company_documents for all using (company_id = auth_company_id());
 create policy "own clients" on clients for all using (company_id = auth_company_id());
 create policy "own proposals" on proposals for all using (company_id = auth_company_id());
+create policy "own templates" on templates for all using (company_id = auth_company_id());
 create policy "own usage" on ai_usage for all using (company_id = auth_company_id());
 create policy "own profile" on profiles for select using (id = auth.uid());
 
