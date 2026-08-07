@@ -77,6 +77,19 @@ function TemplatesPageInner() {
     (useParam && templates.some((tpl) => tpl.id === useParam)) ? useParam : templates[0].id,
   );
   const current = templates.find((tpl) => tpl.id === selected) ?? templates[0];
+
+  // Group templates by category (sector) — a sector with multiple named variants
+  // (ör. İnşaat — Sade / İnşaat — Leo) renders as ONE card with a variant switcher
+  // inside, instead of one full card per variant.
+  const groups = useMemo(() => {
+    const byCategory = new Map<string, Template[]>();
+    for (const tpl of templates) {
+      const key = tpl.category.tr;
+      if (!byCategory.has(key)) byCategory.set(key, []);
+      byCategory.get(key)!.push(tpl);
+    }
+    return Array.from(byCategory.values());
+  }, [templates]);
   const currentReal = realRows.find((r) => r.id === current.id);
   const canCreateTemplates = planAllows(plan, "templates_create");
 
@@ -151,24 +164,26 @@ function TemplatesPageInner() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-        {/* Template grid */}
+        {/* Template grid — one card per sector; multi-variant sectors get a Sade/Leo switcher inside */}
         <div className="grid gap-4 sm:grid-cols-2">
-          {templates.map((tpl) => {
-            const isSel = tpl.id === selected;
+          {groups.map((group) => {
+            // Which variant of this group is currently shown: whichever one is `selected`, else the first.
+            const active = group.find((tpl) => tpl.id === selected) ?? group[0];
+            const isSel = group.some((tpl) => tpl.id === selected);
             return (
               <button
-                key={tpl.id}
-                onClick={() => setSelected(tpl.id)}
+                key={active.category.tr}
+                onClick={() => setSelected(active.id)}
                 className={cn(
                   "group rounded-2xl border bg-card p-4 text-left shadow-soft transition-all hover:shadow-pop",
                   isSel ? "border-primary/40 ring-1 ring-primary/20" : "border-border",
                 )}
               >
                 {/* preview */}
-                <div className="relative flex h-32 items-center justify-center overflow-hidden rounded-xl" style={{ background: `color-mix(in oklch, ${tpl.accent} 12%, white)` }}>
-                  <span className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full opacity-30 blur-xl" style={{ background: tpl.accent }} aria-hidden />
+                <div className="relative flex h-32 items-center justify-center overflow-hidden rounded-xl" style={{ background: `color-mix(in oklch, ${active.accent} 12%, white)` }}>
+                  <span className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full opacity-30 blur-xl" style={{ background: active.accent }} aria-hidden />
                   <div className="w-28 rounded-lg border border-border bg-card p-2.5 shadow-pill">
-                    <div className="h-2 w-12 rounded-full" style={{ background: tpl.accent }} />
+                    <div className="h-2 w-12 rounded-full" style={{ background: active.accent }} />
                     <div className="mt-2 space-y-1">
                       <div className="h-1.5 w-full rounded-full bg-muted" />
                       <div className="h-1.5 w-3/4 rounded-full bg-muted" />
@@ -176,28 +191,49 @@ function TemplatesPageInner() {
                     </div>
                     <div className="mt-2 flex items-center justify-between">
                       <div className="h-2 w-8 rounded-full bg-muted" />
-                      <div className="h-2 w-6 rounded-full" style={{ background: tpl.accent }} />
+                      <div className="h-2 w-6 rounded-full" style={{ background: active.accent }} />
                     </div>
                   </div>
                 </div>
                 <div className="mt-3 flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="truncate font-semibold tracking-tight">{t(tpl.name)}</p>
-                    <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                      {t(tpl.category)}
-                      {tpl.variant && (
-                        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
-                          {tpl.nickname ? tpl.nickname : tpl.variant === "kapsamli" ? (lang === "tr" ? "Kapsamlı" : "Comprehensive") : lang === "tr" ? "Sade" : "Simple"}
-                        </span>
-                      )}
-                    </p>
+                    <p className="truncate font-semibold tracking-tight">{t(active.category)}</p>
+                    {group.length > 1 ? (
+                      <div className="mt-1.5 flex flex-wrap gap-1.5" onClick={(e) => e.stopPropagation()}>
+                        {group.map((variant) => (
+                          <span
+                            key={variant.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelected(variant.id);
+                            }}
+                            className={cn(
+                              "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors",
+                              variant.id === active.id
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-muted text-muted-foreground hover:bg-muted/70",
+                            )}
+                          >
+                            {variant.nickname ? variant.nickname : lang === "tr" ? "Sade" : "Simple"}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      active.variant && (
+                        <p className="text-[11px] text-muted-foreground">
+                          {active.nickname ? active.nickname : active.variant === "kapsamli" ? (lang === "tr" ? "Kapsamlı" : "Comprehensive") : lang === "tr" ? "Sade" : "Simple"}
+                        </p>
+                      )
+                    )}
                   </div>
                   <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
-                    {tpl.winRate}% {lang === "tr" ? "kazanç" : "win"}
+                    {active.winRate}% {lang === "tr" ? "kazanç" : "win"}
                   </span>
                 </div>
                 <div className="mt-2.5 flex items-center justify-between border-t border-border pt-2.5 text-[11.5px] text-muted-foreground">
-                  <span className="tnum">{tpl.uses} {lang === "tr" ? "kullanım" : "uses"}</span>
+                  <span className="tnum">{active.uses} {lang === "tr" ? "kullanım" : "uses"}</span>
                   <span className="inline-flex items-center gap-1 font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">
                     {lang === "tr" ? "Kullan" : "Use"} <ArrowUpRight className="h-3 w-3" />
                   </span>
