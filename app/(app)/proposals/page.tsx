@@ -47,7 +47,7 @@ function ProposalsPageInner() {
   const [filter, setFilter] = useState<ProposalStatus | "all">("all");
   const [query, setQuery] = useState("");
   const [aiOpen, setAiOpen] = useState(false);
-  const [initialDraft, setInitialDraft] = useState<any>(undefined);
+  const [initialTemplateId, setInitialTemplateId] = useState<string | undefined>(undefined);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [sectionTimesId, setSectionTimesId] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -110,16 +110,19 @@ function ProposalsPageInner() {
     return () => clearInterval(interval);
   }, []);
 
-  // Coming from Templates → "Bu şablonla yaz": pick up the template content stashed
-  // in sessionStorage and open the AI dialog pre-filled with it.
+  // Coming from Templates → "Bu şablonla yaz": pick up the chosen template's id and
+  // open the AI dialog — the AI resolves and drafts real content from it server-side.
   useEffect(() => {
     if (searchParams.get("fromTemplate") !== "1") return;
     const raw = sessionStorage.getItem("seelydeal:draftFromTemplate");
     sessionStorage.removeItem("seelydeal:draftFromTemplate");
     if (raw) {
       try {
-        setInitialDraft(JSON.parse(raw));
-        setAiOpen(true);
+        const { templateId } = JSON.parse(raw);
+        if (templateId) {
+          setInitialTemplateId(templateId);
+          setAiOpen(true);
+        }
       } catch {
         // ignore malformed stash
       }
@@ -386,10 +389,10 @@ function ProposalsPageInner() {
         open={aiOpen}
         onClose={() => {
           setAiOpen(false);
-          setInitialDraft(undefined);
+          setInitialTemplateId(undefined);
         }}
         onSaved={loadReal}
-        initialDraft={initialDraft}
+        initialTemplateId={initialTemplateId}
       />
       <EditProposalDialog proposalId={editingId} onClose={() => setEditingId(null)} onSaved={loadReal} />
       <SectionTimesDialog proposalId={sectionTimesId} onClose={() => setSectionTimesId(null)} />

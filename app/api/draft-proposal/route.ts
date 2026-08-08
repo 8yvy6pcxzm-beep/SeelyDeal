@@ -5,6 +5,7 @@ import { getAuthedUser } from "@/lib/supabase/auth-user";
 import appConfig, { aiOveragePack } from "@/app.config";
 import { safeFetchWebsiteText } from "@/lib/safe-fetch-website";
 import { templates } from "@/lib/demo/data";
+import type { createServiceClient as CreateServiceClient } from "@/lib/supabase/server";
 
 // AI drafting (company context + template docs + an optional attachment) routinely
 // runs past the platform's default serverless timeout; give it real headroom so the
@@ -16,27 +17,78 @@ const MODEL = "claude-sonnet-5";
 type ChatMessage = { role: "user" | "assistant"; content: string };
 type Attachment = { name: string; mediaType: string; base64: string };
 
-/** Finds the named ("Leo" etc.) template a chat is asking for, if any. Nicknames only
- *  exist on kapsamlı-variant templates (see lib/demo/data.ts). When the same nickname
- *  exists in more than one sector (e.g. "leo" in both İnşaat and Genel), prefer the one
- *  whose sector name also appears in the chat, falling back to the sector-neutral "Genel" one. */
-/** True if a draft still has unfilled "[Proje Adı]"-style template placeholders. */
-function hasPlaceholders(draft: unknown) {
-  return /\[[^\]]+\]/.test(JSON.stringify(draft));
+/** Normalized shape both demo templates (lib/demo/data.ts) and DB-saved custom
+ *  templates (the `templates` table) resolve to, so the rest of this file doesn't
+ *  need to care which source a template came from. */
+type ResolvedTemplate = {
+  name: string;
+  introText?: string;
+  aboutText?: string;
+  sections: { title: string; body: string }[];
+  lineItems: { name: string; qty: number; unit: number }[];
+  contractText?: string;
+  theme?: { primaryColor: string; accentColor: string; font?: string };
+  nickname?: string;
+};
+
+/** Finds the named ("Leo" etc.) demo template a chat is asking for, if any. Nicknames
+ *  only exist on kapsamlı-variant templates. When the same nickname exists in more than
+ *  one sector (e.g. "leo" in both İnşaat and Genel), prefer the one whose sector name
+ *  also appears in the chat, falling back to the sector-neutral "Genel" one. */
+function matchNamedTemplate(chatText: string): ResolvedTemplate | undefined {
+  const hits = templates.filter((t) => t.nickname && new RegExp(`\\b${t.nickname}\\b`, "i").test(chatText));
+  const picked =
+    hits.length <= 1
+      ? hits[0]
+      : hits.find((t) => chatText.includes(t.category.tr.toLowerCase())) ??
+        hits.find((t) => t.category.tr === "Genel") ??
+        hits[0];
+  return picked ? normalizeDemoTemplate(picked) : undefined;
 }
 
-function matchNamedTemplate(chatText: string) {
-  const hits = templates.filter((t) => t.nickname && new RegExp(`\\b${t.nickname}\\b`, "i").test(chatText));
-  if (hits.length <= 1) return hits[0];
-  return (
-    hits.find((t) => chatText.includes(t.category.tr.toLowerCase())) ??
-    hits.find((t) => t.category.tr === "Genel") ??
-    hits[0]
-  );
+function normalizeDemoTemplate(t: (typeof templates)[number]): ResolvedTemplate {
+  return {
+    name: t.name.tr,
+    introText: t.introText?.tr,
+    aboutText: t.aboutText?.tr,
+    sections: t.sections.map((s) => ({ title: s.title.tr, body: s.body.tr })),
+    lineItems: (t.lineItems ?? []).map((li) => ({ name: li.name.tr, qty: li.qty, unit: li.unit })),
+    contractText: t.contractText?.tr,
+    theme: t.theme,
+    nickname: t.nickname,
+  };
+}
+
+/** Resolves a template by id from either the built-in demo set or the company's own
+ *  saved (DB) templates — "Bu şablonla yaz" sends a bare id, so this has to work for both. */
+async function resolveTemplateById(
+  id: string,
+  companyId: string,
+  service: ReturnType<typeof CreateServiceClient>,
+): Promise<ResolvedTemplate | undefined> {
+  const demo = templates.find((t) => t.id === id);
+  if (demo) return normalizeDemoTemplate(demo);
+
+  const { data: row } = await service
+    .from("templates")
+    .select("name, sections, line_items, contract_text, intro_text, about_text")
+    .eq("id", id)
+    .eq("company_id", companyId)
+    .maybeSingle();
+  if (!row) return undefined;
+
+  return {
+    name: row.name,
+    introText: row.intro_text ?? undefined,
+    aboutText: row.about_text ?? undefined,
+    sections: (row.sections ?? []) as { title: string; body: string }[],
+    lineItems: (row.line_items ?? []) as { name: string; qty: number; unit: number }[],
+    contractText: row.contract_text ?? undefined,
+  };
 }
 
 export async function POST(req: Request) {
-  const { messages, websiteUrl, attachment, currentDraft } = (await req.json()) as {
+  const { messages, websiteUrl, attachment, currentDraft, templateId } = (await req.json()) as {
     messages: ChatMessage[];
     websiteUrl?: string;
     attachment?: Attachment;
@@ -44,6 +96,10 @@ export async function POST(req: Request) {
      *  existing proposal being edited) — without this the model has no idea what a
      *  bare instruction like "işçilik x2 olsun" refers to. */
     currentDraft?: unknown;
+    /** Set by "Bu şablonla yaz" on the very first message of a new draft — resolved
+     *  server-side (demo or the company's own saved template) instead of relying on
+     *  the client to know/send the template's full content. */
+    templateId?: string;
   };
 
   const user = await getAuthedUser(req);
@@ -102,18 +158,23 @@ export async function POST(req: Request) {
     );
   }
 
-  // Named ("Leo" etc.) templates — if the chat mentions a nickname, follow that
-  // template's section structure and stamp its theme onto the resulting draft,
-  // instead of relying on the model to invent or remember either.
+  // Which system/custom template (if any) this draft is based on: an explicit id from
+  // "Bu şablonla yaz" takes priority; otherwise fall back to a nickname ("Leo") mentioned
+  // in free-form chat. Only resolved on the first message of a new draft (no currentDraft yet) —
+  // once a real draft exists, edits go through DÜZENLEME MODU below instead.
   const fullChatText = messages.map((m) => m.content).join("\n").toLowerCase();
-  const namedTemplate = matchNamedTemplate(fullChatText);
-  const namedTemplateBlock = namedTemplate
-    ? `"${namedTemplate.name.tr}" (kod adı "${namedTemplate.nickname}"):
-Ön Yazı: ${namedTemplate.introText?.tr}
-Hakkımızda: ${namedTemplate.aboutText?.tr}
-${namedTemplate.sections.map((s) => `${s.title.tr}: ${s.body.tr}`).join("\n")}
-Örnek kalemler: ${(namedTemplate.lineItems ?? []).map((li) => li.name.tr).join(", ")}
-Sözleşme: ${namedTemplate.contractText?.tr}`
+  const resolved: ResolvedTemplate | undefined = currentDraft
+    ? undefined
+    : templateId
+      ? await resolveTemplateById(templateId, profile.company_id, service)
+      : matchNamedTemplate(fullChatText);
+  const resolvedBlock = resolved
+    ? `"${resolved.name}"${resolved.nickname ? ` (kod adı "${resolved.nickname}")` : ""}:
+Ön Yazı: ${resolved.introText}
+Hakkımızda: ${resolved.aboutText}
+${resolved.sections.map((s) => `${s.title}: ${s.body}`).join("\n")}
+Örnek kalemler: ${resolved.lineItems.map((li) => li.name).join(", ")}
+Sözleşme: ${resolved.contractText}`
     : "";
 
   let websiteContext = "";
@@ -235,9 +296,7 @@ KULLANICI TALİMATLARI (şirketin kendi eklediği kalıcı notlar — HER ZAMAN 
 
 ${
     currentDraft
-      ? hasPlaceholders(currentDraft)
-        ? `ÖNEMLİ — ŞABLON DOLDURMA MODU: Kullanıcı bir şablon seçti ve önünde aşağıdaki MEVCUT TASLAK var, ama içinde "[Proje Adı]", "[Müşteri Firma Adı]" gibi HENÜZ DOLDURULMAMIŞ yer tutucular var. Bu taslağı bu haliyle ASLA json bloğuyla döndürme — köşeli parantezli yer tutucular müşteriye giden bir teklifte görünmemeli. Bunun yerine, sohbette kullanıcıya EKSİK BİLGİLERİ (müşteri adı, proje adı, kapsam maddeleri, fiyat kalemleri gibi) kısa ve gruplu bir şekilde SOR (hepsini tek seferde, madde madde). Kullanıcının mesajında bu bilgilerden bazıları zaten verilmişse onları hemen kullan, sadece eksik kalanları sor. Kullanıcı tüm bilgileri verdiğinde (bu turda ya da bir sonrakinde), yer tutucuları verdiği bilgilerle doldurup json bloğunu normal akışa göre döndür (confirmed:false ile önce onay sorusu sor).\nMEVCUT TASLAK (yer tutucularla):\n${JSON.stringify(currentDraft)}\n\n`
-        : `ÖNEMLİ — DÜZENLEME MODU: Kullanıcının önünde zaten hazır bir teklif taslağı var (bir şablondan yüklendi ya da daha önce üzerinde konuşuldu). Kullanıcının mesajı büyük ihtimalle bu taslak üzerinde KÜÇÜK, HEDEFLİ bir değişiklik istiyor (ör. "işçilik x2 olsun", "fiyatı 50000 yap", "müşteri adını değiştir"). AŞAĞIDAKİ MEVCUT TASLAK'ı baz al, İSTENEN DEĞİŞİKLİĞİ uygula, TALEP EDİLMEYEN hiçbir alanı değiştirme — metinleri yeniden yazma, kalemleri silme/ekleme, sırasını değiştirme, sadece istenen kısmı güncelle. "x2 olsun" gibi bir istek varsa ilgili \`lineItem\`in \`qty\` ya da \`unit\`inden hangisi anlama daha uygunsa onu 2 ile çarp (ör. "işçilik x2 olsun" → işçilik kaleminin toplamı ikiye katlanacak şekilde \`qty\` veya \`unit\`i güncelle). Cevabının sonundaki json bloğu bu taslağın TAMAMINI (değişmeyen alanlar dahil) güncel haliyle içermeli.\nMEVCUT TASLAK:\n${JSON.stringify(currentDraft)}\n\n`
+      ? `ÖNEMLİ — DÜZENLEME MODU: Kullanıcının önünde zaten hazır bir teklif taslağı var (bir şablondan yazılmaya başlandı ya da daha önce üzerinde konuşuldu). Kullanıcının mesajı büyük ihtimalle bu taslak üzerinde KÜÇÜK, HEDEFLİ bir değişiklik istiyor (ör. "işçilik x2 olsun", "fiyatı 50000 yap", "müşteri adını değiştir"). AŞAĞIDAKİ MEVCUT TASLAK'ı baz al, İSTENEN DEĞİŞİKLİĞİ uygula, TALEP EDİLMEYEN hiçbir alanı değiştirme — metinleri yeniden yazma, kalemleri silme/ekleme, sırasını değiştirme, sadece istenen kısmı güncelle. "x2 olsun" gibi bir istek varsa ilgili \`lineItem\`in \`qty\` ya da \`unit\`inden hangisi anlama daha uygunsa onu 2 ile çarp (ör. "işçilik x2 olsun" → işçilik kaleminin toplamı ikiye katlanacak şekilde \`qty\` veya \`unit\`i güncelle). Cevabının sonundaki json bloğu bu taslağın TAMAMINI (değişmeyen alanlar dahil) güncel haliyle içermeli.\nMEVCUT TASLAK:\n${JSON.stringify(currentDraft)}\n\n`
       : ""
   }${
     isLite
@@ -249,9 +308,11 @@ ${docsBlock || "(henüz doküman eklenmedi)"}
   }${
     currentDraft
       ? ""
-      : namedTemplate
-      ? `ÖZEL ŞABLON — "${namedTemplate.nickname}": kullanıcı bu teklif için bu şablonu istedi. VARSAYILAN TEKLİF ŞABLONU'nu YOK SAY, bunun yerine AŞAĞIDAKİ yapıyı ve bölüm başlıklarını birebir takip et (metinleri brief'e göre uyarla, ama bölüm sırasını ve başlıklarını değiştirme):\n${namedTemplateBlock}\n${namedTemplate.theme ? "Renk teması ve font otomatik uygulanacak, bunu ayrıca söylemene gerek yok.\n" : ""}\n`
-      : `VARSAYILAN TEKLİF ŞABLONU:\n${defaultTemplate ? `"${defaultTemplate.title}":\n${defaultTemplate.content}` : builtInComprehensiveTemplate}\n\n`
+      : resolved
+        ? defaultTemplate
+          ? `ÖZEL ŞABLON — "${resolved.name}"${resolved.nickname ? ` (kod adı "${resolved.nickname}")` : ""}: kullanıcı bu teklif için bu şablonu seçti. Şirketin kendi standart teklif formatı da mevcut ("${defaultTemplate.title}", DOKÜMAN KÜTÜPHANESİ'nde) — ÜSLUP, MADDE İÇERİĞİ ve ŞARTLAR için ÖNCELİKLE o dokümanı kullan; "${resolved.name}" şablonundan ise SADECE bölüm sırasını/başlıklarını${resolved.theme ? " ve görsel temasını (otomatik uygulanacak)" : ""} al — ikisini harmanla. Kullanıcı henüz müşteri/proje bilgisi vermediyse, json döndürmeden önce doğal bir sohbet diliyle eksikleri sor.\n\n`
+          : `ÖZEL ŞABLON — "${resolved.name}"${resolved.nickname ? ` (kod adı "${resolved.nickname}")` : ""}: kullanıcı bu teklif için bu şablonu seçti. VARSAYILAN TEKLİF ŞABLONU'nu YOK SAY, bunun yerine AŞAĞIDAKİ yapıyı ve bölüm başlıklarını takip et (metinleri kullanıcının brief'ine göre uyarla, sadece kopyalama; kullanıcı henüz müşteri/proje bilgisi vermediyse json döndürmeden önce doğal bir sohbet diliyle eksikleri sor):\n${resolvedBlock}\n${resolved.theme ? "Renk teması ve font otomatik uygulanacak, bunu ayrıca söylemene gerek yok.\n" : ""}\n`
+        : `VARSAYILAN TEKLİF ŞABLONU:\n${defaultTemplate ? `"${defaultTemplate.title}":\n${defaultTemplate.content}` : builtInComprehensiveTemplate}\n\n`
   }GERÇEK PAKETLERİMİZ:
 ${pricingBlock}${websiteContext}${prefillBlock}`;
 
@@ -296,8 +357,8 @@ ${pricingBlock}${websiteContext}${prefillBlock}`;
   // Stamp the theme ourselves rather than trusting the model to remember/emit it —
   // deterministic, so a given nickname always gets the same look. Templates without
   // a theme (e.g. "Genel Leo") leave themeJson unset — the proposal keeps the company's own color.
-  if (draft && namedTemplate?.theme) {
-    draft.themeJson = namedTemplate.theme;
+  if (draft && resolved?.theme) {
+    draft.themeJson = resolved.theme;
   }
 
   // Optional ```brand``` block — logo/color the model detected in this turn (see MARKA KAYDI rule above).

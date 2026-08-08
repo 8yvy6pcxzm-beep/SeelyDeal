@@ -90,36 +90,13 @@ function TemplatesPageInner() {
     }
     return Array.from(byCategory.values());
   }, [templates]);
-  const currentReal = realRows.find((r) => r.id === current.id);
   const canCreateTemplates = planAllows(plan, "templates_create");
 
   function draftFromCurrent() {
-    const initialDraft = currentReal
-      ? {
-          title: currentReal.name,
-          client: "",
-          value: 0,
-          introText: currentReal.intro_text ?? undefined,
-          aboutText: currentReal.about_text ?? undefined,
-          sections: currentReal.sections,
-          lineItems: currentReal.line_items,
-          billingOptions: currentReal.billing_options,
-          nextSteps: currentReal.next_steps,
-          validDays: currentReal.valid_days,
-          contractText: currentReal.contract_text ?? undefined,
-        }
-      : {
-          title: t(current.name),
-          client: "",
-          value: 0,
-          introText: current.introText ? t(current.introText) : undefined,
-          aboutText: current.aboutText ? t(current.aboutText) : undefined,
-          sections: current.sections.map((s) => ({ title: t(s.title), body: t(s.body) })),
-          lineItems: (current.lineItems ?? []).map((li) => ({ name: t(li.name), qty: li.qty, unit: li.unit })),
-          contractText: current.contractText ? t(current.contractText) : undefined,
-          themeJson: current.theme ?? undefined,
-        };
-    sessionStorage.setItem("seelydeal:draftFromTemplate", JSON.stringify(initialDraft));
+    // Hand off just the template's id — the AI chat resolves it server-side and
+    // writes real content (blended with the company's own doc library, if any)
+    // instead of us dumping raw template text (with unfilled placeholders) here.
+    sessionStorage.setItem("seelydeal:draftFromTemplate", JSON.stringify({ templateId: current.id }));
     router.push("/proposals?fromTemplate=1");
   }
 
