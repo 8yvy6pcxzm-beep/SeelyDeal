@@ -114,6 +114,9 @@ export function AiDraftDialog({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const controllerRef = useRef<AbortController | null>(null);
   const stoppedRef = useRef(false);
+  // Holds a template's raw (placeholder-filled) draft as chat context for the very first
+  // send, before any real `draft` exists — cleared once the AI returns a real one.
+  const templateSeedRef = useRef<Draft | null>(null);
 
   const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
   const ACCEPTED_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/webp", "image/gif"];
@@ -212,7 +215,20 @@ export function AiDraftDialog({
   }, []);
 
   useEffect(() => {
-    if (open && initialDraft) setDraft(initialDraft);
+    if (!open || !initialDraft) return;
+    // A template loaded straight into the preview shows raw "[Proje Adı]" placeholders —
+    // not something to hand a client. If the template has unfilled placeholders, don't
+    // show it yet: seed it as chat context and let the AI ask what to fill in instead.
+    if (/\[[^\]]+\]/.test(JSON.stringify(initialDraft))) {
+      templateSeedRef.current = initialDraft;
+      send(
+        lang === "tr"
+          ? "Bu şablonu bu teklif için kullanmak istiyorum."
+          : "I'd like to use this template for this proposal.",
+      );
+    } else {
+      setDraft(initialDraft);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialDraft]);
 
@@ -292,7 +308,7 @@ export function AiDraftDialog({
           messages: next.map(({ role, content }) => ({ role, content })),
           websiteUrl: websiteUrl || undefined,
           attachment: sentAttachment ?? undefined,
-          currentDraft: draft ?? undefined,
+          currentDraft: draft ?? templateSeedRef.current ?? undefined,
         }),
         signal: controller.signal,
       });
@@ -312,11 +328,15 @@ export function AiDraftDialog({
       setMessages((m) => [...m, { role: "assistant", content: reply }]);
       if (data.draft) {
         // The AI response never knows about the template's theme — carry it forward
-        // from whatever draft was already loaded instead of losing it on every turn.
-        setDraft((d) => ({ ...data.draft, themeJson: data.draft.themeJson ?? d?.themeJson }));
+        // from whatever draft was already loaded (or the template seed, on the first turn)
+        // instead of losing it.
+        const carriedTheme = data.draft.themeJson ?? draft?.themeJson ?? templateSeedRef.current?.themeJson;
+        const nextDraft = { ...data.draft, themeJson: carriedTheme };
+        setDraft(nextDraft);
+        templateSeedRef.current = null;
         // The model only sets this after the user explicitly confirmed the final
         // proposal in chat — save it immediately instead of waiting for a manual click.
-        if (data.draft.confirmed) saveDraft(data.draft);
+        if (data.draft.confirmed) saveDraft(nextDraft);
       }
       if (data.instruction) {
         fetch("/api/settings/ai-instructions", {

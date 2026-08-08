@@ -20,6 +20,11 @@ type Attachment = { name: string; mediaType: string; base64: string };
  *  exist on kapsamlı-variant templates (see lib/demo/data.ts). When the same nickname
  *  exists in more than one sector (e.g. "leo" in both İnşaat and Genel), prefer the one
  *  whose sector name also appears in the chat, falling back to the sector-neutral "Genel" one. */
+/** True if a draft still has unfilled "[Proje Adı]"-style template placeholders. */
+function hasPlaceholders(draft: unknown) {
+  return /\[[^\]]+\]/.test(JSON.stringify(draft));
+}
+
 function matchNamedTemplate(chatText: string) {
   const hits = templates.filter((t) => t.nickname && new RegExp(`\\b${t.nickname}\\b`, "i").test(chatText));
   if (hits.length <= 1) return hits[0];
@@ -230,7 +235,9 @@ KULLANICI TALİMATLARI (şirketin kendi eklediği kalıcı notlar — HER ZAMAN 
 
 ${
     currentDraft
-      ? `ÖNEMLİ — DÜZENLEME MODU: Kullanıcının önünde zaten hazır bir teklif taslağı var (bir şablondan yüklendi ya da daha önce üzerinde konuşuldu). Kullanıcının mesajı büyük ihtimalle bu taslak üzerinde KÜÇÜK, HEDEFLİ bir değişiklik istiyor (ör. "işçilik x2 olsun", "fiyatı 50000 yap", "müşteri adını değiştir"). AŞAĞIDAKİ MEVCUT TASLAK'ı baz al, İSTENEN DEĞİŞİKLİĞİ uygula, TALEP EDİLMEYEN hiçbir alanı değiştirme — metinleri yeniden yazma, kalemleri silme/ekleme, sırasını değiştirme, sadece istenen kısmı güncelle. "x2 olsun" gibi bir istek varsa ilgili \`lineItem\`in \`qty\` ya da \`unit\`inden hangisi anlama daha uygunsa onu 2 ile çarp (ör. "işçilik x2 olsun" → işçilik kaleminin toplamı ikiye katlanacak şekilde \`qty\` veya \`unit\`i güncelle). Cevabının sonundaki json bloğu bu taslağın TAMAMINI (değişmeyen alanlar dahil) güncel haliyle içermeli.\nMEVCUT TASLAK:\n${JSON.stringify(currentDraft)}\n\n`
+      ? hasPlaceholders(currentDraft)
+        ? `ÖNEMLİ — ŞABLON DOLDURMA MODU: Kullanıcı bir şablon seçti ve önünde aşağıdaki MEVCUT TASLAK var, ama içinde "[Proje Adı]", "[Müşteri Firma Adı]" gibi HENÜZ DOLDURULMAMIŞ yer tutucular var. Bu taslağı bu haliyle ASLA json bloğuyla döndürme — köşeli parantezli yer tutucular müşteriye giden bir teklifte görünmemeli. Bunun yerine, sohbette kullanıcıya EKSİK BİLGİLERİ (müşteri adı, proje adı, kapsam maddeleri, fiyat kalemleri gibi) kısa ve gruplu bir şekilde SOR (hepsini tek seferde, madde madde). Kullanıcının mesajında bu bilgilerden bazıları zaten verilmişse onları hemen kullan, sadece eksik kalanları sor. Kullanıcı tüm bilgileri verdiğinde (bu turda ya da bir sonrakinde), yer tutucuları verdiği bilgilerle doldurup json bloğunu normal akışa göre döndür (confirmed:false ile önce onay sorusu sor).\nMEVCUT TASLAK (yer tutucularla):\n${JSON.stringify(currentDraft)}\n\n`
+        : `ÖNEMLİ — DÜZENLEME MODU: Kullanıcının önünde zaten hazır bir teklif taslağı var (bir şablondan yüklendi ya da daha önce üzerinde konuşuldu). Kullanıcının mesajı büyük ihtimalle bu taslak üzerinde KÜÇÜK, HEDEFLİ bir değişiklik istiyor (ör. "işçilik x2 olsun", "fiyatı 50000 yap", "müşteri adını değiştir"). AŞAĞIDAKİ MEVCUT TASLAK'ı baz al, İSTENEN DEĞİŞİKLİĞİ uygula, TALEP EDİLMEYEN hiçbir alanı değiştirme — metinleri yeniden yazma, kalemleri silme/ekleme, sırasını değiştirme, sadece istenen kısmı güncelle. "x2 olsun" gibi bir istek varsa ilgili \`lineItem\`in \`qty\` ya da \`unit\`inden hangisi anlama daha uygunsa onu 2 ile çarp (ör. "işçilik x2 olsun" → işçilik kaleminin toplamı ikiye katlanacak şekilde \`qty\` veya \`unit\`i güncelle). Cevabının sonundaki json bloğu bu taslağın TAMAMINI (değişmeyen alanlar dahil) güncel haliyle içermeli.\nMEVCUT TASLAK:\n${JSON.stringify(currentDraft)}\n\n`
       : ""
   }${
     isLite
