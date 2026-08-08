@@ -221,7 +221,7 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
           <div className="grid grid-cols-2 gap-3">
             <div className="relative">
               {lastUsed === "google" && (
-                <span className="absolute -top-2.5 right-3 rounded-full bg-foreground px-2 py-0.5 text-[10px] font-medium text-background">
+                <span className="absolute -top-2.5 right-3 rounded-full bg-[image:var(--grad-brand)] px-2 py-0.5 text-[10px] font-medium text-white shadow-sm shadow-primary/30">
                   {lang === "tr" ? "Son kullanılan" : "Last used"}
                 </span>
               )}
@@ -229,14 +229,14 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
                 variant="outline"
                 disabled={loading || (!isLogin && !consent)}
                 onClick={() => signInWithProvider("google")}
-                className={`w-full gap-2 ${lastUsed === "google" ? "ring-2 ring-foreground/80" : ""}`}
+                className={`w-full gap-2 ${lastUsed === "google" ? "border-primary/40 ring-2 ring-primary/25" : ""}`}
               >
                 <GoogleGlyph /> Google
               </Button>
             </div>
             <div className="relative">
               {lastUsed === "github" && (
-                <span className="absolute -top-2.5 right-3 rounded-full bg-foreground px-2 py-0.5 text-[10px] font-medium text-background">
+                <span className="absolute -top-2.5 right-3 rounded-full bg-[image:var(--grad-brand)] px-2 py-0.5 text-[10px] font-medium text-white shadow-sm shadow-primary/30">
                   {lang === "tr" ? "Son kullanılan" : "Last used"}
                 </span>
               )}
@@ -244,7 +244,7 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
                 variant="outline"
                 disabled={loading || (!isLogin && !consent)}
                 onClick={() => signInWithProvider("github")}
-                className={`w-full gap-2 ${lastUsed === "github" ? "ring-2 ring-foreground/80" : ""}`}
+                className={`w-full gap-2 ${lastUsed === "github" ? "border-primary/40 ring-2 ring-primary/25" : ""}`}
               >
                 <GithubGlyph /> GitHub
               </Button>
