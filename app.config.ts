@@ -217,6 +217,12 @@ export const appConfig: AppConfig = {
     { label: { tr: "Ayarlar", en: "Settings" }, href: "/settings", icon: "settings" },
   ],
 
+  // Integrations list rules (apply these to every new entry added here):
+  // - `name` is a plain product name, no parenthetical suffixes like "(Pro)" or "(Claude)".
+  // - Connected/active integrations are sorted to the top by integrations-client.tsx automatically.
+  // - `purpose` is shown only as a hover preview (not inline) by integrations-client.tsx, so it can be long.
+  // - Plan-restricted rows show the label "Pro/Custom" instead of "Kurulum sırasında etkinleştirilecek" / "Activated during setup".
+  // - The generic catch-all entry for future non-CRM integrations is named "Diğer Entegrasyonlar" (not tied to one provider).
   integrations: [
     {
       key: "supabase",
@@ -228,7 +234,7 @@ export const appConfig: AppConfig = {
     },
     {
       key: "dropbox_sign",
-      name: "Dropbox Sign (HelloSign)",
+      name: "Dropbox Sign",
       envVars: ["DROPBOX_SIGN_API_KEY"],
       required: false,
       docsUrl: "https://app.hellosign.com/home/myAccount#api",
@@ -244,7 +250,7 @@ export const appConfig: AppConfig = {
     },
     {
       key: "anthropic",
-      name: "Anthropic (Claude)",
+      name: "Anthropic",
       envVars: ["ANTHROPIC_API_KEY"],
       required: false,
       docsUrl: "https://console.anthropic.com/settings/keys",
@@ -252,7 +258,7 @@ export const appConfig: AppConfig = {
     },
     {
       key: "crm",
-      name: "CRM (Pro)",
+      name: "Diğer Entegrasyonlar",
       envVars: [],
       required: false,
       docsUrl: "",

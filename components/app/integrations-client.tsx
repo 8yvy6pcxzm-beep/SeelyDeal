@@ -21,6 +21,10 @@ export function IntegrationsClient({
   const plan = usePlan();
   const crmAllowed = planAllows(plan, "crm_integrations");
 
+  const sortedIntegrations = [...appConfig.integrations].sort(
+    (a, b) => Number(!!connected[b.key]) - Number(!!connected[a.key]),
+  );
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <Card>
@@ -29,17 +33,27 @@ export function IntegrationsClient({
           <p className="text-sm text-muted-foreground">{ui.integrationsHint}</p>
         </CardHeader>
         <CardContent className="space-y-3">
-          {appConfig.integrations.map((it) => (
+          {sortedIntegrations.map((it) => (
             <div key={it.key} className="flex items-center gap-4 rounded-lg border border-border p-4">
-              <span className="grid h-10 w-10 place-items-center rounded-lg bg-muted text-muted-foreground">
+              <span
+                className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${
+                  connected[it.key]
+                    ? "bg-success/10 text-success ring-2 ring-success/40 animate-pulse"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
                 <Icon name="plug" className="h-5 w-5" />
               </span>
-              <div className="min-w-0 flex-1">
+              <div className="group relative min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="font-medium">{it.name}</p>
+                  <p className="truncate font-medium" title={it.purpose}>
+                    {it.name}
+                  </p>
                   {it.required && <Badge tone="warning">{ui.required}</Badge>}
                 </div>
-                <p className="truncate text-sm text-muted-foreground">{it.purpose}</p>
+                <div className="pointer-events-none absolute left-0 top-full z-10 mt-2 w-72 max-w-[80vw] rounded-lg border border-border bg-card p-3 text-sm text-foreground opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
+                  {it.purpose}
+                </div>
               </div>
               {it.oauth ? (
                 !crmAllowed ? (
@@ -53,7 +67,7 @@ export function IntegrationsClient({
                     </Button>
                   </a>
                 ) : (
-                  <span className="text-sm text-muted-foreground">Kurulum sırasında etkinleştirilecek</span>
+                  <span className="text-sm text-muted-foreground">Pro/Custom</span>
                 )
               ) : connected[it.key] ? (
                 <span className="inline-flex items-center gap-1.5 text-sm font-medium text-success">
@@ -64,9 +78,7 @@ export function IntegrationsClient({
                   {lang === "tr" ? "Yakında" : "Coming soon"}
                 </span>
               ) : (
-                <span className="text-sm text-muted-foreground">
-                  {lang === "tr" ? "Kurulum sırasında etkinleştirilecek" : "Activated during setup"}
-                </span>
+                <span className="text-sm text-muted-foreground">Pro/Custom</span>
               )}
             </div>
           ))}
