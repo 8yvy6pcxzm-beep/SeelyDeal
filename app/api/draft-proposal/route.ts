@@ -277,8 +277,26 @@ Sözleşme: ${resolved.contractText}`
 `
     : "";
 
+  // Even after onboarding_completed flips true, some fields can still be
+  // empty (user skipped them, or approved before finishing). Without this
+  // block the model has zero instructions about "onboarding"/"kurulum" once
+  // isOnboarding is false, and was observed flatly refusing ("onboarding
+  // konusunda yardımcı olamam") instead of just finishing the missing bits.
+  const hasServiceDoc = (docs ?? []).some((d: { type: string }) => d.type === "service_description");
+  const missingProfileFields: string[] = [];
+  if (!company?.email) missingProfileFields.push("iletişim e-postası");
+  if (!company?.tagline) missingProfileFields.push("slogan");
+  if (!company?.logo_url) missingProfileFields.push("logo");
+  if (!company?.primary_color) missingProfileFields.push("marka rengi");
+  if (!hasServiceDoc) missingProfileFields.push("hizmetler ve fiyatlandırma");
+
+  const missingProfileBlock =
+    !isOnboarding && missingProfileFields.length > 0
+      ? `\nEKSİK ŞİRKET PROFİLİ BİLGİLERİ: Şirket profilinde şu alanlar hâlâ boş: ${missingProfileFields.join(", ")}. Kullanıcı "onboarding", "kurulum" gibi bir kelime kullanıp eksikleri tamamlamak isterse (onboarding daha önce tamamlanmış sayılsa BİLE bu geçerli) ASLA "onboarding konusunda yardımcı olamam" gibi bir şey söyleme — bu senin işinin bir parçası. Bunun yerine yukarıdaki eksik alanları TEK TEK sor (birer birer, üst üste değil), topladıktan sonra TEK bir konsolide onay mesajıyla ("Bu bilgileri varsayılan olarak şirket profiline ekliyorum, onaylıyor musun?") açıkça onay iste. Kullanıcı onaylayana kadar hiçbir şey kaydetme; onaylarsa cevabının sonuna \`\`\`brand\`\`\` bloğu ekle: {"email": "...", "tagline": "...", "setLogo": ..., "primaryColor": "...", "servicesSummary": "..."} (sadece gerçekten toplanan alanları doldur). \`servicesSummary\` doldurulursa, Şirket Profili → Varsayılan İçerik'te "Hizmetler ve Fiyatlandırma" dokümanı olarak kaydedilir.\n`
+      : "";
+
   const systemPrompt = `Senin adın Seely. ${company?.name ?? "bu işletme"} için çalışan bir AI teklif yazım asistanısın. Kullanıcı (işletme sahibi/çalışanı) seninle doğal, konuşma diliyle iletişim kurar ve senden müşterileri için teklif hazırlamanı ister.
-${onboardingBlock}
+${onboardingBlock}${missingProfileBlock}
 KURALLAR:
 - ÇOK ÖNEMLİ — KİMLİK: Kendini tanıtırken/selamlarken HER ZAMAN "Ben Seely" de. "${company?.name ?? "Şirket"} için teklif asistanıyım" gibi kendini şirketin adıyla tanımlayan bir cümle KURMA — sen Seely'sin, şirket senin çalıştığın yer, adın değil. Şirket adını sadece bağlamsal olarak (örn. "senin için", "ekibin adına") geçirebilirsin, kendi kimliğin olarak asla kullanma.
 - ÇOK ÖNEMLİ — SOHBETİ UZATMA: Gereksiz yere ekstra soru sorup sohbeti uzatma — her mesajın bir maliyeti var. Bir bilgiyi zaten biliyorsan tekrar sorma, kullanıcı net cevap verdiyse aynı konuyu farklı şekilde tekrar teyit ettirme, "başka bir şey var mı" gibi doldurma soruları sorma. Sadece teklif için gerçekten gerekli olanı sor, cevabı alınca hemen bir sonraki adıma geç. Kullanıcı konuyla ilgisiz sohbete (hava durumu, gündelik muhabbet vb.) çekmeye çalışırsa sen de o sohbete girme — kısaca karşılık ver ve nazikçe teklif konusuna geri dön, sohbeti uzatma.
