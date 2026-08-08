@@ -205,7 +205,51 @@ export function AiDraftDialog({
     send(summary);
   }
 
-  function processFile(file: File, currentCount: number) {
+  const MAX_IMAGE_DIMENSION = 1600;
+  const RECOMPRESS_THRESHOLD_BYTES = 1.5 * 1024 * 1024;
+
+  /** Big screenshots (multi-MB PNGs) inflate the request payload and how long
+   * Claude takes to look at them — often enough, combined with a live site
+   * fetch on the same turn, to run past the function's time limit and drop the
+   * connection. Downscaling to a sane max dimension + re-encoding as JPEG
+   * keeps the image perfectly readable while cutting that risk way down. */
+  function downscaleImage(file: File): Promise<{ mediaType: string; base64: string }> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("no canvas context"));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+        resolve({ mediaType: "image/jpeg", base64: dataUrl.split(",")[1] ?? "" });
+      };
+      img.onerror = () => reject(new Error("image decode failed"));
+      img.src = objectUrl;
+    });
+  }
+
+  function readAsBase64(file: File, mediaType: string): Promise<{ mediaType: string; base64: string }> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        resolve({ mediaType, base64: result.split(",")[1] ?? "" });
+      };
+      reader.onerror = () => reject(new Error("file read failed"));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function processFile(file: File, currentCount: number) {
     setAttachError(null);
 
     if (currentCount >= MAX_ATTACHMENTS) {
@@ -224,13 +268,22 @@ export function AiDraftDialog({
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      const base64 = result.split(",")[1] ?? "";
-      setAttachments((prev) => [...prev, { name: file.name, mediaType, base64 }]);
-    };
-    reader.readAsDataURL(file);
+    const shouldDownscale = mediaType.startsWith("image/") && file.size > RECOMPRESS_THRESHOLD_BYTES;
+    try {
+      const { mediaType: finalType, base64 } = shouldDownscale
+        ? await downscaleImage(file)
+        : await readAsBase64(file, mediaType);
+      setAttachments((prev) => [...prev, { name: file.name, mediaType: finalType, base64 }]);
+    } catch {
+      // Downscale failed for some reason (corrupt image, unsupported codec) —
+      // fall back to the original file rather than silently dropping it.
+      try {
+        const { mediaType: finalType, base64 } = await readAsBase64(file, mediaType);
+        setAttachments((prev) => [...prev, { name: file.name, mediaType: finalType, base64 }]);
+      } catch {
+        setAttachError(lang === "tr" ? "Dosya okunamadı." : "Couldn't read the file.");
+      }
+    }
   }
 
   function processFiles(files: FileList | File[]) {
@@ -396,19 +449,35 @@ export function AiDraftDialog({
     stoppedRef.current = false;
     const timeoutId = window.setTimeout(() => controller.abort(), 130_000);
 
+    const requestBody = JSON.stringify({
+      messages: next.map(({ role, content }) => ({ role, content })),
+      websiteUrl: websiteUrl || undefined,
+      attachments: sentAttachments.length ? sentAttachments : undefined,
+      currentDraft: draft ?? undefined,
+      templateId: !draft ? initialTemplateId : undefined,
+    });
+
+    // A dropped connection/transient network blip shouldn't dead-end the user
+    // in an error box — silently retry once before actually surfacing it.
+    async function fetchWithRetry(attempt = 1): Promise<Response> {
+      try {
+        return await fetch("/api/draft-proposal", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: requestBody,
+          signal: controller.signal,
+        });
+      } catch (err) {
+        if (attempt < 2 && !(err instanceof DOMException && err.name === "AbortError")) {
+          await sleep(1200);
+          return fetchWithRetry(attempt + 1);
+        }
+        throw err;
+      }
+    }
+
     try {
-      const res = await fetch("/api/draft-proposal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: next.map(({ role, content }) => ({ role, content })),
-          websiteUrl: websiteUrl || undefined,
-          attachments: sentAttachments.length ? sentAttachments : undefined,
-          currentDraft: draft ?? undefined,
-          templateId: !draft ? initialTemplateId : undefined,
-        }),
-        signal: controller.signal,
-      });
+      const res = await fetchWithRetry();
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "Bir şeyler ters gitti.");
