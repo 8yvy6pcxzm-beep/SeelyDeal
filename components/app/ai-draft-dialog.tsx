@@ -162,7 +162,6 @@ export function AiDraftDialog({
   const [savedProposalId, setSavedProposalId] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [attachError, setAttachError] = useState<string | null>(null);
-  const [dragOver, setDragOver] = useState(false);
   // Fetched fresh each time the dialog opens — whether this company still needs
   // Seely's first-chat intro (companies.onboarding_completed === false).
   const [onboardingPending, setOnboardingPending] = useState(false);
@@ -329,34 +328,19 @@ export function AiDraftDialog({
     processFiles(files);
   }
 
+  // Just prevents the browser's default "navigate to the dropped file"
+  // behavior — no visual drag-over state. Detecting "is this actually a file
+  // being dragged" via dataTransfer.types is unreliable across browsers (it
+  // can report "Files" during a plain text-selection drag), so a "drop a
+  // file here" banner that pops up on any old drag is more confusing than
+  // helpful. The paperclip button already communicates that attaching is
+  // possible; a real file drop is still accepted silently by handleDrop.
   function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
-    if (e.dataTransfer.types.includes("Files")) setDragOver(true);
   }
-
-  function handleDragLeave(e: React.DragEvent<HTMLDivElement>) {
-    if (e.currentTarget === e.target) setDragOver(false);
-  }
-
-  // Belt-and-suspenders reset: if the drag is cancelled (dropped outside the
-  // window, Esc during the OS-level drag) neither dragleave nor drop ever
-  // fires on our container, so dragOver stays stuck true. "dragend" fires on
-  // the whole page for every drag that started, regardless of how it ended.
-  useEffect(() => {
-    function onDragEnd() {
-      setDragOver(false);
-    }
-    window.addEventListener("dragend", onDragEnd);
-    window.addEventListener("drop", onDragEnd);
-    return () => {
-      window.removeEventListener("dragend", onDragEnd);
-      window.removeEventListener("drop", onDragEnd);
-    };
-  }, []);
 
   function handleDrop(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
-    setDragOver(false);
     if (e.dataTransfer.files?.length) processFiles(e.dataTransfer.files);
   }
 
@@ -383,14 +367,6 @@ export function AiDraftDialog({
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  // The dialog is kept mounted (rendering null while closed) instead of being
-  // removed from the tree, so any drag state left over from a previous open
-  // (e.g. a cancelled drag that never reset it) would otherwise still be
-  // showing when it's opened again — force a clean slate every time.
-  useEffect(() => {
-    if (open) setDragOver(false);
-  }, [open]);
 
   useEffect(() => {
     if (!open || !initialTemplateId || messages.length > 0) return;
@@ -760,23 +736,12 @@ export function AiDraftDialog({
         backdropMouseDownRef.current = false;
       }}
       onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
       <div
-        className={cn(
-          "relative flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-pop",
-          dragOver && "ring-2 ring-primary",
-        )}
+        className="relative flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-pop"
         onClick={(e) => e.stopPropagation()}
       >
-        {dragOver && (
-          <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-primary/5">
-            <p className="rounded-lg bg-card px-4 py-2 text-sm font-medium text-primary shadow-pop">
-              {lang === "tr" ? "Dosyayı buraya bırak" : "Drop the file here"}
-            </p>
-          </div>
-        )}
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
