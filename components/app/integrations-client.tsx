@@ -69,6 +69,10 @@ export function IntegrationsClient({
                 ) : null
               ) : connected[it.key] ? (
                 <span className="inline-flex items-center gap-1.5 text-sm font-medium text-success">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success/60" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
+                  </span>
                   <CheckCircle2 className="h-4 w-4" /> {ui.connected}
                 </span>
               ) : it.key === "stripe" ? (
