@@ -20,6 +20,7 @@ type Company = {
   email: string | null;
   overage_link: string | null;
   ai_instructions: string | null;
+  tagline: string | null;
   plan: Plan;
 };
 
@@ -246,6 +247,7 @@ export function CompanyProfileClient() {
         email: company.email,
         overage_link: company.overage_link,
         ai_instructions: company.ai_instructions,
+        tagline: company.tagline,
       })
       .eq("id", company.id);
     setSaving(false);
@@ -518,10 +520,10 @@ export function CompanyProfileClient() {
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label>{lang === "tr" ? "Slogan" : "Tagline"}</Label>
-            <Input defaultValue={t(appConfig.tagline)} readOnly disabled />
-            <p className="text-xs text-muted-foreground">
-              {lang === "tr" ? "app.config.ts dosyasından gelir." : "Comes from app.config.ts."}
-            </p>
+            <Input
+              value={company.tagline ?? t(appConfig.tagline)}
+              onChange={(e) => setCompany({ ...company, tagline: e.target.value })}
+            />
           </div>
           <div className="space-y-1.5">
             <Label>{lang === "tr" ? "Logo" : "Logo"}</Label>
