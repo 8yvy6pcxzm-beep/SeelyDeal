@@ -38,7 +38,7 @@ export function IntegrationsClient({
               <span
                 className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${
                   connected[it.key]
-                    ? "bg-success/10 text-success ring-2 ring-success/40 animate-pulse"
+                    ? "bg-primary/10 text-primary ring-1 ring-primary/30"
                     : "bg-muted text-muted-foreground"
                 }`}
               >
@@ -66,9 +66,7 @@ export function IntegrationsClient({
                       Bağlan
                     </Button>
                   </a>
-                ) : (
-                  <span className="text-sm text-muted-foreground">Pro/Custom</span>
-                )
+                ) : null
               ) : connected[it.key] ? (
                 <span className="inline-flex items-center gap-1.5 text-sm font-medium text-success">
                   <CheckCircle2 className="h-4 w-4" /> {ui.connected}
@@ -77,9 +75,7 @@ export function IntegrationsClient({
                 <span className="text-sm text-muted-foreground/50">
                   {lang === "tr" ? "Yakında" : "Coming soon"}
                 </span>
-              ) : (
-                <span className="text-sm text-muted-foreground">Pro/Custom</span>
-              )}
+              ) : null}
             </div>
           ))}
         </CardContent>

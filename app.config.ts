@@ -221,7 +221,13 @@ export const appConfig: AppConfig = {
   // - `name` is a plain product name, no parenthetical suffixes like "(Pro)" or "(Claude)".
   // - Connected/active integrations are sorted to the top by integrations-client.tsx automatically.
   // - `purpose` is shown only as a hover preview (not inline) by integrations-client.tsx, so it can be long.
-  // - Plan-restricted rows show the label "Pro/Custom" instead of "Kurulum sırasında etkinleştirilecek" / "Activated during setup".
+  //   Do not add "Without it, ... demo mode" style disclaimers — every row had the same sentence and it added noise.
+  // - Plan-restricted rows with no action available show no status label at all ("Pro/Custom" was removed —
+  //   meaningless once the viewer is already on the Custom plan). Only show a label when it's actionable
+  //   (e.g. "Bağlan" button, or "Pro paketinde" when the viewer's plan genuinely blocks the feature).
+  // - Connected rows use the brand primary color (text-primary / bg-primary/10), not green, and no pulse animation.
+  // - The CRM/catch-all row's hover text lists concrete provider examples in plan order (Pro-tier providers first,
+  //   Custom-tier providers like Salesforce last) so it's not a vague placeholder.
   // - The generic catch-all entry for future non-CRM integrations is named "Diğer Entegrasyonlar" (not tied to one provider).
   integrations: [
     {
@@ -230,7 +236,7 @@ export const appConfig: AppConfig = {
       envVars: ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"],
       required: false,
       docsUrl: "https://supabase.com/dashboard/project/_/settings/api",
-      purpose: "Database & auth for proposals, clients and view events. Without it, the app runs in demo mode.",
+      purpose: "Database & auth for proposals, clients and view events.",
     },
     {
       key: "dropbox_sign",
@@ -238,7 +244,7 @@ export const appConfig: AppConfig = {
       envVars: ["DROPBOX_SIGN_API_KEY"],
       required: false,
       docsUrl: "https://app.hellosign.com/home/myAccount#api",
-      purpose: "Legally binding e-signatures inside each proposal. Without it, signing is a demo flow.",
+      purpose: "Legally binding e-signatures inside each proposal.",
     },
     {
       key: "stripe",
@@ -246,7 +252,7 @@ export const appConfig: AppConfig = {
       envVars: ["STRIPE_SECRET_KEY", "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"],
       required: false,
       docsUrl: "https://dashboard.stripe.com/apikeys",
-      purpose: "Charge accepted proposals & deposits the moment a client signs. Demo charges otherwise.",
+      purpose: "Charge accepted proposals & deposits the moment a client signs.",
     },
     {
       key: "anthropic",
@@ -254,7 +260,7 @@ export const appConfig: AppConfig = {
       envVars: ["ANTHROPIC_API_KEY"],
       required: false,
       docsUrl: "https://console.anthropic.com/settings/keys",
-      purpose: "Powers AI proposal drafting & rewrites. Without it, AI suggestions are canned demo copy.",
+      purpose: "Powers AI proposal drafting & rewrites.",
     },
     {
       key: "crm",
@@ -262,7 +268,7 @@ export const appConfig: AppConfig = {
       envVars: [],
       required: false,
       docsUrl: "",
-      purpose: "Connect your CRM to pull client data into proposals automatically. Provider is chosen and configured during setup.",
+      purpose: "Connect your CRM to pull client data into proposals automatically: HubSpot, Zoho, Logo, QuickBooks (Pro), Salesforce (Custom).",
       oauth: true,
     },
   ],
