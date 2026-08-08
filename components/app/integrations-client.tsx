@@ -13,6 +13,7 @@ import { usePlan } from "@/components/app/plan-provider";
 /** Which plan gate a given oauth-flagged integration row requires — defaults to crm_integrations (Pro+). */
 const INTEGRATION_GATE: Record<string, GatedFeature> = {
   parasut: "accounting_integrations",
+  logo: "accounting_integrations",
 };
 
 export function IntegrationsClient({

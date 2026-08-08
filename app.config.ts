@@ -280,6 +280,15 @@ export const appConfig: AppConfig = {
       purpose: "Muhasebe entegrasyonu (Custom): Paraşüt'teki müşteri ve fatura verilerini tekliflerle senkronize edin.",
       oauth: true,
     },
+    {
+      key: "logo",
+      name: "Logo",
+      envVars: [],
+      required: false,
+      docsUrl: "https://www.logo.com.tr",
+      purpose: "Muhasebe entegrasyonu (Custom): Logo'daki müşteri ve fatura verilerini tekliflerle senkronize edin.",
+      oauth: true,
+    },
   ],
 };
 
