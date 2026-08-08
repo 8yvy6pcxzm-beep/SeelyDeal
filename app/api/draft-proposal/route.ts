@@ -108,6 +108,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Bu özellik için giriş yapmalısın." }, { status: 401 });
   }
 
+  // Defense in depth — the client already downscales images and caps the
+  // combined size, but this route can be called directly, and a very large
+  // combined payload risks running past the function's time limit.
+  const MAX_TOTAL_ATTACHMENT_BYTES = 20 * 1024 * 1024;
+  const totalAttachmentBytes = (attachments ?? []).reduce((sum, a) => sum + a.base64.length * 0.75, 0);
+  if (totalAttachmentBytes > MAX_TOTAL_ATTACHMENT_BYTES) {
+    return NextResponse.json({ error: "Dosyaların toplamı çok büyük — birini kaldırıp tekrar dene." }, { status: 413 });
+  }
+
   const service = createServiceClient();
 
   const { data: profile } = await service.from("profiles").select("company_id").eq("id", user.id).maybeSingle();

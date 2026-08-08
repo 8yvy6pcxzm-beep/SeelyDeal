@@ -158,6 +158,10 @@ export function AiDraftDialog({
   const stoppedRef = useRef(false);
 
   const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+  // Per-file downscaling keeps images small, but PDFs pass through untouched —
+  // several max-size files at once (e.g. onboarding: multiple sample proposals)
+  // could still add up to a payload big enough to risk the function timing out.
+  const MAX_TOTAL_ATTACHMENT_BYTES = 20 * 1024 * 1024;
   const MAX_ATTACHMENTS = 5;
   const ACCEPTED_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/webp", "image/gif"];
   const EXT_TO_MEDIA_TYPE: Record<string, string> = {
@@ -249,7 +253,7 @@ export function AiDraftDialog({
     });
   }
 
-  async function processFile(file: File, currentCount: number) {
+  async function processFile(file: File, currentCount: number, currentTotalBytes: number) {
     setAttachError(null);
 
     if (currentCount >= MAX_ATTACHMENTS) {
@@ -265,6 +269,14 @@ export function AiDraftDialog({
     }
     if (file.size > MAX_ATTACHMENT_BYTES) {
       setAttachError(lang === "tr" ? "Dosya en fazla 10MB olabilir." : "File must be under 10MB.");
+      return;
+    }
+    if (currentTotalBytes + file.size > MAX_TOTAL_ATTACHMENT_BYTES) {
+      setAttachError(
+        lang === "tr"
+          ? "Dosyaların toplamı çok büyük — birini kaldırıp tekrar dene."
+          : "Attachments add up to too much — remove one and try again.",
+      );
       return;
     }
 
@@ -288,7 +300,11 @@ export function AiDraftDialog({
 
   function processFiles(files: FileList | File[]) {
     const startCount = attachments.length;
-    Array.from(files).forEach((file, i) => processFile(file, startCount + i));
+    let runningBytes = attachments.reduce((sum, a) => sum + a.base64.length * 0.75, 0);
+    Array.from(files).forEach((file, i) => {
+      processFile(file, startCount + i, runningBytes);
+      runningBytes += file.size;
+    });
   }
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
