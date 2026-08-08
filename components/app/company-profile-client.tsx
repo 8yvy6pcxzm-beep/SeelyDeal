@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { useLang } from "@/components/i18n/language-provider";
-import { aiOveragePack } from "@/app.config";
+import appConfig, { aiOveragePack } from "@/app.config";
 import { planAllows, type Plan } from "@/lib/plan";
 
 type Company = {
@@ -51,7 +51,7 @@ function textareaClass(extra?: string) {
 }
 
 export function CompanyProfileClient() {
-  const { lang } = useLang();
+  const { lang, t } = useLang();
   const supabase = createClient();
 
   const [loading, setLoading] = useState(true);
@@ -418,6 +418,13 @@ export function CompanyProfileClient() {
           <div className="space-y-1.5">
             <Label>{lang === "tr" ? "E-posta" : "Email"}</Label>
             <Input value={company.email ?? ""} onChange={(e) => setCompany({ ...company, email: e.target.value })} />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>{lang === "tr" ? "Slogan" : "Tagline"}</Label>
+            <Input defaultValue={t(appConfig.tagline)} readOnly disabled />
+            <p className="text-xs text-muted-foreground">
+              {lang === "tr" ? "app.config.ts dosyasından gelir." : "Comes from app.config.ts."}
+            </p>
           </div>
           <div className="space-y-1.5">
             <Label>{lang === "tr" ? "Logo" : "Logo"}</Label>

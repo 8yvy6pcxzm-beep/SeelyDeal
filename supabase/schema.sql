@@ -130,9 +130,12 @@ alter table ai_usage enable row level security;
 alter table profiles enable row level security;
 alter table team_invites enable row level security;
 
+-- security definer: this reads `profiles` on behalf of the caller, so it must
+-- bypass RLS itself — otherwise the "teammates in same company" policy on
+-- profiles (which also calls this function) recurses into itself infinitely.
 create or replace function auth_company_id()
 returns uuid
-language sql stable
+language sql stable security definer set search_path = public
 as $$
   select company_id from profiles where id = auth.uid()
 $$;
