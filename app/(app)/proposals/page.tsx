@@ -48,6 +48,7 @@ function ProposalsPageInner() {
   const [query, setQuery] = useState("");
   const [aiOpen, setAiOpen] = useState(false);
   const [initialTemplateId, setInitialTemplateId] = useState<string | undefined>(undefined);
+  const [resumeProposalId, setResumeProposalId] = useState<string | undefined>(undefined);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [sectionTimesId, setSectionTimesId] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -301,6 +302,19 @@ function ProposalsPageInner() {
                   <td className="py-3 pr-4 text-right">
                     {realIds.has(row.id) && (
                       <div className="flex items-center justify-end gap-1">
+                        {row.status === "draft" && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setResumeProposalId(row.id);
+                              setAiOpen(true);
+                            }}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                            title={lang === "tr" ? "AI ile devam et" : "Continue with AI"}
+                          >
+                            <Sparkles className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -390,9 +404,11 @@ function ProposalsPageInner() {
         onClose={() => {
           setAiOpen(false);
           setInitialTemplateId(undefined);
+          setResumeProposalId(undefined);
         }}
         onSaved={loadReal}
         initialTemplateId={initialTemplateId}
+        resumeProposalId={resumeProposalId}
       />
       <EditProposalDialog proposalId={editingId} onClose={() => setEditingId(null)} onSaved={loadReal} />
       <SectionTimesDialog proposalId={sectionTimesId} onClose={() => setSectionTimesId(null)} />

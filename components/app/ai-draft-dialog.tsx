@@ -133,6 +133,7 @@ export function AiDraftDialog({
   onSaved,
   mode = "proposal",
   initialTemplateId,
+  resumeProposalId,
 }: {
   open: boolean;
   onClose: () => void;
@@ -142,6 +143,10 @@ export function AiDraftDialog({
   /** Set when drafting a new proposal from a template ("Bu şablonla yaz") — the AI resolves
    *  this id server-side and drafts real content from it instead of us dumping raw text. */
   initialTemplateId?: string;
+  /** Set when reopening a saved draft (e.g. "AI ile devam et" on a Taslak-status proposal
+   *  in the list) — loads that proposal's data into the preview and continues chatting
+   *  against it (PATCHes instead of creating a new one). */
+  resumeProposalId?: string;
 }) {
   const { lang } = useLang();
   const [mounted, setMounted] = useState(false);
@@ -165,6 +170,7 @@ export function AiDraftDialog({
   // Fetched fresh each time the dialog opens — whether this company still needs
   // Seely's first-chat intro (companies.onboarding_completed === false).
   const [onboardingPending, setOnboardingPending] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const controllerRef = useRef<AbortController | null>(null);
@@ -369,7 +375,7 @@ export function AiDraftDialog({
   }, []);
 
   useEffect(() => {
-    if (!open || !initialTemplateId || messages.length > 0) return;
+    if (!open || !initialTemplateId || resumeProposalId || messages.length > 0) return;
     // Kick off the chat ourselves — the AI resolves the template server-side and
     // drafts real content from it (blended with the company's own doc library,
     // if any) instead of us dumping raw template text into the preview.
@@ -378,15 +384,54 @@ export function AiDraftDialog({
   }, [open, initialTemplateId]);
 
   useEffect(() => {
-    if (!open || initialTemplateId) return;
+    if (!open || initialTemplateId || resumeProposalId) return;
     fetch("/api/settings/onboarding")
       .then((r) => r.json())
       .then((d) => setOnboardingPending(d.onboardingCompleted === false))
       .catch(() => {});
-  }, [open, initialTemplateId]);
+  }, [open, initialTemplateId, resumeProposalId]);
 
   useEffect(() => {
-    if (!open || !onboardingPending || initialTemplateId || messages.length > 0) return;
+    if (!open || !resumeProposalId || messages.length > 0) return;
+    fetch(`/api/proposals/${resumeProposalId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const row = data.proposal;
+        if (!row) return;
+        const loadedDraft: Draft = {
+          title: row.title,
+          client: row.clients?.name ?? "",
+          value: row.value ?? 0,
+          introText: row.intro_text ?? undefined,
+          aboutText: row.about_text ?? undefined,
+          clientContact: row.client_contact ?? undefined,
+          sections: row.sections ?? [],
+          lineItems: row.line_items ?? [],
+          billingOptions: row.billing_options ?? undefined,
+          nextSteps: row.next_steps ?? undefined,
+          validDays: row.valid_days ?? undefined,
+          contractText: row.contract_text ?? undefined,
+          themeJson: row.theme_json ?? undefined,
+        };
+        setDraft(loadedDraft);
+        setSavedProposalId(resumeProposalId);
+        setPaymentLink(row.payment_link ?? "");
+        setMessages([
+          {
+            role: "assistant",
+            content:
+              lang === "tr"
+                ? `Kaldığımız yerden devam ediyoruz: "${row.title}". Ne değiştirmek istersin?`
+                : `Picking up where we left off: "${row.title}". What would you like to change?`,
+          },
+        ]);
+      })
+      .catch(() => setError(lang === "tr" ? "Taslak yüklenemedi." : "Couldn't load the draft."));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, resumeProposalId]);
+
+  useEffect(() => {
+    if (!open || !onboardingPending || initialTemplateId || resumeProposalId || messages.length > 0) return;
     // Kick off Seely's first-chat intro ourselves — no visible user bubble, the
     // company just sees the intro appear the moment the dialog opens.
     send(lang === "tr" ? "Merhaba" : "Hi", { hidden: true });
@@ -661,9 +706,9 @@ export function AiDraftDialog({
     }
   }
 
-  async function saveDraft(draftOverride?: Draft) {
+  async function saveDraft(draftOverride?: Draft): Promise<boolean> {
     const toSave = draftOverride ?? draft;
-    if (!toSave) return;
+    if (!toSave) return false;
     setLoading(true);
     setError(null);
     try {
@@ -697,12 +742,14 @@ export function AiDraftDialog({
               ? lang === "tr" ? "Şablon kaydedilemedi." : "Couldn't save the template."
               : lang === "tr" ? "Teklif kaydedilemedi." : "Couldn't save the proposal."),
         );
-        return;
+        return false;
       }
       if (mode !== "template" && !savedProposalId && data?.id) setSavedProposalId(data.id);
       onSaved();
+      return true;
     } catch {
       setError(lang === "tr" ? "Bağlantı hatası." : "Connection error.");
+      return false;
     } finally {
       setLoading(false);
     }
@@ -720,6 +767,31 @@ export function AiDraftDialog({
     setShowWebsiteField(false);
     setAttachments([]);
     setAttachError(null);
+    setShowCloseConfirm(false);
+  }
+
+  /** Closing mid-chat with an unsaved draft (never explicitly confirmed/saved) would
+   * silently throw away real work — ask first, mode === "template" has nothing
+   * equivalent to a "Taslak" pipeline stage so it skips straight to closing. */
+  function requestClose() {
+    if (mode === "proposal" && draft && !savedProposalId) {
+      setShowCloseConfirm(true);
+      return;
+    }
+    onClose();
+    reset();
+  }
+
+  async function confirmCloseAndSave() {
+    const ok = await saveDraft();
+    if (!ok) return; // error is already shown inline — let them retry or discard instead
+    onClose();
+    reset();
+  }
+
+  function confirmCloseWithoutSaving() {
+    onClose();
+    reset();
   }
 
   return createPortal(
@@ -732,7 +804,7 @@ export function AiDraftDialog({
         // Only close if the click started AND ended on the backdrop itself —
         // otherwise selecting a message's text and releasing the mouse past
         // the dialog's edge (a normal thing to do) closes the whole chat.
-        if (e.target === e.currentTarget && backdropMouseDownRef.current) onClose();
+        if (e.target === e.currentTarget && backdropMouseDownRef.current) requestClose();
         backdropMouseDownRef.current = false;
       }}
       onDragOver={handleDragOver}
@@ -742,6 +814,30 @@ export function AiDraftDialog({
         className="relative flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-pop"
         onClick={(e) => e.stopPropagation()}
       >
+        {showCloseConfirm && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center rounded-2xl bg-black/40 p-6">
+            <div className="w-full max-w-sm space-y-3 rounded-xl border border-border bg-card p-5 shadow-pop">
+              <p className="text-sm font-medium">
+                {lang === "tr" ? "Bu teklifi taslak olarak kaydetmek ister misin?" : "Save this proposal as a draft?"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {lang === "tr"
+                  ? "Kaydedersen Teklifler listesinde \"Taslak\" olarak görünür, dilediğin zaman kaldığın yerden devam edebilirsin."
+                  : "If you save it, it'll show up in Proposals as a \"Draft\" — you can pick up where you left off any time."}
+              </p>
+              {error && <p className="text-xs text-destructive">{error}</p>}
+              <div className="flex justify-end gap-2 pt-1">
+                <Button variant="outline" size="sm" onClick={confirmCloseWithoutSaving} disabled={loading}>
+                  {lang === "tr" ? "Hayır, kaydetme" : "No, discard"}
+                </Button>
+                <Button size="sm" onClick={confirmCloseAndSave} disabled={loading}>
+                  {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  {lang === "tr" ? "Evet, kaydet" : "Yes, save"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
@@ -753,13 +849,7 @@ export function AiDraftDialog({
                   : lang === "tr" ? "AI ile teklif yaz" : "Draft with AI"}
             </h3>
           </div>
-          <button
-            onClick={() => {
-              onClose();
-              reset();
-            }}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted"
-          >
+          <button onClick={requestClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted">
             <X className="h-4 w-4" />
           </button>
         </div>
