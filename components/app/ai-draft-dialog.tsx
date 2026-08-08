@@ -75,6 +75,30 @@ function renderFormatted(text: string) {
   });
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Splits an onboarding reply into one bubble per sentence/list item, for the
+ * sequential "typing" reveal — list lines (already one sentence each, per the
+ * prompt's rule) stay whole, plain prose lines get split at sentence ends. */
+function splitIntoSentenceBubbles(text: string): string[] {
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const parts: string[] = [];
+  for (const line of lines) {
+    if (/^(\d+\.|[-•])\s/.test(line)) {
+      parts.push(line);
+    } else {
+      const sentences = line.match(/[^.!?]+[.!?]*(?:\s+|$)/g) ?? [line];
+      for (const s of sentences) {
+        const trimmed = s.trim();
+        if (trimmed) parts.push(trimmed);
+      }
+    }
+  }
+  return parts;
+}
+
 export function AiDraftDialog({
   open,
   onClose,
@@ -334,7 +358,22 @@ export function AiDraftDialog({
         : lang === "tr"
           ? "Teklifi güncelledim, aşağıdaki önizlemeden kontrol edebilirsin."
           : "Updated the proposal — check the preview below.";
-      setMessages((m) => [...m, { role: "assistant", content: reply }]);
+      // Capture before the onboarding-completed branch below can flip it —
+      // sequential reveal only applies to onboarding replies, never regular chat.
+      const useSequentialReveal = onboardingPending;
+      if (useSequentialReveal) {
+        const bubbles = splitIntoSentenceBubbles(reply);
+        for (let i = 0; i < bubbles.length; i++) {
+          if (stoppedRef.current) break;
+          setSending(true);
+          await sleep(i === 0 ? 350 : 850);
+          if (stoppedRef.current) break;
+          setSending(false);
+          setMessages((m) => [...m, { role: "assistant", content: bubbles[i] }]);
+        }
+      } else {
+        setMessages((m) => [...m, { role: "assistant", content: reply }]);
+      }
       if (data.draft) {
         // The server only stamps themeJson on the turn it resolves the template — carry
         // it forward on later turns instead of losing it.
@@ -405,6 +444,7 @@ export function AiDraftDialog({
         }
       }
       if (data.onboarding?.completed) {
+        setOnboardingPending(false);
         fetch("/api/settings/onboarding", { method: "POST" }).catch(() => {});
       }
     } catch (err) {
