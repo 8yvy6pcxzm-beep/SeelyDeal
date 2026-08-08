@@ -33,6 +33,7 @@ export function ClientsClient() {
 
   const [loading, setLoading] = useState(true);
   const [noCompany, setNoCompany] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [proposals, setProposals] = useState<ProposalSummary[]>([]);
@@ -42,9 +43,16 @@ export function ClientsClient() {
   const [newClient, setNewClient] = useState({ name: "", email: "", website: "" });
 
   async function load() {
-    const { data: auth } = await supabase.auth.getUser();
+    let { data: auth } = await supabase.auth.getUser();
     if (!auth.user) {
-      setNoCompany(true);
+      // Client session may just be stale (expired access token not yet
+      // refreshed) rather than an actual logged-out/demo state — retry
+      // once after a refresh before concluding there's no real account.
+      await supabase.auth.refreshSession();
+      ({ data: auth } = await supabase.auth.getUser());
+    }
+    if (!auth.user) {
+      setSessionExpired(true);
       setLoading(false);
       return;
     }
@@ -123,6 +131,18 @@ export function ClientsClient() {
       <div className="flex justify-center py-20">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
+    );
+  }
+
+  if (sessionExpired) {
+    return (
+      <Card>
+        <CardContent className="py-10 text-center text-sm text-muted-foreground">
+          {lang === "tr"
+            ? "Oturumun doğrulanamadı, sayfayı yenile ve tekrar dene."
+            : "We couldn't verify your session — refresh the page and try again."}
+        </CardContent>
+      </Card>
     );
   }
 
