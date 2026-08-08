@@ -156,6 +156,7 @@ export function AiDraftDialog({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const controllerRef = useRef<AbortController | null>(null);
   const stoppedRef = useRef(false);
+  const backdropMouseDownRef = useRef(false);
 
   const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
   // Per-file downscaling keeps images small, but PDFs pass through untouched —
@@ -720,7 +721,16 @@ export function AiDraftDialog({
   return createPortal(
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
-      onClick={onClose}
+      onMouseDown={(e) => {
+        backdropMouseDownRef.current = e.target === e.currentTarget;
+      }}
+      onClick={(e) => {
+        // Only close if the click started AND ended on the backdrop itself —
+        // otherwise selecting a message's text and releasing the mouse past
+        // the dialog's edge (a normal thing to do) closes the whole chat.
+        if (e.target === e.currentTarget && backdropMouseDownRef.current) onClose();
+        backdropMouseDownRef.current = false;
+      }}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
