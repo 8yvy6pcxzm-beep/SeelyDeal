@@ -251,35 +251,6 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
             </div>
           </div>
 
-          {!isLogin && (
-            <label className="flex items-start gap-2 text-xs text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={consent}
-                onChange={(e) => setConsent(e.target.checked)}
-                className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-input"
-              />
-              <span>
-                {lang === "tr" ? (
-                  <>
-                    <Link href="/privacy" target="_blank" className="underline underline-offset-2 hover:text-foreground">
-                      KVKK Aydınlatma Metni ve Gizlilik Politikası
-                    </Link>
-                    'nı okudum, kabul ediyorum.
-                  </>
-                ) : (
-                  <>
-                    I have read and accept the{" "}
-                    <Link href="/privacy" target="_blank" className="underline underline-offset-2 hover:text-foreground">
-                      Privacy Policy
-                    </Link>
-                    .
-                  </>
-                )}
-              </span>
-            </label>
-          )}
-
           {isLogin &&
             (ssoOpen ? (
               <form onSubmit={signInWithSsoDomain} className="flex gap-2">
@@ -326,6 +297,34 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             {notice && <p className="text-sm text-success">{notice}</p>}
+            {!isLogin && (
+              <label className="flex items-start gap-2 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={consent}
+                  onChange={(e) => setConsent(e.target.checked)}
+                  className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-input"
+                />
+                <span>
+                  {lang === "tr" ? (
+                    <>
+                      <Link href="/privacy" target="_blank" className="underline underline-offset-2 hover:text-foreground">
+                        KVKK Aydınlatma Metni ve Gizlilik Politikası
+                      </Link>
+                      'nı okudum, kabul ediyorum.
+                    </>
+                  ) : (
+                    <>
+                      I have read and accept the{" "}
+                      <Link href="/privacy" target="_blank" className="underline underline-offset-2 hover:text-foreground">
+                        Privacy Policy
+                      </Link>
+                      .
+                    </>
+                  )}
+                </span>
+              </label>
+            )}
             <Button type="submit" disabled={loading || (!isLogin && !consent)} className="w-full gap-2">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {isLogin ? ui.signIn : ui.getStarted}
