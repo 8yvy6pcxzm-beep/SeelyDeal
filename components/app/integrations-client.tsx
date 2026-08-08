@@ -37,21 +37,13 @@ export function IntegrationsClient({
         <CardContent className="space-y-3">
           {sortedIntegrations.map((it) => (
             <div key={it.key} className="flex items-center gap-4 rounded-lg border border-border p-4">
-              <span className="relative grid h-10 w-10 shrink-0 place-items-center">
-                {connected[it.key] && (
-                  <>
-                    <span className="absolute inset-0 animate-pulse rounded-lg bg-primary/50 blur-md" />
-                    <span className="absolute inset-0 animate-ping rounded-lg ring-2 ring-primary/50" />
-                  </>
-                )}
-                <span
-                  className={`relative grid h-10 w-10 place-items-center rounded-lg ${
-                    connected[it.key] ? "text-white" : "bg-muted text-muted-foreground"
-                  }`}
-                  style={connected[it.key] ? { backgroundImage: "var(--grad-brand)" } : undefined}
-                >
-                  <Icon name="plug" className="h-5 w-5" />
-                </span>
+              <span
+                className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${
+                  connected[it.key] ? "text-white" : "bg-muted text-muted-foreground"
+                }`}
+                style={connected[it.key] ? { backgroundImage: "var(--grad-brand)" } : undefined}
+              >
+                <Icon name="plug" className="h-5 w-5" />
               </span>
               <div className="group relative min-w-0 flex-1">
                 <div className="flex items-center gap-2">
