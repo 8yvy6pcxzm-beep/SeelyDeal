@@ -38,10 +38,11 @@ export function IntegrationsClient({
           {sortedIntegrations.map((it) => (
             <div key={it.key} className="flex items-center gap-4 rounded-lg border border-border p-4">
               <span
-                className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${
-                  connected[it.key] ? "text-white" : "bg-muted text-muted-foreground"
+                className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg border ${
+                  connected[it.key]
+                    ? "border-border bg-card text-success"
+                    : "border-transparent bg-muted text-muted-foreground"
                 }`}
-                style={connected[it.key] ? { backgroundImage: "var(--grad-brand)" } : undefined}
               >
                 <Icon name="plug" className="h-5 w-5" />
               </span>
