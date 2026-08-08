@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { useLang } from "@/components/i18n/language-provider";
-import { ApiKeySection } from "@/components/app/api-key-section";
 import { planAllows } from "@/lib/plan";
 import { usePlan } from "@/components/app/plan-provider";
 
@@ -69,8 +68,6 @@ export function IntegrationsClient({
           ))}
         </CardContent>
       </Card>
-
-      <ApiKeySection />
     </div>
   );
 }

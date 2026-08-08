@@ -15,7 +15,9 @@ export type GatedFeature =
   | "advanced_reporting"
   | "signatures"
   | "premium_design"
-  | "templates_create";
+  | "templates_create"
+  | "user_roles"
+  | "sso";
 
 const GATED_FEATURE_MIN_PLAN: Record<GatedFeature, Plan> = {
   crm_integrations: "pro",
@@ -28,6 +30,8 @@ const GATED_FEATURE_MIN_PLAN: Record<GatedFeature, Plan> = {
   signatures: "pro",
   premium_design: "custom",
   templates_create: "pro",
+  user_roles: "custom",
+  sso: "custom",
 };
 
 const PLAN_RANK: Record<Plan, number> = { lite: 0, pro: 1, custom: 2 };
