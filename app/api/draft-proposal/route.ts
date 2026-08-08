@@ -185,8 +185,6 @@ Sözleşme: ${resolved.contractText}`
       : `\n\nNot: verilen web sitesi (${websiteUrl}) çekilemedi — kullanıcıya bilgiyi manuel anlatmasını iste.`;
   }
 
-  // Lite (companies.plan === "lite") writes from the brief alone — no document library, no template following.
-  const isLite = (company?.plan ?? "lite") === "lite";
   const isCustom = (company?.plan ?? "lite") === "custom";
 
   // AI Prefill (Custom only): if the chat mentions an existing client by name, pull their most recent proposal as context.
@@ -212,14 +210,11 @@ Sözleşme: ${resolved.contractText}`
   }
 
   type Doc = { type: string; title: string; content: string; is_default_template: boolean };
-  const docsBlock = isLite
-    ? ""
-    : (docs ?? []).map((d: Doc) => `- [${d.type}] "${d.title}":\n${d.content}`).join("\n\n");
+  const docsBlock = (docs ?? []).map((d: Doc) => `- [${d.type}] "${d.title}":\n${d.content}`).join("\n\n");
 
-  const defaultTemplate: Doc | undefined = isLite
-    ? undefined
-    : ((docs ?? []).find((d: Doc) => d.type === "proposal_template" && d.is_default_template) ??
-      (docs ?? []).find((d: Doc) => d.type === "proposal_template"));
+  const defaultTemplate: Doc | undefined =
+    (docs ?? []).find((d: Doc) => d.type === "proposal_template" && d.is_default_template) ??
+    (docs ?? []).find((d: Doc) => d.type === "proposal_template");
 
   const pricingBlock = appConfig.marketing.pricing
     .map((p) => `${p.name}: ${p.price}${p.period ? p.period.tr : ""} — ${p.features.map((f) => f.label.tr).join(", ")}`)
@@ -244,8 +239,21 @@ Sözleşme: ${resolved.contractText}`
 7. Sözleşme Şartları — varsa revize edilmiş contractText, yoksa boş bırak.
 8. Sonraki Adımlar — kabul sonrası süreç (nextSteps, 3-5 adım).`;
 
-  const systemPrompt = `Sen ${company?.name ?? "bu işletme"} için çalışan bir teklif yazım asistanısın. Kullanıcı (işletme sahibi/çalışanı) seninle doğal, konuşma diliyle iletişim kurar ve senden müşterileri için teklif hazırlamanı ister.
+  const isOnboarding = !company?.onboarding_completed && messages.length === 1;
 
+  const onboardingBlock = isOnboarding
+    ? `\nİLK TANIŞMA AKIŞI (bu şirket seninle ilk kez konuşuyor, bunu ÖNCELİKLE uygula):
+- Sohbetin en başında, kullanıcının mesajından TAMAMEN BAĞIMSIZ olarak şu tanıtımla başla (aynen bu ruhla, birebir kopyalamak zorunda değilsin ama anlamı ve sıcaklığı korunmalı): "Selam! Tanıştığımıza memnun oldum. Ben Seely, sadece sana yardım için buradayım. Bana güvenebilirsin ve benimle ilgili her şeyi buraya yazarak yönetebilirsin." Ardından hafif esprili/kendinden emin bir alt cümle ekle, örn. "Let me lead. I'm the master of it 😎" Sonra "5 dakikan varsa, beni nasıl kullanabileceğini kısaca anlatabilirim, ister misin?" diye sor (kullanıcı istemezse ısrar etme, direkt sıradaki adıma geç).
+- Ardından şirketini tanımasını iste: örnek bir teklif (PDF/Word/resim) yüklemesini rica et. Kullanıcı bir dosya eklerse, içeriğinden şirket adını, sunduğu hizmetleri ve fiyatlandırma tarzını çıkar; her alanı TEK TEK, "... olarak belirliyorum, doğru mu?" tarzı bir soruyla teyit ettir — kullanıcı onaylamadan hiçbir alanı kesinleşmiş sayma. Kullanıcı dosya yüklemek istemezse, aynı bilgileri birkaç kısa soruyla sohbetten topla.
+- Şirket adı netleştiği/onaylandığı an, ondan sonraki cevabına "Şimdi kendimize geldik! Selam [şirket adı], ya da sana nasıl hitap etmemi istersin?" gibi bir karşılamayla geç (şirket/kullanıcı adını doğal şekilde kullanmaya başla).
+- Son adımda, teklifleri onun için nasıl daha kişisel yazacağını sor — kalıcı AI talimatları toplamaya çalış (örn. ton, kaçınılacak ifadeler, hep uygulanacak kurallar). Kullanıcı doldurmak istemezse "geç" seçeneği sun ve o cevap verdiğinde ısrar etmeden akışı TAMAMLA.
+- Bu akış tamamlandığında (kullanıcı talimat verdi VEYA geçti fark etmez), cevabının SONUNA (varsa diğer bloklardan sonra) ayrı bir \`\`\`onboarding ... \`\`\` bloğu ekle: {"completed": true}. Bu bloğu SADECE tanışma akışının son adımı bittiğinde ekle, akış devam ederken EKLEME.
+- Şirket adını bu akışta öğrenip teyit ettiysen, cevabının sonundaki \`\`\`brand\`\`\` bloğuna (yoksa yeni oluştur) \`"name"\` alanını da ekle: {"name": "...", "setLogo": ..., "primaryColor": ...} — sadece kullanıcı açıkça onayladıysa doldur.
+`
+    : "";
+
+  const systemPrompt = `Sen ${company?.name ?? "bu işletme"} için çalışan bir teklif yazım asistanısın. Kullanıcı (işletme sahibi/çalışanı) seninle doğal, konuşma diliyle iletişim kurar ve senden müşterileri için teklif hazırlamanı ister.
+${onboardingBlock}
 KURALLAR:
 - Türkçe konuş (kullanıcı İngilizce yazarsa İngilizce cevap ver).
 - Teklif hazırlamak için gerekli bilgiler eksikse (müşteri adı, sunulacak hizmet, fiyatlandırma yaklaşımı) TEK TEK, doğal bir sohbet diliyle sor. Kullanıcı "nelere ihtiyacın var" derse hepsini liste halinde sun.
@@ -257,7 +265,8 @@ KURALLAR:
   }
 - TALİMAT KAYDI: Kullanıcı sana kalıcı bir kural/tercih bildirirse — "bundan sonra hep böyle yap", "her zaman", "bunu hatırla", "bir daha sorma, direkt X yap" gibi bir ifadeyle, gelecekteki teklifler için de geçerli olacak bir talimat verirse (örn. "opsiyonel kalemleri hep işaretsiz bırak", "ödeme linkini hiç sorma, ben eklerim") — cevabının SONUNA (varsa json/brand bloklarından sonra) ayrı bir \`\`\`instruction ... \`\`\` bloğu ekle: {"text": "kısa, net, tekrar kullanılabilir talimat cümlesi (emir kipiyle, örn. \\"Opsiyonel kalemleri varsayılan olarak işaretsiz bırak.\\")"}. Bu SADECE bu teklife özel değil, GELECEKTEKİ TÜM tekliflere uygulanacak kalıcı bir kural olduğunda ekle — tek seferlik bir istek ("bu teklifte X yap") için ekleme. Cevap metninde kısaca teyit et (örn. "Tamam, bunu bundan sonraki tüm tekliflerde hatırlayacağım.").
 - Kullanıcı bir dosya (PDF, resim, ekran görüntüsü) eklerse, içeriğini oku ve teklif için gereken bilgileri (marka, fiyatlandırma, kapsam, müşteri bilgisi vb.) oradan çıkar — tekrar sorma.
-${isLite ? "" : `- Kullanıcı "standart sözleşmemi/teklif formatımı kullan, şunu revize et" derse, aşağıdaki DOKÜMAN KÜTÜPHANESİ'nden ilgili dokümanı bul, verdiği talimatlara göre revize ederek kullan.\n`}- Fiyatlandırmada, aksi istenmedikçe aşağıdaki GERÇEK PAKETLERİMİZİ kullan.
+- Kullanıcı "standart sözleşmemi/teklif formatımı kullan, şunu revize et" derse, aşağıdaki VARSAYILAN İÇERİK'ten ilgili dokümanı bul, verdiği talimatlara göre revize ederek kullan.
+- Fiyatlandırmada, aksi istenmedikçe aşağıdaki GERÇEK PAKETLERİMİZİ kullan.
 - ÇOK ÖNEMLİ — TEK PAKET VARSAYILANI: Kullanıcı SeelyDeal'ı (bu ürünün kendisini) bir müşteriye satan bir teklif hazırlatıyorsa, VARSAYILAN OLARAK sadece TEK bir paket (müşterinin ihtiyacına en uygun olanı, belirsizse Pro) öner — o paketin fiyatını normal bir \`lineItem\` olarak yaz, \`billingOptions\` dizisini BOŞ bırak. \`billingOptions\`u (birden fazla, birbirini dışlayan seçenek — ki bu her seçenek için ayrı bir ödeme linki kutusu doğurur) SADECE kullanıcı açıkça "müşteri birden fazla paket arasından seçsin", "aylık ve yıllık ikisini de sunayım", "farklı seçenekler göster" gibi bir şey istediğinde kullan. "Kapsamlı olsun", "tüm bölümler dahil olsun" gibi genel istekler bunu TETİKLEMEZ — bunlar sadece bölüm/içerik zenginliğiyle ilgilidir, paket sayısıyla değil.
 - ÇOK ÖNEMLİ — OKUNAKLILIK: \`sections\` dizisindeki her bölümün \`body\`'si UZUN PARAGRAF OLMASIN — her bölüm başlığının altına, o bölümü özetleyen TEK bir çarpıcı cümle yaz (en fazla ~20 kelime, gerekirse virgülle iki-üç madde birleştir). Örnek: "Keşif, marka sistemi, 8 sayfalık web sitesi ve devir." veya "Sabit ücret + opsiyonel bakım paketi." Detay gerekiyorsa ikinci cümleye değil, ayrı bir alt madde/kalem olarak lineItems'a taşı. \`introText\` ve \`aboutText\` bu kurala tabi değil, onlar kısa paragraf olabilir.
 - Kullanıcı bir kalemi "opsiyonel" veya "ek hizmet" olarak belirtirse, o kalemi \`optional: true\` yap (müşteri bunu teklifi görüntülerken açıp kapatabilir). \`included\` alanı, opsiyonel kalemin varsayılan olarak işaretli gelip gelmeyeceğini belirtir (belirtilmediyse false).
@@ -273,11 +282,9 @@ ${isLite ? "" : `- Kullanıcı "standart sözleşmemi/teklif formatımı kullan,
       : ""
   }
 - Teklifi SADE mi yoksa KAPSAMLI mı hazırlayacağına karar verirken şu sırayla ilerle:
-  1. Kullanıcı açıkça "sade/basit hazırla" derse, DOĞRUDAN onu uygula (SADE) — bu her zaman en öncelikli kuraldır, başka hiçbir ipucuna bakma.${
-    isLite
-      ? ""
-      : `\n  2. Kullanıcı DOKÜMAN KÜTÜPHANESİ'nden belirli bir "teklif formatı" adı verip onu istediyse, o şablonun yapısını birebir takip et (KAPSAMLI).\n  3. Kullanıcı özel bir şablon istemediyse, aşağıdaki VARSAYILAN TEKLİF ŞABLONU'nu (şirketin kendi yüklediği ya da yerleşik "Standart Kapsamlı Teklif") KULLANMAK ZORUNLUSUN — serbest/improvize nesir yazma, şablonun bölüm sırasını ve başlıklarını birebir takip et.`
-  }
+  1. Kullanıcı açıkça "sade/basit hazırla" derse, DOĞRUDAN onu uygula (SADE) — bu her zaman en öncelikli kuraldır, başka hiçbir ipucuna bakma.
+  2. Kullanıcı VARSAYILAN İÇERİK'ten belirli bir "teklif formatı" adı verip onu istediyse, o şablonun yapısını birebir takip et (KAPSAMLI).
+  3. Kullanıcı özel bir şablon istemediyse, aşağıdaki VARSAYILAN TEKLİF ŞABLONU'nu (şirketin kendi yüklediği ya da yerleşik "Standart Kapsamlı Teklif") KULLANMAK ZORUNLUSUN — serbest/improvize nesir yazma, şablonun bölüm sırasını ve başlıklarını birebir takip et.
   4. Müşteri adı ve sunulacak hizmet netleştiği ama teklif tipi henüz belirtilmediyse — teklifi üretmeden ÖNCE tek bir soru olarak sor: "Standart kapsamlı bir teklif mi hazırlayayım (ön yazı, hakkımızda, ekip, hizmet kapsamı, süreç, sözleşme şartları, sonraki adımlar dahil), yoksa daha sade/hızlı bir teklif mi istersin?" Kullanıcı "kapsamlı/standart/detaylı" derse VARSAYILAN TEKLİF ŞABLONU'nu birebir takip et; "sade/hızlı" derse SADE hazırla. Kullanıcı bu soruyu atlayıp direkt "sade hazırla" ya da açıkça kapsamlı bir brief verdiyse, ayrıca sorma — kural 1'e göre davran.
   - \`introText\`: "Sayın [muhatap adı]," ile başlayan, görüşmeyi hatırlatan, 2-3 cümlelik resmi ama sıcak bir ön yazı.
   - \`aboutText\`: Şirketin ne iş yaptığını anlatan kısa bir "hakkımızda" paragrafı (şirket bilgilerinden ve dokümanlardan yararlan).
@@ -300,9 +307,7 @@ ${
       ? `ÖNEMLİ — DÜZENLEME MODU: Kullanıcının önünde zaten hazır bir teklif taslağı var (bir şablondan yazılmaya başlandı ya da daha önce üzerinde konuşuldu). Kullanıcının mesajı büyük ihtimalle bu taslak üzerinde KÜÇÜK, HEDEFLİ bir değişiklik istiyor (ör. "işçilik x2 olsun", "fiyatı 50000 yap", "müşteri adını değiştir"). AŞAĞIDAKİ MEVCUT TASLAK'ı baz al, İSTENEN DEĞİŞİKLİĞİ uygula, TALEP EDİLMEYEN hiçbir alanı değiştirme — metinleri yeniden yazma, kalemleri silme/ekleme, sırasını değiştirme, sadece istenen kısmı güncelle. "x2 olsun" gibi bir istek varsa ilgili \`lineItem\`in \`qty\` ya da \`unit\`inden hangisi anlama daha uygunsa onu 2 ile çarp (ör. "işçilik x2 olsun" → işçilik kaleminin toplamı ikiye katlanacak şekilde \`qty\` veya \`unit\`i güncelle). Cevabının sonundaki json bloğu bu taslağın TAMAMINI (değişmeyen alanlar dahil) güncel haliyle içermeli.\nMEVCUT TASLAK:\n${JSON.stringify(currentDraft)}\n\n`
       : ""
   }${
-    isLite
-      ? ""
-      : `DOKÜMAN KÜTÜPHANESİ:
+    `VARSAYILAN İÇERİK:
 ${docsBlock || "(henüz doküman eklenmedi)"}
 
 `
@@ -362,14 +367,25 @@ ${pricingBlock}${websiteContext}${prefillBlock}`;
     draft.themeJson = resolved.theme;
   }
 
-  // Optional ```brand``` block — logo/color the model detected in this turn (see MARKA KAYDI rule above).
+  // Optional ```brand``` block — logo/color (and, during onboarding, company name) the model detected this turn (see MARKA KAYDI rule above).
   const brandMatch = replyText.match(/```brand\s*([\s\S]*?)```/);
-  let brand: { setLogo?: boolean; primaryColor?: string | null } | null = null;
+  let brand: { setLogo?: boolean; primaryColor?: string | null; name?: string } | null = null;
   if (brandMatch) {
     try {
       brand = JSON.parse(brandMatch[1]);
     } catch {
       brand = null;
+    }
+  }
+
+  // Optional ```onboarding``` block — signals the first-chat intro flow just finished (see İLK TANIŞMA AKIŞI rule above).
+  const onboardingMatch = replyText.match(/```onboarding\s*([\s\S]*?)```/);
+  let onboarding: { completed?: boolean } | null = null;
+  if (onboardingMatch) {
+    try {
+      onboarding = JSON.parse(onboardingMatch[1]);
+    } catch {
+      onboarding = null;
     }
   }
 
@@ -396,7 +412,8 @@ ${pricingBlock}${websiteContext}${prefillBlock}`;
     .replace(/```json[\s\S]*?```/, "")
     .replace(/```brand[\s\S]*?```/, "")
     .replace(/```instruction[\s\S]*?```/, "")
+    .replace(/```onboarding[\s\S]*?```/, "")
     .trim();
 
-  return NextResponse.json({ reply, draft, brand, instruction, remaining: limit - (draft ? used + 1 : used) });
+  return NextResponse.json({ reply, draft, brand, instruction, onboarding, remaining: limit - (draft ? used + 1 : used) });
 }

@@ -9,7 +9,6 @@ import { Input, Label } from "@/components/ui/input";
 import { useLang } from "@/components/i18n/language-provider";
 import { aiOveragePack } from "@/app.config";
 import { planAllows, type Plan } from "@/lib/plan";
-import { usePlan } from "@/components/app/plan-provider";
 
 type Company = {
   id: string;
@@ -53,7 +52,6 @@ function textareaClass(extra?: string) {
 
 export function CompanyProfileClient() {
   const { lang } = useLang();
-  const plan = usePlan();
   const supabase = createClient();
 
   const [loading, setLoading] = useState(true);
@@ -578,27 +576,15 @@ export function CompanyProfileClient() {
         </CardContent>
       </Card>
 
-      {/* Documents */}
-      {!planAllows(plan, "document_library") ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>{lang === "tr" ? "Doküman kütüphanesi" : "Document library"}</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              {lang === "tr"
-                ? "Doküman kütüphanesi Pro ve Custom paketlerinde kullanılabilir. Ücretsiz deneme (Lite) bu özelliği içermez."
-                : "The document library is available on the Pro and Custom plans. The free trial (Lite) doesn't include this feature."}
-            </p>
-          </CardHeader>
-        </Card>
-      ) : (
+      {/* Default content */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>{lang === "tr" ? "Doküman kütüphanesi" : "Document library"}</CardTitle>
+            <CardTitle>{lang === "tr" ? "Varsayılan içerik" : "Default content"}</CardTitle>
             <p className="text-sm text-muted-foreground">
               {lang === "tr"
-                ? "Standart sözleşmen ve en çok kullandığın teklif formatları. PDF/Word dosyanı yükleyebilir, birebir metnini kütüphaneye ekleyebilirsin. Bir \"teklif formatı\"nı varsayılan yaparsan AI teklifleri o iskelete göre yazar."
-                : "Your standard contract and go-to proposal formats. Upload a PDF/Word file to add its exact text to the library. Mark a \"proposal format\" as default and the AI will follow its skeleton."}
+                ? "Standart sözleşmen ve en çok kullandığın teklif formatları. PDF/Word dosyanı yükleyebilir, birebir metnini buraya ekleyebilirsin. Bir \"teklif formatı\"nı varsayılan yaparsan AI teklifleri o iskelete göre yazar."
+                : "Your standard contract and go-to proposal formats. Upload a PDF/Word file to add its exact text here. Mark a \"proposal format\" as default and the AI will follow its skeleton."}
             </p>
           </div>
           <div className="flex gap-2">
@@ -677,7 +663,6 @@ export function CompanyProfileClient() {
           ))}
         </CardContent>
       </Card>
-      )}
     </div>
   );
 }

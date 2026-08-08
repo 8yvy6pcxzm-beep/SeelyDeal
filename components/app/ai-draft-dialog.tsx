@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useLang } from "@/components/i18n/language-provider";
 import { cn } from "@/lib/utils";
 
-type Msg = { role: "user" | "assistant"; content: string; attachmentName?: string };
+type Msg = { role: "user" | "assistant"; content: string; attachmentName?: string; hidden?: boolean };
 type Attachment = { name: string; mediaType: string; base64: string };
 type BillingOption = { key: string; label: { tr: string; en: string }; price: number; paymentLink?: string };
 type ClientContact = { company?: string; contactName?: string; title?: string; address?: string; phone?: string; email?: string; website?: string };
@@ -111,6 +111,9 @@ export function AiDraftDialog({
   const [attachment, setAttachment] = useState<Attachment | null>(null);
   const [attachError, setAttachError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  // Fetched fresh each time the dialog opens — whether this company still needs
+  // Seely's first-chat intro (companies.onboarding_completed === false).
+  const [onboardingPending, setOnboardingPending] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const controllerRef = useRef<AbortController | null>(null);
@@ -221,6 +224,22 @@ export function AiDraftDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialTemplateId]);
 
+  useEffect(() => {
+    if (!open || initialTemplateId) return;
+    fetch("/api/settings/onboarding")
+      .then((r) => r.json())
+      .then((d) => setOnboardingPending(d.onboardingCompleted === false))
+      .catch(() => {});
+  }, [open, initialTemplateId]);
+
+  useEffect(() => {
+    if (!open || !onboardingPending || initialTemplateId || messages.length > 0) return;
+    // Kick off Seely's first-chat intro ourselves — no visible user bubble, the
+    // company just sees the intro appear the moment the dialog opens.
+    send(lang === "tr" ? "Merhaba" : "Hi", { hidden: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, onboardingPending]);
+
   /** Esc while Seely is replying stops the request and puts the last message back
    * in the input so the user can fix a typo/instruction and resend — mirrors how
    * Esc interrupts an in-progress agent turn here in Claude Code. */
@@ -257,7 +276,7 @@ export function AiDraftDialog({
     return /^(kaydet(?:sene)?|kaydediver|teklife ekle|ekle|save( it| this)?)[.!?]*$/i.test(text.trim());
   }
 
-  async function send(override?: string) {
+  async function send(override?: string, opts?: { hidden?: boolean }) {
     if ((!override?.trim() && !input.trim() && !attachment) || loading) return;
     const text =
       override?.trim() ||
@@ -274,7 +293,7 @@ export function AiDraftDialog({
       return;
     }
 
-    const next = [...messages, { role: "user" as const, content: text, attachmentName: attachment?.name }];
+    const next = [...messages, { role: "user" as const, content: text, attachmentName: attachment?.name, hidden: opts?.hidden }];
     setMessages(next);
     setInput("");
     const sentAttachment = attachment;
@@ -370,6 +389,23 @@ export function AiDraftDialog({
             })
             .catch(() => setError(lang === "tr" ? "Marka rengi kaydedilemedi." : "Couldn't save the brand color."));
         }
+        if (data.brand.name) {
+          fetch("/api/settings/company-name", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: data.brand.name }),
+          })
+            .then(async (r) => {
+              if (!r.ok) {
+                const d = await r.json().catch(() => null);
+                setError(d?.error || (lang === "tr" ? "Şirket adı kaydedilemedi." : "Couldn't save the company name."));
+              }
+            })
+            .catch(() => setError(lang === "tr" ? "Şirket adı kaydedilemedi." : "Couldn't save the company name."));
+        }
+      }
+      if (data.onboarding?.completed) {
+        fetch("/api/settings/onboarding", { method: "POST" }).catch(() => {});
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError" && stoppedRef.current) {
@@ -498,7 +534,7 @@ export function AiDraftDialog({
         </div>
 
         <div className="flex-1 space-y-3 overflow-y-auto p-5">
-          {messages.length === 0 && (
+          {messages.length === 0 && !onboardingPending && (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
                 {lang === "tr"
@@ -537,7 +573,7 @@ export function AiDraftDialog({
               )}
             </div>
           )}
-          {messages.map((m, i) => (
+          {messages.filter((m) => !m.hidden).map((m, i) => (
             <div
               key={i}
               className={cn(
