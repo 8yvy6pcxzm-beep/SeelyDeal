@@ -629,6 +629,20 @@ export function AiDraftDialog({
             })
             .catch(() => setError(lang === "tr" ? "E-posta kaydedilemedi." : "Couldn't save the email."));
         }
+        if (data.brand.servicesSummary) {
+          fetch("/api/settings/service-description", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content: data.brand.servicesSummary }),
+          })
+            .then(async (r) => {
+              if (!r.ok) {
+                const d = await r.json().catch(() => null);
+                setError(d?.error || (lang === "tr" ? "Hizmet/fiyatlandırma kaydedilemedi." : "Couldn't save the service/pricing summary."));
+              }
+            })
+            .catch(() => setError(lang === "tr" ? "Hizmet/fiyatlandırma kaydedilemedi." : "Couldn't save the service/pricing summary."));
+        }
       }
       if (data.onboarding?.completed) {
         setOnboardingPending(false);

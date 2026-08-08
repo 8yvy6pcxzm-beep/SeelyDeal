@@ -725,8 +725,8 @@ export function CompanyProfileClient() {
             <CardTitle>{lang === "tr" ? "Varsayılan içerik" : "Default content"}</CardTitle>
             <p className="text-sm text-muted-foreground">
               {lang === "tr"
-                ? "Standart sözleşmen ve en çok kullandığın teklif formatları. PDF/Word dosyanı yükleyebilir, birebir metnini buraya ekleyebilirsin. Bir \"teklif formatı\"nı varsayılan yaparsan AI teklifleri o iskelete göre yazar."
-                : "Your standard contract and go-to proposal formats. Upload a PDF/Word file to add its exact text here. Mark a \"proposal format\" as default and the AI will follow its skeleton."}
+                ? "Standart sözleşmen, teklif formatların ve hizmet/fiyatlandırma açıklaman. PDF/Word dosyanı yükleyebilir, birebir metnini buraya ekleyebilirsin. Bir \"teklif formatı\"nı varsayılan yaparsan AI teklifleri o iskelete göre yazar; bir \"hizmet açıklaması\" ekleyip hangi hizmeti ne ücrete sunduğunu yazarsan, AI her teklifte bunu varsayılan olarak kullanır."
+                : "Your standard contract, go-to proposal formats, and your services/pricing description. Upload a PDF/Word file to add its exact text here. Mark a \"proposal format\" as default and the AI will follow its skeleton; add a \"service description\" listing what you offer and at what price, and the AI will use it as the default for every proposal."}
             </p>
           </div>
           <div className="flex gap-2">
