@@ -600,6 +600,34 @@ export function AiDraftDialog({
             })
             .catch(() => setError(lang === "tr" ? "Şirket adı kaydedilemedi." : "Couldn't save the company name."));
         }
+        if (data.brand.tagline) {
+          fetch("/api/settings/tagline", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tagline: data.brand.tagline }),
+          })
+            .then(async (r) => {
+              if (!r.ok) {
+                const d = await r.json().catch(() => null);
+                setError(d?.error || (lang === "tr" ? "Slogan kaydedilemedi." : "Couldn't save the tagline."));
+              }
+            })
+            .catch(() => setError(lang === "tr" ? "Slogan kaydedilemedi." : "Couldn't save the tagline."));
+        }
+        if (data.brand.email) {
+          fetch("/api/settings/email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: data.brand.email }),
+          })
+            .then(async (r) => {
+              if (!r.ok) {
+                const d = await r.json().catch(() => null);
+                setError(d?.error || (lang === "tr" ? "E-posta kaydedilemedi." : "Couldn't save the email."));
+              }
+            })
+            .catch(() => setError(lang === "tr" ? "E-posta kaydedilemedi." : "Couldn't save the email."));
+        }
       }
       if (data.onboarding?.completed) {
         setOnboardingPending(false);
@@ -715,9 +743,11 @@ export function AiDraftDialog({
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
             <h3 className="font-semibold">
-              {mode === "template"
-                ? lang === "tr" ? "AI ile şablon yaz" : "Draft a template with AI"
-                : lang === "tr" ? "AI ile teklif yaz" : "Draft with AI"}
+              {onboardingPending
+                ? lang === "tr" ? "Kurulum" : "Setup"
+                : mode === "template"
+                  ? lang === "tr" ? "AI ile şablon yaz" : "Draft a template with AI"
+                  : lang === "tr" ? "AI ile teklif yaz" : "Draft with AI"}
             </h3>
           </div>
           <button
