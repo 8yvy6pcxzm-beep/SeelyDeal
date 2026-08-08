@@ -292,6 +292,7 @@ export function AiDraftDialog({
           messages: next.map(({ role, content }) => ({ role, content })),
           websiteUrl: websiteUrl || undefined,
           attachment: sentAttachment ?? undefined,
+          currentDraft: draft ?? undefined,
         }),
         signal: controller.signal,
       });

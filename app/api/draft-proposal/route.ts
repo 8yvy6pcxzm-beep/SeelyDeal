@@ -31,10 +31,14 @@ function matchNamedTemplate(chatText: string) {
 }
 
 export async function POST(req: Request) {
-  const { messages, websiteUrl, attachment } = (await req.json()) as {
+  const { messages, websiteUrl, attachment, currentDraft } = (await req.json()) as {
     messages: ChatMessage[];
     websiteUrl?: string;
     attachment?: Attachment;
+    /** The draft already sitting in the preview (e.g. loaded from a template, or an
+     *  existing proposal being edited) — without this the model has no idea what a
+     *  bare instruction like "işçilik x2 olsun" refers to. */
+    currentDraft?: unknown;
   };
 
   const user = await getAuthedUser(req);
@@ -225,6 +229,10 @@ KULLANICI TALİMATLARI (şirketin kendi eklediği kalıcı notlar — HER ZAMAN 
 ŞİRKET EKİBİ: ${teamBlock || "(henüz eklenmedi)"}
 
 ${
+    currentDraft
+      ? `ÖNEMLİ — DÜZENLEME MODU: Kullanıcının önünde zaten hazır bir teklif taslağı var (bir şablondan yüklendi ya da daha önce üzerinde konuşuldu). Kullanıcının mesajı büyük ihtimalle bu taslak üzerinde KÜÇÜK, HEDEFLİ bir değişiklik istiyor (ör. "işçilik x2 olsun", "fiyatı 50000 yap", "müşteri adını değiştir"). AŞAĞIDAKİ MEVCUT TASLAK'ı baz al, İSTENEN DEĞİŞİKLİĞİ uygula, TALEP EDİLMEYEN hiçbir alanı değiştirme — metinleri yeniden yazma, kalemleri silme/ekleme, sırasını değiştirme, sadece istenen kısmı güncelle. "x2 olsun" gibi bir istek varsa ilgili \`lineItem\`in \`qty\` ya da \`unit\`inden hangisi anlama daha uygunsa onu 2 ile çarp (ör. "işçilik x2 olsun" → işçilik kaleminin toplamı ikiye katlanacak şekilde \`qty\` veya \`unit\`i güncelle). Cevabının sonundaki json bloğu bu taslağın TAMAMINI (değişmeyen alanlar dahil) güncel haliyle içermeli.\nMEVCUT TASLAK:\n${JSON.stringify(currentDraft)}\n\n`
+      : ""
+  }${
     isLite
       ? ""
       : `DOKÜMAN KÜTÜPHANESİ:
@@ -232,7 +240,9 @@ ${docsBlock || "(henüz doküman eklenmedi)"}
 
 `
   }${
-    namedTemplate
+    currentDraft
+      ? ""
+      : namedTemplate
       ? `ÖZEL ŞABLON — "${namedTemplate.nickname}": kullanıcı bu teklif için bu şablonu istedi. VARSAYILAN TEKLİF ŞABLONU'nu YOK SAY, bunun yerine AŞAĞIDAKİ yapıyı ve bölüm başlıklarını birebir takip et (metinleri brief'e göre uyarla, ama bölüm sırasını ve başlıklarını değiştirme):\n${namedTemplateBlock}\n${namedTemplate.theme ? "Renk teması ve font otomatik uygulanacak, bunu ayrıca söylemene gerek yok.\n" : ""}\n`
       : `VARSAYILAN TEKLİF ŞABLONU:\n${defaultTemplate ? `"${defaultTemplate.title}":\n${defaultTemplate.content}` : builtInComprehensiveTemplate}\n\n`
   }GERÇEK PAKETLERİMİZ:
