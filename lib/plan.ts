@@ -7,6 +7,7 @@ export type Plan = "lite" | "pro" | "custom";
  */
 export type GatedFeature =
   | "crm_integrations"
+  | "accounting_integrations"
   | "api_access"
   | "document_library"
   | "document_analytics"
@@ -21,6 +22,7 @@ export type GatedFeature =
 
 const GATED_FEATURE_MIN_PLAN: Record<GatedFeature, Plan> = {
   crm_integrations: "pro",
+  accounting_integrations: "custom",
   api_access: "pro",
   document_library: "pro",
   document_analytics: "pro",

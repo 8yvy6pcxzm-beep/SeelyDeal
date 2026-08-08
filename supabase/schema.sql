@@ -103,6 +103,7 @@ create table if not exists profiles (
   role text not null default 'member' check (role in ('owner', 'admin', 'member', 'viewer')),
   permissions jsonb not null default '{}'::jsonb,
   email text,
+  consent_at timestamptz,
   created_at timestamptz not null default now()
 );
 

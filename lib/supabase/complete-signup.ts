@@ -6,7 +6,7 @@ import { createServiceClient } from "@/lib/supabase/server";
  * OAuth callback, since both need to create the company/profile row the
  * first time a given auth user shows up.
  */
-export async function completeSignup(userId: string, email: string, companyName?: string) {
+export async function completeSignup(userId: string, email: string, companyName?: string, consent?: boolean) {
   const supabase = createServiceClient();
 
   const { data: existing } = await supabase.from("profiles").select("id").eq("id", userId).maybeSingle();
@@ -23,9 +23,14 @@ export async function completeSignup(userId: string, email: string, companyName?
     .maybeSingle();
 
   if (invite) {
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .insert({ id: userId, company_id: invite.company_id, role: invite.role, permissions: invite.permissions, email });
+    const { error: profileError } = await supabase.from("profiles").insert({
+      id: userId,
+      company_id: invite.company_id,
+      role: invite.role,
+      permissions: invite.permissions,
+      email,
+      consent_at: consent ? new Date().toISOString() : null,
+    });
     if (profileError) {
       return { ok: false as const, error: profileError.message };
     }
@@ -43,9 +48,13 @@ export async function completeSignup(userId: string, email: string, companyName?
     return { ok: false as const, error: companyError.message };
   }
 
-  const { error: profileError } = await supabase
-    .from("profiles")
-    .insert({ id: userId, company_id: company.id, role: "owner", email });
+  const { error: profileError } = await supabase.from("profiles").insert({
+    id: userId,
+    company_id: company.id,
+    role: "owner",
+    email,
+    consent_at: consent ? new Date().toISOString() : null,
+  });
 
   if (profileError) {
     return { ok: false as const, error: profileError.message };

@@ -7,8 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { useLang } from "@/components/i18n/language-provider";
-import { planAllows } from "@/lib/plan";
+import { planAllows, type GatedFeature } from "@/lib/plan";
 import { usePlan } from "@/components/app/plan-provider";
+
+/** Which plan gate a given oauth-flagged integration row requires — defaults to crm_integrations (Pro+). */
+const INTEGRATION_GATE: Record<string, GatedFeature> = {
+  parasut: "accounting_integrations",
+};
 
 export function IntegrationsClient({
   connected,
@@ -19,7 +24,6 @@ export function IntegrationsClient({
 }) {
   const { ui, lang } = useLang();
   const plan = usePlan();
-  const crmAllowed = planAllows(plan, "crm_integrations");
 
   const sortedIntegrations = [...appConfig.integrations].sort(
     (a, b) => Number(!!connected[b.key]) - Number(!!connected[a.key]),
@@ -56,9 +60,15 @@ export function IntegrationsClient({
                 </div>
               </div>
               {it.oauth ? (
-                !crmAllowed ? (
+                !planAllows(plan, INTEGRATION_GATE[it.key] ?? "crm_integrations") ? (
                   <span className="text-sm font-medium text-muted-foreground">
-                    {lang === "tr" ? "Pro paketinde" : "On Pro plan"}
+                    {INTEGRATION_GATE[it.key] === "accounting_integrations"
+                      ? lang === "tr"
+                        ? "Custom pakette"
+                        : "On Custom plan"
+                      : lang === "tr"
+                        ? "Pro paketinde"
+                        : "On Pro plan"}
                   </span>
                 ) : oauthReady[it.key] ? (
                   <a href={`/api/integrations/${it.key}/connect`}>

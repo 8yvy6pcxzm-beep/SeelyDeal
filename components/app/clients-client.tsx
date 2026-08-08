@@ -64,13 +64,14 @@ export function ClientsClient() {
     }
     setCompanyId(profile.company_id);
 
-    const [{ data: clientRows }, { data: proposalRows }] = await Promise.all([
-      supabase.from("clients").select("*").eq("company_id", profile.company_id).order("created_at", { ascending: false }),
-      supabase.from("proposals").select("client_id, value, status, created_at").eq("company_id", profile.company_id),
-    ]);
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const res = await fetch("/api/clients", { headers: { Authorization: `Bearer ${session?.access_token}` } });
+    const data = await res.json();
 
-    setClients(clientRows ?? []);
-    setProposals(proposalRows ?? []);
+    setClients(res.ok ? (data.clients ?? []) : []);
+    setProposals(res.ok ? (data.proposals ?? []) : []);
     setLoading(false);
   }
 
@@ -99,17 +100,16 @@ export function ClientsClient() {
   async function addClient() {
     if (!companyId || !newClient.name.trim()) return;
     setSaving(true);
-    const { data } = await supabase
-      .from("clients")
-      .insert({
-        company_id: companyId,
-        name: newClient.name.trim(),
-        email: newClient.email.trim() || null,
-        website: newClient.website.trim() || null,
-      })
-      .select("*")
-      .single();
-    if (data) setClients((c) => [data, ...c]);
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const res = await fetch("/api/clients", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+      body: JSON.stringify({ name: newClient.name.trim(), email: newClient.email.trim(), website: newClient.website.trim() }),
+    });
+    const data = await res.json();
+    if (res.ok && data.client) setClients((c) => [data.client, ...c]);
     setNewClient({ name: "", email: "", website: "" });
     setAdding(false);
     setSaving(false);
@@ -117,7 +117,10 @@ export function ClientsClient() {
 
   async function removeClient(id: string) {
     setClients((c) => c.filter((x) => x.id !== id));
-    await supabase.from("clients").delete().eq("id", id);
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    await fetch(`/api/clients/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${session?.access_token}` } });
   }
 
   function fmtDate(iso: string | null) {

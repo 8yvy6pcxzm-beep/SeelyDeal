@@ -470,11 +470,49 @@ export function CompanyProfileClient() {
           )}
           <div className="space-y-1.5">
             <Label>{lang === "tr" ? "Ana renk (hex)" : "Primary color (hex)"}</Label>
-            <Input
-              value={company.primary_color ?? ""}
-              onChange={(e) => setCompany({ ...company, primary_color: e.target.value })}
-              placeholder="#7c5cf0"
-            />
+            <div className="flex items-center gap-2">
+              <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md border border-border">
+                <input
+                  type="color"
+                  value={/^#[0-9a-fA-F]{6}$/.test(company.primary_color ?? "") ? company.primary_color! : "#7c5cf0"}
+                  onChange={(e) => setCompany({ ...company, primary_color: e.target.value })}
+                  className="absolute -inset-1 h-[calc(100%+8px)] w-[calc(100%+8px)] cursor-pointer border-0 p-0"
+                  aria-label={lang === "tr" ? "Renk seç" : "Pick color"}
+                />
+              </div>
+              <Input
+                value={company.primary_color ?? ""}
+                onChange={(e) => setCompany({ ...company, primary_color: e.target.value })}
+                placeholder="#7c5cf0"
+                className="flex-1"
+              />
+            </div>
+            <div className="flex flex-wrap gap-1.5 pt-0.5">
+              {[
+                "#7c5cf0",
+                "#4f46e5",
+                "#2563eb",
+                "#0ea5e9",
+                "#0d9488",
+                "#16a34a",
+                "#ca8a04",
+                "#ea580c",
+                "#dc2626",
+                "#db2777",
+                "#9333ea",
+                "#111827",
+              ].map((hex) => (
+                <button
+                  key={hex}
+                  type="button"
+                  onClick={() => setCompany({ ...company, primary_color: hex })}
+                  className="h-6 w-6 rounded-full border border-black/10 transition-transform hover:scale-110"
+                  style={{ backgroundColor: hex }}
+                  aria-label={hex}
+                  title={hex}
+                />
+              ))}
+            </div>
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label>{lang === "tr" ? "AI Talimatlarım" : "My AI instructions"}</Label>

@@ -9,6 +9,7 @@ import { useLang } from "@/components/i18n/language-provider";
 import { ApiKeySection } from "@/components/app/api-key-section";
 import { TeamRolesCard } from "@/components/app/team-roles-card";
 import { SsoCard } from "@/components/app/sso-card";
+import { DataPrivacyCard } from "@/components/app/data-privacy-card";
 import { usePlan } from "@/components/app/plan-provider";
 import { planAllows } from "@/lib/plan";
 
@@ -113,6 +114,8 @@ export function SettingsClient() {
           }
         />
       )}
+
+      <DataPrivacyCard />
     </div>
   );
 }

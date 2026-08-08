@@ -22,6 +22,7 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [lastUsed, setLastUsed] = useState<"google" | "github" | null>(null);
+  const [consent, setConsent] = useState(false);
 
   const isLogin = mode === "login";
 
@@ -61,13 +62,20 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
   }
 
   async function signInWithProvider(provider: "google" | "github") {
+    if (!isLogin && !consent) {
+      setError(lang === "tr" ? "Devam etmek için KVKK metnini onaylaman gerekiyor." : "You need to accept the privacy policy to continue.");
+      return;
+    }
     setError(null);
     setLoading(true);
     window.localStorage.setItem("seelydeal-last-auth-provider", provider);
     const supabase = createClient();
+    const redirectTo = isLogin
+      ? `${window.location.origin}/auth/callback`
+      : `${window.location.origin}/auth/callback?consent=1`;
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo },
     });
     if (oauthError) {
       setError(oauthError.message);
@@ -115,6 +123,12 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
       return;
     }
 
+    if (!consent) {
+      setError(lang === "tr" ? "Devam etmek için KVKK metnini onaylaman gerekiyor." : "You need to accept the privacy policy to continue.");
+      setLoading(false);
+      return;
+    }
+
     const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
     if (signUpError) {
       setError(signUpError.message);
@@ -132,7 +146,7 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
     const completeRes = await fetch("/api/auth/complete-signup", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${data.session?.access_token}` },
-      body: JSON.stringify({ email, companyName: name }),
+      body: JSON.stringify({ email, companyName: name, consent: true }),
     });
 
     if (!completeRes.ok) {
@@ -213,7 +227,7 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
               )}
               <Button
                 variant="outline"
-                disabled={loading}
+                disabled={loading || (!isLogin && !consent)}
                 onClick={() => signInWithProvider("google")}
                 className={`w-full gap-2 ${lastUsed === "google" ? "ring-2 ring-foreground/80" : ""}`}
               >
@@ -228,7 +242,7 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
               )}
               <Button
                 variant="outline"
-                disabled={loading}
+                disabled={loading || (!isLogin && !consent)}
                 onClick={() => signInWithProvider("github")}
                 className={`w-full gap-2 ${lastUsed === "github" ? "ring-2 ring-foreground/80" : ""}`}
               >
@@ -236,6 +250,58 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
               </Button>
             </div>
           </div>
+
+          {!isLogin && (
+            <label className="flex items-start gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={consent}
+                onChange={(e) => setConsent(e.target.checked)}
+                className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-input"
+              />
+              <span>
+                {lang === "tr" ? (
+                  <>
+                    <Link href="/privacy" target="_blank" className="underline underline-offset-2 hover:text-foreground">
+                      KVKK Aydınlatma Metni ve Gizlilik Politikası
+                    </Link>
+                    'nı okudum, kabul ediyorum.
+                  </>
+                ) : (
+                  <>
+                    I have read and accept the{" "}
+                    <Link href="/privacy" target="_blank" className="underline underline-offset-2 hover:text-foreground">
+                      Privacy Policy
+                    </Link>
+                    .
+                  </>
+                )}
+              </span>
+            </label>
+          )}
+
+          {isLogin &&
+            (ssoOpen ? (
+              <form onSubmit={signInWithSsoDomain} className="flex gap-2">
+                <Input
+                  value={ssoDomain}
+                  onChange={(e) => setSsoDomain(e.target.value)}
+                  placeholder="sirket-domaini.com"
+                  className="flex-1"
+                />
+                <Button type="submit" variant="outline" disabled={loading || !ssoDomain.trim()}>
+                  {lang === "tr" ? "Devam et" : "Continue"}
+                </Button>
+              </form>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setSsoOpen(true)}
+                className="text-center text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              >
+                {lang === "tr" ? "Kurumsal SSO ile giriş yap" : "Sign in with SSO"}
+              </button>
+            ))}
 
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span className="h-px flex-1 bg-border" />
@@ -260,7 +326,7 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             {notice && <p className="text-sm text-success">{notice}</p>}
-            <Button type="submit" disabled={loading} className="w-full gap-2">
+            <Button type="submit" disabled={loading || (!isLogin && !consent)} className="w-full gap-2">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {isLogin ? ui.signIn : ui.getStarted}
               {!loading && <ArrowRight className="h-4 w-4" />}

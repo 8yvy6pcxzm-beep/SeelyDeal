@@ -27,8 +27,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
   if (!profile) return NextResponse.json({ error: "Şirket profilin bulunamadı." }, { status: 404 });
 
   const { data: company } = await service.from("companies").select("plan").eq("id", profile.company_id).maybeSingle();
-  if (!planAllows(company?.plan, "crm_integrations")) {
-    return NextResponse.json({ error: "CRM entegrasyonları Pro ve Custom paketlerinde kullanılabilir." }, { status: 403 });
+  const requiredFeature = config.requiredFeature ?? "crm_integrations";
+  if (!planAllows(company?.plan, requiredFeature)) {
+    return NextResponse.json(
+      {
+        error:
+          requiredFeature === "accounting_integrations"
+            ? "Muhasebe entegrasyonları Custom pakette kullanılabilir."
+            : "CRM entegrasyonları Pro ve Custom paketlerinde kullanılabilir.",
+      },
+      { status: 403 },
+    );
   }
 
   // Unguessable nonce, bound to this browser via an HttpOnly cookie — the callback

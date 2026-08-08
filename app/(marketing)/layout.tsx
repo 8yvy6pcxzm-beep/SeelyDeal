@@ -64,7 +64,11 @@ export default function MarketingLayout({
               />
               <FooterCol
                 title={lang === "tr" ? "Yasal" : "Legal"}
-                links={[lang === "tr" ? "Gizlilik" : "Privacy", lang === "tr" ? "Şartlar" : "Terms", lang === "tr" ? "Güvenlik" : "Security"]}
+                links={[
+                  { label: lang === "tr" ? "Gizlilik" : "Privacy", href: "/privacy" },
+                  { label: lang === "tr" ? "Şartlar" : "Terms", href: "/terms" },
+                  { label: lang === "tr" ? "Güvenlik" : "Security" },
+                ]}
               />
             </div>
           </div>
@@ -89,16 +93,28 @@ export default function MarketingLayout({
   );
 }
 
-function FooterCol({ title, links }: { title: string; links: string[] }) {
+type FooterLink = string | { label: string; href?: string };
+
+function FooterCol({ title, links }: { title: string; links: FooterLink[] }) {
   return (
     <div>
       <p className="label-mono text-muted-foreground">{title}</p>
       <ul className="mt-3 space-y-2">
-        {links.map((l) => (
-          <li key={l}>
-            <span className="cursor-pointer text-muted-foreground transition-colors hover:text-foreground">{l}</span>
-          </li>
-        ))}
+        {links.map((l) => {
+          const label = typeof l === "string" ? l : l.label;
+          const href = typeof l === "string" ? undefined : l.href;
+          return (
+            <li key={label}>
+              {href ? (
+                <Link href={href} className="text-muted-foreground transition-colors hover:text-foreground">
+                  {label}
+                </Link>
+              ) : (
+                <span className="cursor-pointer text-muted-foreground transition-colors hover:text-foreground">{label}</span>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

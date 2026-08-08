@@ -11,13 +11,14 @@ import { completeSignup } from "@/lib/supabase/complete-signup";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+  const consent = searchParams.get("consent") === "1";
 
   if (code) {
     const supabase = await createClient();
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     const user = data?.user;
     if (!error && user?.email) {
-      await completeSignup(user.id, user.email, user.user_metadata?.full_name);
+      await completeSignup(user.id, user.email, user.user_metadata?.full_name, consent);
     }
   }
 

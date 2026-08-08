@@ -12,7 +12,7 @@ import { completeSignup } from "@/lib/supabase/complete-signup";
  * just a legacy field kept for backwards compatibility, never trusted alone.
  */
 export async function POST(req: Request) {
-  const { email, companyName } = await req.json();
+  const { email, companyName, consent } = await req.json();
 
   const authedUser = await getAuthedUser(req);
   if (!authedUser) {
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing email" }, { status: 400 });
   }
 
-  const result = await completeSignup(authedUser.id, email, companyName);
+  const result = await completeSignup(authedUser.id, email, companyName, consent);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 500 });
   }

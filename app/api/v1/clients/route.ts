@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { authenticateApiKey, apiAuthError } from "@/lib/api-key-auth";
+import { decryptField } from "@/lib/crypto";
 
 /**
  * Public API — Custom-plan only. Part of "advanced API support": Pro's API key
@@ -27,7 +28,7 @@ export async function GET(req: Request) {
     return {
       id: c.id,
       name: c.name,
-      email: c.email,
+      email: decryptField(c.email),
       created_at: c.created_at,
       proposal_count: proposals.length,
       accepted_value: accepted.reduce((s, p) => s + (Number(p.value) || 0), 0),

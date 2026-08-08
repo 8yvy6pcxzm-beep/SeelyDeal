@@ -759,7 +759,7 @@ export function AiDraftDialog({
               <Input
                 value={websiteUrl}
                 onChange={(e) => setWebsiteUrl(e.target.value)}
-                placeholder="https://musteri-sitesi.com"
+                placeholder={lang === "tr" ? "https://musteri-sitesi.com/iletisim" : "https://client-site.com/contact"}
                 className="text-sm"
               />
             ) : (
@@ -768,7 +768,9 @@ export function AiDraftDialog({
                 className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary"
               >
                 <Link2 className="h-3.5 w-3.5" />
-                {lang === "tr" ? "Müşterinin web sitesini paylaş (opsiyonel)" : "Share client's website (optional)"}
+                {lang === "tr"
+                  ? "Müşterinin iletişim/hakkımızda sayfasını paylaş (opsiyonel)"
+                  : "Share client's contact/about page (optional)"}
               </button>
             )}
             {attachment && (

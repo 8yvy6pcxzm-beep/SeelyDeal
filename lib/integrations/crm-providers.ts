@@ -1,3 +1,5 @@
+import type { GatedFeature } from "@/lib/plan";
+
 export type CrmProviderConfig = {
   name: string;
   authorizeUrl: string;
@@ -5,6 +7,8 @@ export type CrmProviderConfig = {
   scopes: string[];
   clientIdEnv: string;
   clientSecretEnv: string;
+  /** Which plan gate this provider requires — defaults to "crm_integrations" (Pro+) if omitted. */
+  requiredFeature?: GatedFeature;
 };
 
 /**
@@ -23,7 +27,22 @@ export type CrmProviderConfig = {
  *   clientSecretEnv: "HUBSPOT_CLIENT_SECRET",
  * },
  */
-export const CRM_PROVIDERS: Record<string, CrmProviderConfig> = {};
+export const CRM_PROVIDERS: Record<string, CrmProviderConfig> = {
+  // Custom-plan accounting integration (see lib/plan.ts "accounting_integrations").
+  // Requires a Paraşüt developer app (https://developer.parasut.com) — register
+  // one and put its client id/secret in PARASUT_CLIENT_ID / PARASUT_CLIENT_SECRET.
+  // Until those env vars are set, /api/integrations/parasut/connect responds 501
+  // and the Settings/Integrations "Bağlan" button for it stays hidden (oauthReady).
+  parasut: {
+    name: "Paraşüt",
+    authorizeUrl: "https://api.parasut.com/oauth/authorize",
+    tokenUrl: "https://api.parasut.com/oauth/token",
+    scopes: [],
+    clientIdEnv: "PARASUT_CLIENT_ID",
+    clientSecretEnv: "PARASUT_CLIENT_SECRET",
+    requiredFeature: "accounting_integrations",
+  },
+};
 
 export function getCrmProvider(provider: string): CrmProviderConfig | undefined {
   return CRM_PROVIDERS[provider];
