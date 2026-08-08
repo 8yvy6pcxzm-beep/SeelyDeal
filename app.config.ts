@@ -205,7 +205,7 @@ export const appConfig: AppConfig = {
         { label: { tr: "Analitik", en: "Analytics" }, href: "/analytics", icon: "chart-no-axes-column" },
         { label: { tr: "İmzalar", en: "Signatures" }, href: "/signatures", icon: "pen-line", hideForLite: true },
         { label: { tr: "Şirket profili", en: "Company profile" }, href: "/team", icon: "user-plus" },
-        { label: { tr: "Entegrasyonlar", en: "Integrations" }, href: "/settings", icon: "plug" },
+        { label: { tr: "Entegrasyonlar", en: "Integrations" }, href: "/integrations", icon: "plug" },
       ],
     },
   ],

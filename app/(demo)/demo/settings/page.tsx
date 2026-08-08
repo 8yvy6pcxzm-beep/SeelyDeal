@@ -1,67 +1,39 @@
 "use client";
 
-import { Check, KeyRound, Plug } from "lucide-react";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input, Label } from "@/components/ui/input";
 import { useLang } from "@/components/i18n/language-provider";
 import appConfig from "@/app.config";
 
-/** Read-only Settings/Integrations showcase for the unauthenticated /demo shell — every integration renders "Connected" and the API key is a fixed placeholder, since there's no real company/session behind this page. */
+/** Read-only Brand settings showcase for the unauthenticated /demo shell. */
 export default function DemoSettingsPage() {
-  const { lang } = useLang();
+  const { t, lang } = useLang();
 
   return (
-    <div className="mx-auto max-w-[900px] animate-fade-in space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight">
-          {lang === "tr" ? "Entegrasyonlar" : "Integrations"}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {lang === "tr"
-            ? "Custom pakette tüm entegrasyonlar ve gelişmiş API erişimi dahildir."
-            : "The Custom plan includes every integration plus advanced API access."}
-        </p>
-      </div>
-
+    <div className="mx-auto max-w-3xl animate-fade-in space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Plug className="h-4 w-4 text-muted-foreground" />
-            {lang === "tr" ? "Bağlı servisler" : "Connected services"}
-          </CardTitle>
-        </CardHeader>
-        <div className="divide-y divide-border">
-          {appConfig.integrations.map((it) => (
-            <div key={it.key} className="flex items-center justify-between gap-4 px-6 py-3.5">
-              <div className="min-w-0">
-                <p className="text-[13.5px] font-medium">{it.name}</p>
-                <p className="mt-0.5 truncate text-[12px] text-muted-foreground">{it.purpose}</p>
-              </div>
-              <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 text-[11px] font-semibold text-success">
-                <Check className="h-3 w-3" />
-                {lang === "tr" ? "Bağlı" : "Connected"}
-              </span>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <KeyRound className="h-4 w-4 text-muted-foreground" />
-            {lang === "tr" ? "API Erişimi" : "API Access"}
-          </CardTitle>
+          <CardTitle>{lang === "tr" ? "Marka" : "Brand"}</CardTitle>
           <p className="text-sm text-muted-foreground">
             {lang === "tr"
-              ? `Kendi anahtarınla ${appConfig.domain}/api/v1/proposals uç noktasına erişebilirsin.`
-              : `Use your key to call ${appConfig.domain}/api/v1/proposals.`}
+              ? "Bunlar app.config.ts dosyasından gelir. Değiştirmek için kurulumu tekrar çalıştır."
+              : "These come from app.config.ts. Re-run setup to change them."}
           </p>
         </CardHeader>
-        <div className="px-6 pb-6">
-          <div className="flex h-10 items-center rounded-lg border border-border bg-muted px-3 font-mono text-xs text-muted-foreground">
-            sk_live_••••••••••••••••••••7f2a
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label>{lang === "tr" ? "Ürün adı" : "Product name"}</Label>
+            <Input defaultValue={appConfig.name} readOnly disabled />
           </div>
-        </div>
+          <div className="space-y-1.5">
+            <Label>{lang === "tr" ? "Alan adı" : "Domain"}</Label>
+            <Input defaultValue={appConfig.domain} readOnly disabled />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>{lang === "tr" ? "Slogan" : "Tagline"}</Label>
+            <Input defaultValue={t(appConfig.tagline)} readOnly disabled />
+          </div>
+        </CardContent>
       </Card>
 
       <p className="text-xs text-muted-foreground">
