@@ -79,24 +79,38 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Splits an onboarding reply into one bubble per sentence/list item, for the
- * sequential "typing" reveal — list lines (already one sentence each, per the
- * prompt's rule) stay whole, plain prose lines get split at sentence ends. */
+/** Splits an onboarding reply into bubbles of ~2 sentences/list items each, for
+ * the sequential "typing" reveal — list lines (already one sentence each, per
+ * the prompt's rule) stay whole, plain prose lines get split at sentence ends,
+ * then consecutive parts are paired up so it reads as a chat, not a wall of
+ * one-liners. */
 function splitIntoSentenceBubbles(text: string): string[] {
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
-  const parts: string[] = [];
+  const rawParts: string[] = [];
   for (const line of lines) {
     if (/^(\d+\.|[-•])\s/.test(line)) {
-      parts.push(line);
+      rawParts.push(line);
     } else {
       const sentences = line.match(/[^.!?]+[.!?]*(?:\s+|$)/g) ?? [line];
       for (const s of sentences) {
         const trimmed = s.trim();
-        if (trimmed) parts.push(trimmed);
+        if (trimmed) rawParts.push(trimmed);
       }
     }
   }
-  return parts;
+
+  const isListLine = (s: string) => /^(\d+\.|[-•])\s/.test(s);
+  const bubbles: string[] = [];
+  for (let i = 0; i < rawParts.length; i += 2) {
+    const a = rawParts[i];
+    const b = rawParts[i + 1];
+    if (!b) {
+      bubbles.push(a);
+    } else {
+      bubbles.push(isListLine(a) || isListLine(b) ? `${a}\n${b}` : `${a} ${b}`);
+    }
+  }
+  return bubbles;
 }
 
 export function AiDraftDialog({
