@@ -23,6 +23,10 @@
     "box-shadow:0 14px 28px -6px rgba(83,52,201,.6),0 4px 10px rgba(83,52,201,.4),inset 0 1px 0 rgba(255,255,255,.45),inset 0 -6px 10px rgba(0,0,0,.12);}" +
     ".fab:active{transform:scale(.96)}" +
     ".fab svg{width:26px;height:26px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.15))}" +
+    ".fabdot{position:absolute;top:2px;right:2px;width:13px;height:13px;border-radius:50%;" +
+    "background:#c9f56b;border:2px solid #fff;box-shadow:0 0 0 0 rgba(169,226,61,.7);" +
+    "animation:fabpulse 2s infinite;}" +
+    "@keyframes fabpulse{0%{box-shadow:0 0 0 0 rgba(169,226,61,.6)}70%{box-shadow:0 0 0 7px rgba(169,226,61,0)}100%{box-shadow:0 0 0 0 rgba(169,226,61,0)}}" +
     ".panel{position:fixed;bottom:96px;right:22px;width:360px;max-width:calc(100vw - 32px);height:520px;" +
     "max-height:calc(100vh - 140px);background:#faf9ff;border-radius:22px;" +
     "box-shadow:0 24px 60px -12px rgba(83,52,201,.35),0 8px 24px rgba(0,0,0,.12);" +
@@ -68,6 +72,7 @@
   wrap.innerHTML =
     '<button class="fab" aria-label="AI ile sohbet et">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>' +
+      '<span class="fabdot"></span>' +
     '</button>' +
     '<div class="panel">' +
       '<div class="hd"><span class="dot"></span><div class="t"><b>Seely</b><span>seelynow AI asistanı</span></div>' +
@@ -161,4 +166,7 @@
   input.addEventListener("keydown", function (e) {
     if (e.key === "Enter") send();
   });
+
+  window.SeelyWidget = { open: openPanel };
+  window.dispatchEvent(new CustomEvent("seely:ready"));
 })();

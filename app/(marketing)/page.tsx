@@ -784,7 +784,13 @@ export default function LandingPage() {
                 </ul>
                 {tier.requiresDemo || tier.annualOnly ? (
                   <button
-                    onClick={() => setDemoTier(tier.name)}
+                    onClick={() => {
+                      if (tier.name === "Custom" && typeof window !== "undefined" && (window as any).SeelyWidget) {
+                        (window as any).SeelyWidget.open();
+                        return;
+                      }
+                      setDemoTier(tier.name);
+                    }}
                     className={cn(
                       "mt-7 inline-flex h-11 items-center justify-center rounded-xl text-sm font-semibold transition-all",
                       tier.featured

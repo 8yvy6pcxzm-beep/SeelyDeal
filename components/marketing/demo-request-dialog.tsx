@@ -53,8 +53,8 @@ export function DemoRequestDialog({ tier, onClose }: { tier: string; onClose: ()
                 ? "İletişim talebi"
                 : "Contact request"
               : lang === "tr"
-                ? `${tier} demo talebi`
-                : `${tier} demo request`}
+                ? "Demo Rezervasyonu"
+                : "Demo Booking"}
           </h3>
           <button onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted">
             <X className="h-4 w-4" />
