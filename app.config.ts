@@ -271,24 +271,6 @@ export const appConfig: AppConfig = {
       purpose: "Connect your CRM to pull client data into proposals automatically: HubSpot, Zoho (Pro). Accounting software (Logo, QuickBooks, Paraşüt) and Salesforce are Custom-only.",
       oauth: true,
     },
-    {
-      key: "parasut",
-      name: "Paraşüt",
-      envVars: [],
-      required: false,
-      docsUrl: "https://developer.parasut.com",
-      purpose: "Muhasebe entegrasyonu (Custom): Paraşüt'teki müşteri ve fatura verilerini tekliflerle senkronize edin.",
-      oauth: true,
-    },
-    {
-      key: "logo",
-      name: "Logo",
-      envVars: [],
-      required: false,
-      docsUrl: "https://www.logo.com.tr",
-      purpose: "Muhasebe entegrasyonu (Custom): Logo'daki müşteri ve fatura verilerini tekliflerle senkronize edin.",
-      oauth: true,
-    },
   ],
 };
 
