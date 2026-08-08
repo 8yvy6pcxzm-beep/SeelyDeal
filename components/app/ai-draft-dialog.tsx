@@ -369,6 +369,14 @@ export function AiDraftDialog({
     setMounted(true);
   }, []);
 
+  // The dialog is kept mounted (rendering null while closed) instead of being
+  // removed from the tree, so any drag state left over from a previous open
+  // (e.g. a cancelled drag that never reset it) would otherwise still be
+  // showing when it's opened again — force a clean slate every time.
+  useEffect(() => {
+    if (open) setDragOver(false);
+  }, [open]);
+
   useEffect(() => {
     if (!open || !initialTemplateId || messages.length > 0) return;
     // Kick off the chat ourselves — the AI resolves the template server-side and
