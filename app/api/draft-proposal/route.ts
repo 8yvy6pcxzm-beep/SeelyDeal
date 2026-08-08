@@ -88,10 +88,10 @@ async function resolveTemplateById(
 }
 
 export async function POST(req: Request) {
-  const { messages, websiteUrl, attachment, currentDraft, templateId } = (await req.json()) as {
+  const { messages, websiteUrl, attachments, currentDraft, templateId } = (await req.json()) as {
     messages: ChatMessage[];
     websiteUrl?: string;
-    attachment?: Attachment;
+    attachments?: Attachment[];
     /** The draft already sitting in the preview (e.g. loaded from a template, or an
      *  existing proposal being edited) — without this the model has no idea what a
      *  bare instruction like "işçilik x2 olsun" refers to. */
@@ -177,12 +177,20 @@ ${resolved.sections.map((s) => `${s.title}: ${s.body}`).join("\n")}
 Sözleşme: ${resolved.contractText}`
     : "";
 
+  // A URL the user explicitly typed/pasted into the chat is just as much "the
+  // customer shared it" as using the dedicated link field — only fetch it
+  // when it's literally present in their own message, never guessed/searched.
+  const URL_PATTERN = /\b(?:https?:\/\/)?(?:www\.)?[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+\.[a-z]{2,}(?:\/[^\s)]*)?\b/i;
+  const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
+  const mentionedUrl = !websiteUrl ? lastUserMessage?.content.match(URL_PATTERN)?.[0] : undefined;
+  const effectiveWebsiteUrl = websiteUrl || (mentionedUrl ? (/^https?:\/\//i.test(mentionedUrl) ? mentionedUrl : `https://${mentionedUrl}`) : undefined);
+
   let websiteContext = "";
-  if (websiteUrl) {
-    const text = await safeFetchWebsiteText(websiteUrl);
+  if (effectiveWebsiteUrl) {
+    const text = await safeFetchWebsiteText(effectiveWebsiteUrl);
     websiteContext = text
-      ? `\n\nMüşterinin paylaştığı web sitesinden (${websiteUrl}) çıkarılan metin:\n"""${text}"""\nBu metni İKİ amaç için kullan: (1) marka dili/tonu ve hizmetleri anlamak, (2) mümkünse buradan karşı tarafın (müşterinin) ŞİRKET UNVANINI ve ADRESİNİ çıkarıp \`clientContact.company\` ve \`clientContact.address\` alanlarına yerleştirmek — metinde unvan/adres net şekilde geçiyorsa doğrudan kullan, geçmiyorsa UYDURMA ve alanı boş bırak.`
-      : `\n\nNot: verilen web sitesi (${websiteUrl}) çekilemedi — kullanıcıya bilgiyi manuel anlatmasını iste.`;
+      ? `\n\nPaylaşılan web sitesinden (${effectiveWebsiteUrl}) çıkarılan metin:\n"""${text}"""\nBu metni İKİ amaç için kullan: (1) marka dili/tonu ve hizmetleri anlamak, (2) mümkünse buradan karşı tarafın (müşterinin) ŞİRKET UNVANINI ve ADRESİNİ çıkarıp \`clientContact.company\` ve \`clientContact.address\` alanlarına yerleştirmek — metinde unvan/adres net şekilde geçiyorsa doğrudan kullan, geçmiyorsa UYDURMA ve alanı boş bırak. Bu site kullanıcının KENDİ sitesiyse (müşterinin değil), bunun yerine sadece marka dili/tonu ve hizmetleri anlamak için kullan, clientContact alanlarına yazma.`
+      : `\n\nNot: verilen web sitesi (${effectiveWebsiteUrl}) çekilemedi — kullanıcıya bilgiyi manuel anlatmasını iste.`;
   }
 
   const isCustom = (company?.plan ?? "lite") === "custom";
@@ -239,13 +247,19 @@ Sözleşme: ${resolved.contractText}`
 7. Sözleşme Şartları — varsa revize edilmiş contractText, yoksa boş bırak.
 8. Sonraki Adımlar — kabul sonrası süreç (nextSteps, 3-5 adım).`;
 
-  const isOnboarding = !company?.onboarding_completed && messages.length === 1;
+  // Stay in the onboarding script for the WHOLE flow, not just the first turn —
+  // otherwise the model only ever sees the "say hi" instruction and never the
+  // later steps (company intro, name confirm, AI instructions, completion
+  // block), so onboarding_completed never flips true and the intro repeats
+  // on every single open.
+  const isOnboarding = !company?.onboarding_completed;
 
   const onboardingBlock = isOnboarding
-    ? `\nİLK TANIŞMA AKIŞI (bu şirket seninle ilk kez konuşuyor, bunu ÖNCELİKLE uygula):
-- Sohbetin en başında, kullanıcının mesajından TAMAMEN BAĞIMSIZ olarak şu tanıtımla başla (aynen bu ruhla, birebir kopyalamak zorunda değilsin ama anlamı ve sıcaklığı korunmalı): "Selam! Tanıştığımıza memnun oldum. Ben Seely, sadece sana yardım için buradayım. Benimle ilgili her şeyi buraya yazarak yönetebilirsin." Sonra YENİ bir paragrafta "5 dakikan varsa, beni nasıl kullanabileceğini kısaca anlatabilirim, ister misin?" diye sor (kullanıcı istemezse ısrar etme, direkt sıradaki adıma geç). Bu ilk mesajda henüz dosya yükleme isteğine GEÇME — o, kullanıcı bu soruya cevap verdikten SONRAKİ mesajında gelir.
-- Kullanıcı "evet" derse (açıklama isterse), açıklamayı KISA tut (en fazla 3-4 madde) ve BU MESAJI SADECE açıklamaya ayır — mesajın sonuna bir müşteri/teklif sorusu EKLEME, "hangi müşteri için" gibi bir soru bu mesajda YASAK. Açıklama, nötr bir kapanışla bitsin (örn. "Hazır olduğunda devam edelim." veya hiç kapanış cümlesi olmadan).
-- Kullanıcı bu soruya cevap verince (ister/istemez fark etmez, açıklama istediyse açıklamayı yazdıktan SONRA gelen bir SONRAKİ mesajda), YENİ ve AYRI bir mesajda şirketini tanımasını iste: örnek bir teklif (PDF/Word/resim) yüklemesini rica et — bunu da kendi paragrafında, kısa ve tek bir istek olarak yaz. Bu adımı ASLA açıklama mesajıyla veya müşteri/teklif sorusuyla birleştirme — sırasıyla ayrı mesajlar olmalı: (1) tanıtım+açıklama teklifi, (2) [istendiyse] açıklama, (3) şirket tanıma isteği, (4) ancak şirket bilgisi netleştikten/geçildikten SONRA müşteri teklifine geçilir. Kullanıcı bir dosya eklerse, içeriğinden şirket adını, sunduğu hizmetleri ve fiyatlandırma tarzını çıkar; her alanı TEK TEK, "... olarak belirliyorum, doğru mu?" tarzı bir soruyla teyit ettir — kullanıcı onaylamadan hiçbir alanı kesinleşmiş sayma. Kullanıcı dosya yüklemek istemezse, aynı bilgileri birkaç kısa soruyla sohbetten topla (yine tek seferde hepsini üst üste sormadan, birer birer).
+    ? `\nİLK TANIŞMA AKIŞI (bu şirket onboarding'i henüz tamamlamadı, bunu ÖNCELİKLE uygula):
+- Bu talimat bloğu, onboarding tamamlanana kadar HER turda sana veriliyor — konuşma geçmişine bak, hangi adımda kaldığını oradan anla ve SADECE bir sonraki adımı uygula. Zaten yapılmış bir adımı (örn. karşılamayı) TEKRAR yazma.
+- Adım 1 (sohbetin ilk mesajı): kullanıcının mesajından TAMAMEN BAĞIMSIZ olarak şu tanıtımla başla (aynen bu ruhla, birebir kopyalamak zorunda değilsin ama anlamı ve sıcaklığı korunmalı): "Selam! Tanıştığımıza memnun oldum. Ben Seely, sadece sana yardım için buradayım. Benimle ilgili her şeyi buraya yazarak yönetebilirsin." Sonra YENİ bir paragrafta "5 dakikan varsa, beni nasıl kullanabileceğini kısaca anlatabilirim, ister misin?" diye sor (kullanıcı istemezse ısrar etme, direkt sıradaki adıma geç). Bu ilk mesajda henüz dosya yükleme isteğine GEÇME — o, kullanıcı bu soruya cevap verdikten SONRAKİ mesajında gelir.
+- Adım 2 (kullanıcı adım 1'deki soruya cevap verdiğinde): "evet" derse (açıklama isterse), açıklamayı KISA tut (en fazla 3-4 madde) ve BU MESAJI SADECE açıklamaya ayır — mesajın sonuna bir müşteri/teklif sorusu EKLEME, "hangi müşteri için" gibi bir soru bu mesajda YASAK. Açıklama, nötr bir kapanışla bitsin (örn. "Hazır olduğunda devam edelim." veya hiç kapanış cümlesi olmadan). "Hayır/istemiyorum" derse bu adımı hiç yazma, direkt adım 3'e geç.
+- Adım 3 (adım 2'den SONRAKİ, ayrı bir mesajda): şirketini tanımasını iste. Şirket profili için tam olarak NELERE ihtiyacın olduğunu AÇIKÇA say: şirket/marka adı, sunduğu hizmet(ler), fiyatlandırma yaklaşımı (sabit ücret mi, paket mi, saatlik mi), iletişim e-postası. Bunun en hızlı yolunun, daha önce hazırladıkları bir örnek teklifi (PDF/Word/resim) paylaşmaları olduğunu söyle — "bu bizim hazırladığımız bir teklif" diye bir dosya paylaşırlarsa, içeriğinden bu bilgileri SEN çıkarırsın. Bunu kendi paragrafında, kısa ve tek bir istek olarak yaz. Bu adımı ASLA açıklama mesajıyla veya müşteri/teklif sorusuyla birleştirme — sırasıyla ayrı mesajlar olmalı: (1) tanıtım+açıklama teklifi, (2) [istendiyse] açıklama, (3) şirket tanıma isteği + gereken bilgilerin listesi, (4) ancak şirket bilgisi netleştikten/geçildikten SONRA müşteri teklifine geçilir. Kullanıcı bir dosya eklerse, içeriğinden şirket adını, sunduğu hizmetleri ve fiyatlandırma tarzını çıkar; her alanı TEK TEK, "... olarak belirliyorum, doğru mu?" tarzı bir soruyla teyit ettir — kullanıcı onaylamadan hiçbir alanı kesinleşmiş sayma. Kullanıcı dosya yüklemek istemezse, aynı bilgileri birkaç kısa soruyla sohbetten topla (yine tek seferde hepsini üst üste sormadan, birer birer). Şirket adı dışındaki bu bilgiler (hizmetler, fiyatlandırma yaklaşımı) kalıcı olarak saklanmaz — bu yüzden sadece BU sohbetteki teklifi hazırlarken kullan; adım 5'te toplanan AI talimatları ayrı bir mekanizmayla kalıcı kaydediliyor.
 - Şirket adı netleştiği/onaylandığı an, ondan sonraki cevabına "Şimdi kendimize geldik! Selam [şirket adı], ya da sana nasıl hitap etmemi istersin?" gibi bir karşılamayla geç — bunu hafif, nabız yoklar gibi sor, ISRARCI olma. Kullanıcı "farketmez", "bilmiyorum", "istemiyorum" gibi cevap verirse ya da soruyu geçerse hemen bırak, tekrar sorma; şirket adını (veya varsayılan bir hitabı) kullanmaya devam et.
 - Son adımda, teklifleri onun için nasıl daha kişisel yazacağını sor — kalıcı AI talimatları toplamaya çalış (örn. ton, kaçınılacak ifadeler, hep uygulanacak kurallar). Kullanıcı doldurmak istemezse "geç" seçeneği sun ve o cevap verdiğinde ısrar etmeden akışı TAMAMLA.
 - Bu akış tamamlandığında (kullanıcı talimat verdi VEYA geçti fark etmez), cevabının SONUNA (varsa diğer bloklardan sonra) ayrı bir \`\`\`onboarding ... \`\`\` bloğu ekle: {"completed": true}. Bu bloğu SADECE tanışma akışının son adımı bittiğinde ekle, akış devam ederken EKLEME.
@@ -262,7 +276,7 @@ KURALLAR:
 - Teklif hazırlamak için gerekli bilgiler eksikse (müşteri adı, sunulacak hizmet, fiyatlandırma yaklaşımı) TEK TEK, doğal bir sohbet diliyle sor. Kullanıcı "nelere ihtiyacın var" derse hepsini liste halinde sun.
 - ÇOK ÖNEMLİ — MÜŞTERİ UNVAN/ADRES BİLGİSİ: \`clientContact.company\` (şirket unvanı) veya \`clientContact.address\` eksikse ve kullanıcı bunları sohbette de vermediyse, ÖNCE şuna benzer bir soru sor (aynen kopyalamak zorunda değilsin ama anlamı korunmalı): "Karşı tarafın bilgilerini detaylı görüp teklife ekleyebileceğim bir müşteri web sayfası ekler misin? Bu iletişim sayfası olabilir — oradan unvan, adres gibi bilgileri ben çıkarabilirim." Kullanıcı link/görsel paylaşmak istemez ya da elinde yoksa, o zaman bilgileri elle sormaya geç (zorunlu tutma, sadece öncelik sırası bu). Kullanıcı bir link ya da görsel paylaşırsa oradan unvan/adresi çıkar (metinde net geçmiyorsa UYDURMA, boş bırak ve tekrar sor).
 - ÇOK ÖNEMLİ — ÇEKİRDEK ALANLAR: Müşteri/karşı taraf bilgisi, hizmeti sağlayan taraf bilgisi, sunulan hizmetin/kapsamın özeti ve fiyat — bu dördü hiçbir kaynaktan (sohbet, yüklenen doküman, şablon) gelmiyorsa SESSİZCE boş/0 değerle json'a geçme. Önce normal akışta sor; kullanıcı boş geçer ya da belirsiz cevap verirse ("bilmiyorum", "sonra eklerim", "boş kalsın" gibi) BİR KEZ DAHA, daha net bir soruyla teyit iste (örn. "Fiyat bilgisi olmadan mı devam edeyim, yoksa henüz netleşmedi mi?"). Kullanıcı ikinci kez de net bir yanıt vermezse (veya açıkça "evet boş kalsın" derse) o zaman devam et — amaç iki kez sorup dikkat çekmek, sonsuza kadar ısrar etmek değil.
-- Müşterinin web sitesini ASLA kendin tahmin etme veya arama; sadece kullanıcı paylaşırsa kullan. Paylaşmadıysa ve faydalı olacaksa nazikçe sor ("müşterinin web sitesini paylaşır mısın?").${
+- ÇOK ÖNEMLİ — SİTE UYDURMA: Bir firma adı duyduğunda ("X firması için teklif hazırla" gibi) ASLA o firmanın web sitesini kendin tahmin etme, aratma veya "muhtemelen x.com'dur" diye varsayma — yanlış firmanın bilgilerini teklife karıştırırsın. SADECE kullanıcının sohbette paylaştığı (yazdığı/yapıştırdığı) gerçek bir link varsa onu kullan; bu durumda link zaten otomatik olarak senin için çekiliyor, aşağıda "Paylaşılan web sitesinden..." notunu göreceksin — böyle bir not yoksa site paylaşılmamış demektir, siteyi açamadığını söyleme, sadece paylaşmasını nazikçe iste ("müşterinin web sitesini paylaşır mısın?").${
     !company?.logo_url || !company?.primary_color
       ? `\n- Şirketin henüz ${!company?.logo_url && !company?.primary_color ? "logosu ve marka rengi" : !company?.logo_url ? "logosu" : "marka rengi"} ayarlanmamış. Sohbetin bir noktasında (ilk mesajlarda, doğal bir yerde) samimi bir şekilde sor: "Bu arada şirketinizin ${!company?.logo_url && !company?.primary_color ? "logosunu ve marka rengini" : !company?.logo_url ? "logosunu" : "marka rengini"} de alabilir miyim? Logo resmini buraya yapıştırman ya da hex renk kodunu (örn. #5B3DF6) yazman yeterli, direkt kaydedeceğim." Bunu SADECE BİR KEZ sor, ısrar etme.\n- MARKA KAYDI: Kullanıcı bir hex renk kodu yazarsa (örn. "#5B3DF6" veya "marka rengimiz mor, 5b3df6") ya da bir resim ekleyip bunun logo olduğunu belirtirse (ya da bağlamdan logo olduğu açıksa — ör. "logomuz bu", "işte logo"), cevabının SONUNA (json bloğundan sonra, varsa) ayrı bir \`\`\`brand ... \`\`\` bloğu ekle: {"setLogo": true/false, "primaryColor": "#RRGGBB" veya null}. Resim logoysa \`setLogo: true\` yap VE resimdeki baskın/marka rengini (arka plan beyaz/gri/siyahsa onu değil, logonun kendi rengini) dikkatlice tahmin edip \`primaryColor\`'a hex olarak yaz. Sadece renk koduysa \`setLogo: false, primaryColor: "#..."\`. Bu durumların dışında (kullanıcı logo/renk belirtmediyse) bu bloğu HİÇ ekleme. Cevap metninde ne kaydettiğini kısaca teyit et (örn. "Logonu ve marka rengini (#5B3DF6) kaydettim.").`
       : ""
@@ -330,12 +344,13 @@ ${pricingBlock}${websiteContext}${prefillBlock}`;
 
   const anthropicMessages = messages.map((m, i) => {
     const isLastUserMessage = i === messages.length - 1 && m.role === "user";
-    if (isLastUserMessage && attachment) {
-      const block =
-        attachment.mediaType === "application/pdf"
-          ? { type: "document" as const, source: { type: "base64" as const, media_type: "application/pdf" as const, data: attachment.base64 } }
-          : { type: "image" as const, source: { type: "base64" as const, media_type: attachment.mediaType as any, data: attachment.base64 } };
-      return { role: m.role, content: [block, { type: "text" as const, text: m.content }] };
+    if (isLastUserMessage && attachments && attachments.length > 0) {
+      const blocks = attachments.map((a) =>
+        a.mediaType === "application/pdf"
+          ? { type: "document" as const, source: { type: "base64" as const, media_type: "application/pdf" as const, data: a.base64 } }
+          : { type: "image" as const, source: { type: "base64" as const, media_type: a.mediaType as any, data: a.base64 } },
+      );
+      return { role: m.role, content: [...blocks, { type: "text" as const, text: m.content }] };
     }
     return { role: m.role, content: m.content };
   });

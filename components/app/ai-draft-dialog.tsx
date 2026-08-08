@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useLang } from "@/components/i18n/language-provider";
 import { cn } from "@/lib/utils";
 
-type Msg = { role: "user" | "assistant"; content: string; attachmentName?: string; hidden?: boolean };
+type Msg = { role: "user" | "assistant"; content: string; attachmentNames?: string[]; hidden?: boolean };
 type Attachment = { name: string; mediaType: string; base64: string };
 type BillingOption = { key: string; label: { tr: string; en: string }; price: number; paymentLink?: string };
 type ClientContact = { company?: string; contactName?: string; title?: string; address?: string; phone?: string; email?: string; website?: string };
@@ -146,7 +146,7 @@ export function AiDraftDialog({
   // proposal instead of creating a new one — the dialog stays open and chattable
   // after the first save so the user can keep refining it, on every plan.
   const [savedProposalId, setSavedProposalId] = useState<string | null>(null);
-  const [attachment, setAttachment] = useState<Attachment | null>(null);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [attachError, setAttachError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   // Fetched fresh each time the dialog opens — whether this company still needs
@@ -158,7 +158,26 @@ export function AiDraftDialog({
   const stoppedRef = useRef(false);
 
   const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+  const MAX_ATTACHMENTS = 5;
   const ACCEPTED_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/webp", "image/gif"];
+  const EXT_TO_MEDIA_TYPE: Record<string, string> = {
+    pdf: "application/pdf",
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    webp: "image/webp",
+    gif: "image/gif",
+  };
+
+  /** Some drag/paste sources (certain screenshot tools, some file managers) hand us
+   * a File with an empty or generic `type` ("", "application/octet-stream") even
+   * though the file itself is a perfectly normal PNG/JPG/PDF — fall back to the
+   * extension so those aren't rejected as "unsupported". */
+  function resolveMediaType(file: File): string | null {
+    if (ACCEPTED_TYPES.includes(file.type)) return file.type;
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    return (ext && EXT_TO_MEDIA_TYPE[ext]) || null;
+  }
 
   const SECTION_OPTIONS: { key: string; tr: string; en: string }[] = [
     { key: "intro", tr: "Ön Yazı", en: "Cover letter" },
@@ -186,10 +205,17 @@ export function AiDraftDialog({
     send(summary);
   }
 
-  function processFile(file: File) {
+  function processFile(file: File, currentCount: number) {
     setAttachError(null);
 
-    if (!ACCEPTED_TYPES.includes(file.type)) {
+    if (currentCount >= MAX_ATTACHMENTS) {
+      setAttachError(
+        lang === "tr" ? `En fazla ${MAX_ATTACHMENTS} dosya ekleyebilirsin.` : `You can attach up to ${MAX_ATTACHMENTS} files.`,
+      );
+      return;
+    }
+    const mediaType = resolveMediaType(file);
+    if (!mediaType) {
       setAttachError(lang === "tr" ? "Sadece PDF veya resim (PNG/JPG) ekleyebilirsin." : "Only PDF or image files (PNG/JPG) are supported.");
       return;
     }
@@ -202,16 +228,21 @@ export function AiDraftDialog({
     reader.onload = () => {
       const result = reader.result as string;
       const base64 = result.split(",")[1] ?? "";
-      setAttachment({ name: file.name, mediaType: file.type, base64 });
+      setAttachments((prev) => [...prev, { name: file.name, mediaType, base64 }]);
     };
     reader.readAsDataURL(file);
   }
 
+  function processFiles(files: FileList | File[]) {
+    const startCount = attachments.length;
+    Array.from(files).forEach((file, i) => processFile(file, startCount + i));
+  }
+
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    const files = e.target.files;
     e.target.value = "";
-    if (!file) return;
-    processFile(file);
+    if (!files || files.length === 0) return;
+    processFiles(files);
   }
 
   function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
@@ -223,25 +254,41 @@ export function AiDraftDialog({
     if (e.currentTarget === e.target) setDragOver(false);
   }
 
+  // Belt-and-suspenders reset: if the drag is cancelled (dropped outside the
+  // window, Esc during the OS-level drag) neither dragleave nor drop ever
+  // fires on our container, so dragOver stays stuck true. "dragend" fires on
+  // the whole page for every drag that started, regardless of how it ended.
+  useEffect(() => {
+    function onDragEnd() {
+      setDragOver(false);
+    }
+    window.addEventListener("dragend", onDragEnd);
+    window.addEventListener("drop", onDragEnd);
+    return () => {
+      window.removeEventListener("dragend", onDragEnd);
+      window.removeEventListener("drop", onDragEnd);
+    };
+  }, []);
+
   function handleDrop(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
     setDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) processFile(file);
+    if (e.dataTransfer.files?.length) processFiles(e.dataTransfer.files);
   }
 
   function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
     const items = e.clipboardData?.items;
     if (!items) return;
+    const files: File[] = [];
     for (const item of items) {
       if (item.kind === "file" && item.type.startsWith("image/")) {
         const file = item.getAsFile();
-        if (file) {
-          e.preventDefault();
-          processFile(file);
-        }
-        return;
+        if (file) files.push(file);
       }
+    }
+    if (files.length) {
+      e.preventDefault();
+      processFiles(files);
     }
   }
 
@@ -315,7 +362,7 @@ export function AiDraftDialog({
   }
 
   async function send(override?: string, opts?: { hidden?: boolean }) {
-    if ((!override?.trim() && !input.trim() && !attachment) || loading) return;
+    if ((!override?.trim() && !input.trim() && attachments.length === 0) || loading) return;
     const text =
       override?.trim() ||
       input.trim() ||
@@ -331,11 +378,14 @@ export function AiDraftDialog({
       return;
     }
 
-    const next = [...messages, { role: "user" as const, content: text, attachmentName: attachment?.name, hidden: opts?.hidden }];
+    const next = [
+      ...messages,
+      { role: "user" as const, content: text, attachmentNames: attachments.map((a) => a.name), hidden: opts?.hidden },
+    ];
     setMessages(next);
     setInput("");
-    const sentAttachment = attachment;
-    setAttachment(null);
+    const sentAttachments = attachments;
+    setAttachments([]);
     setLoading(true);
     setSending(true);
     setError(null);
@@ -353,7 +403,7 @@ export function AiDraftDialog({
         body: JSON.stringify({
           messages: next.map(({ role, content }) => ({ role, content })),
           websiteUrl: websiteUrl || undefined,
-          attachment: sentAttachment ?? undefined,
+          attachments: sentAttachments.length ? sentAttachments : undefined,
           currentDraft: draft ?? undefined,
           templateId: !draft ? initialTemplateId : undefined,
         }),
@@ -414,11 +464,12 @@ export function AiDraftDialog({
       if (data.brand) {
         // The reply text already claims what got saved — if either call actually
         // fails, surface it instead of silently leaving the user believing it worked.
-        if (data.brand.setLogo && sentAttachment?.mediaType.startsWith("image/")) {
+        const logoAttachment = sentAttachments.find((a) => a.mediaType.startsWith("image/"));
+        if (data.brand.setLogo && logoAttachment) {
           fetch("/api/settings/logo", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ mediaType: sentAttachment.mediaType, base64: sentAttachment.base64 }),
+            body: JSON.stringify({ mediaType: logoAttachment.mediaType, base64: logoAttachment.base64 }),
           })
             .then(async (r) => {
               if (!r.ok) {
@@ -541,7 +592,7 @@ export function AiDraftDialog({
     setOverage(null);
     setWebsiteUrl("");
     setShowWebsiteField(false);
-    setAttachment(null);
+    setAttachments([]);
     setAttachError(null);
   }
 
@@ -635,11 +686,15 @@ export function AiDraftDialog({
                 m.role === "user" ? "ml-auto bg-primary text-primary-foreground" : "bg-muted text-foreground",
               )}
             >
-              {m.attachmentName && (
-                <p className={cn("mb-1 flex items-center gap-1 text-xs", m.role === "user" ? "text-primary-foreground/80" : "text-muted-foreground")}>
-                  <FileText className="h-3 w-3" />
-                  {m.attachmentName}
-                </p>
+              {m.attachmentNames && m.attachmentNames.length > 0 && (
+                <div className={cn("mb-1 space-y-0.5", m.role === "user" ? "text-primary-foreground/80" : "text-muted-foreground")}>
+                  {m.attachmentNames.map((name, j) => (
+                    <p key={j} className="flex items-center gap-1 text-xs">
+                      <FileText className="h-3 w-3" />
+                      {name}
+                    </p>
+                  ))}
+                </div>
               )}
               {renderFormatted(m.content)}
             </div>
@@ -827,18 +882,32 @@ export function AiDraftDialog({
                   : "Share client's contact/about page (optional)"}
               </button>
             )}
-            {attachment && (
-              <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs">
-                <FileText className="h-3.5 w-3.5 shrink-0 text-primary" />
-                <span className="min-w-0 flex-1 truncate">{attachment.name}</span>
-                <button onClick={() => setAttachment(null)} className="shrink-0 text-muted-foreground hover:text-destructive">
-                  <X className="h-3.5 w-3.5" />
-                </button>
+            {attachments.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {attachments.map((a, i) => (
+                  <div key={i} className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs">
+                    <FileText className="h-3.5 w-3.5 shrink-0 text-primary" />
+                    <span className="min-w-0 max-w-[160px] truncate">{a.name}</span>
+                    <button
+                      onClick={() => setAttachments((prev) => prev.filter((_, j) => j !== i))}
+                      className="shrink-0 text-muted-foreground hover:text-destructive"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
             {attachError && <p className="text-xs text-destructive">{attachError}</p>}
             <div className="flex items-end gap-2">
-              <input ref={fileInputRef} type="file" accept="application/pdf,image/png,image/jpeg,image/webp,image/gif" onChange={handleFileSelect} className="hidden" />
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="application/pdf,image/png,image/jpeg,image/webp,image/gif"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={loading}
