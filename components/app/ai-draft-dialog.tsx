@@ -84,6 +84,24 @@ function sleep(ms: number) {
  * the prompt's rule) stay whole, plain prose lines get split at sentence ends,
  * then consecutive parts are paired up so it reads as a chat, not a wall of
  * one-liners. */
+/** Splits on ".", "!", "?" only when followed by whitespace or end-of-string —
+ * a period inside "testajans.com" or "örn." isn't followed by a space, so it's
+ * left alone instead of being treated as a sentence break. Uses a lookahead
+ * (not a consuming match) so no trailing text can ever go missing, unlike a
+ * match-and-reconstruct approach. */
+function splitSentences(line: string): string[] {
+  const parts: string[] = [];
+  let last = 0;
+  const re = /[.!?](?=\s+|$)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(line))) {
+    parts.push(line.slice(last, m.index + 1).trim());
+    last = m.index + 1;
+  }
+  if (last < line.length) parts.push(line.slice(last).trim());
+  return parts.filter(Boolean);
+}
+
 function splitIntoSentenceBubbles(text: string): string[] {
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
   const rawParts: string[] = [];
@@ -91,11 +109,7 @@ function splitIntoSentenceBubbles(text: string): string[] {
     if (/^(\d+\.|[-•])\s/.test(line)) {
       rawParts.push(line);
     } else {
-      const sentences = line.match(/[^.!?]+[.!?]*(?:\s+|$)/g) ?? [line];
-      for (const s of sentences) {
-        const trimmed = s.trim();
-        if (trimmed) rawParts.push(trimmed);
-      }
+      for (const s of splitSentences(line)) rawParts.push(s);
     }
   }
 
