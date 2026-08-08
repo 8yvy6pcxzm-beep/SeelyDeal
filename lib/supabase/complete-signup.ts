@@ -14,6 +14,25 @@ export async function completeSignup(userId: string, email: string, companyName?
     return { ok: true as const, alreadyLinked: true };
   }
 
+  // Custom-plan team invite: a teammate signing up with an invited email joins
+  // that company with the assigned role/permissions instead of getting a new one.
+  const { data: invite } = await supabase
+    .from("team_invites")
+    .select("id, company_id, role, permissions")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (invite) {
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .insert({ id: userId, company_id: invite.company_id, role: invite.role, permissions: invite.permissions, email });
+    if (profileError) {
+      return { ok: false as const, error: profileError.message };
+    }
+    await supabase.from("team_invites").delete().eq("id", invite.id);
+    return { ok: true as const, companyId: invite.company_id as string };
+  }
+
   const { data: company, error: companyError } = await supabase
     .from("companies")
     .insert({ name: companyName || "", email, plan: "lite" })
@@ -26,7 +45,7 @@ export async function completeSignup(userId: string, email: string, companyName?
 
   const { error: profileError } = await supabase
     .from("profiles")
-    .insert({ id: userId, company_id: company.id, role: "owner" });
+    .insert({ id: userId, company_id: company.id, role: "owner", email });
 
   if (profileError) {
     return { ok: false as const, error: profileError.message };

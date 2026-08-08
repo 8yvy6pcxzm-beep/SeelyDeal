@@ -7,6 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { useLang } from "@/components/i18n/language-provider";
 import { ApiKeySection } from "@/components/app/api-key-section";
+import { TeamRolesCard } from "@/components/app/team-roles-card";
+import { SsoCard } from "@/components/app/sso-card";
+import { usePlan } from "@/components/app/plan-provider";
+import { planAllows } from "@/lib/plan";
 
 function LockedAccessCard({
   icon,
@@ -36,6 +40,9 @@ function LockedAccessCard({
 
 export function SettingsClient() {
   const { t, ui, lang } = useLang();
+  const plan = usePlan();
+  const rolesAllowed = planAllows(plan, "user_roles");
+  const ssoAllowed = planAllows(plan, "sso");
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -79,25 +86,33 @@ export function SettingsClient() {
 
       <ApiKeySection />
 
-      <LockedAccessCard
-        icon={<Users className="h-4 w-4 text-muted-foreground" />}
-        title={lang === "tr" ? "Kullanıcı rolleri ve yetkilendirme" : "User roles and permissions"}
-        description={
-          lang === "tr"
-            ? "Ekip üyelerinize özel roller atayın; hangi alanlara erişebileceklerini ve hangi işlemleri yapabileceklerini tamamen siz yönetin."
-            : "Assign custom roles to your team members — you fully control which areas they can access and what actions they can take."
-        }
-      />
+      {rolesAllowed ? (
+        <TeamRolesCard />
+      ) : (
+        <LockedAccessCard
+          icon={<Users className="h-4 w-4 text-muted-foreground" />}
+          title={lang === "tr" ? "Kullanıcı rolleri ve yetkilendirme" : "User roles and permissions"}
+          description={
+            lang === "tr"
+              ? "Ekip üyelerinize özel roller atayın; hangi alanlara erişebileceklerini ve hangi işlemleri yapabileceklerini tamamen siz yönetin."
+              : "Assign custom roles to your team members — you fully control which areas they can access and what actions they can take."
+          }
+        />
+      )}
 
-      <LockedAccessCard
-        icon={<ShieldCheck className="h-4 w-4 text-muted-foreground" />}
-        title={lang === "tr" ? "SSO desteği" : "SSO support"}
-        description={
-          lang === "tr"
-            ? "Okta, Azure AD ve Salesforce gibi kurumsal kimlik sağlayıcılarınızla entegre olun; ekibinizin sisteme tek bir güvenli şifreyle erişmesini sağlayın."
-            : "Integrate with enterprise identity providers like Okta, Azure AD, and Salesforce — let your team access the system with a single secure sign-on."
-        }
-      />
+      {ssoAllowed ? (
+        <SsoCard />
+      ) : (
+        <LockedAccessCard
+          icon={<ShieldCheck className="h-4 w-4 text-muted-foreground" />}
+          title={lang === "tr" ? "SSO desteği" : "SSO support"}
+          description={
+            lang === "tr"
+              ? "Okta, Azure AD ve Salesforce gibi kurumsal kimlik sağlayıcılarınızla entegre olun; ekibinizin sisteme tek bir güvenli şifreyle erişmesini sağlayın."
+              : "Integrate with enterprise identity providers like Okta, Azure AD, and Salesforce — let your team access the system with a single secure sign-on."
+          }
+        />
+      )}
     </div>
   );
 }

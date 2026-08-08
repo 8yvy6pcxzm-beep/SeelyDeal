@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2 } from "lucide-react";
@@ -21,12 +21,49 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [lastUsed, setLastUsed] = useState<"google" | "github" | null>(null);
 
   const isLogin = mode === "login";
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem("seelydeal-last-auth-provider");
+    if (stored === "google" || stored === "github") setLastUsed(stored);
+  }, []);
+
+  const [ssoDomain, setSsoDomain] = useState("");
+  const [ssoOpen, setSsoOpen] = useState(false);
+
+  async function signInWithSsoDomain(e: React.FormEvent) {
+    e.preventDefault();
+    if (!ssoDomain.trim()) return;
+    setError(null);
+    setLoading(true);
+    const supabase = createClient();
+    const { data, error: ssoError } = await supabase.auth.signInWithSSO({
+      domain: ssoDomain.trim(),
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (ssoError) {
+      setError(ssoError.message);
+      setLoading(false);
+      return;
+    }
+    if (data?.url) {
+      window.location.href = data.url;
+      return;
+    }
+    setError(
+      lang === "tr"
+        ? "Bu domain için henüz bir SSO sağlayıcısı bağlanmamış."
+        : "No SSO provider is connected for this domain yet.",
+    );
+    setLoading(false);
+  }
 
   async function signInWithProvider(provider: "google" | "github") {
     setError(null);
     setLoading(true);
+    window.localStorage.setItem("seelydeal-last-auth-provider", provider);
     const supabase = createClient();
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider,
@@ -168,12 +205,36 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Button variant="outline" disabled={loading} onClick={() => signInWithProvider("google")} className="gap-2">
-              <GoogleGlyph /> Google
-            </Button>
-            <Button variant="outline" disabled={loading} onClick={() => signInWithProvider("github")} className="gap-2">
-              <GithubGlyph /> GitHub
-            </Button>
+            <div className="relative">
+              {lastUsed === "google" && (
+                <span className="absolute -top-2.5 right-3 rounded-full bg-foreground px-2 py-0.5 text-[10px] font-medium text-background">
+                  {lang === "tr" ? "Son kullanılan" : "Last used"}
+                </span>
+              )}
+              <Button
+                variant="outline"
+                disabled={loading}
+                onClick={() => signInWithProvider("google")}
+                className={`w-full gap-2 ${lastUsed === "google" ? "ring-2 ring-foreground/80" : ""}`}
+              >
+                <GoogleGlyph /> Google
+              </Button>
+            </div>
+            <div className="relative">
+              {lastUsed === "github" && (
+                <span className="absolute -top-2.5 right-3 rounded-full bg-foreground px-2 py-0.5 text-[10px] font-medium text-background">
+                  {lang === "tr" ? "Son kullanılan" : "Last used"}
+                </span>
+              )}
+              <Button
+                variant="outline"
+                disabled={loading}
+                onClick={() => signInWithProvider("github")}
+                className={`w-full gap-2 ${lastUsed === "github" ? "ring-2 ring-foreground/80" : ""}`}
+              >
+                <GithubGlyph /> GitHub
+              </Button>
+            </div>
           </div>
 
           <div className="flex items-center gap-3 text-xs text-muted-foreground">

@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, CircleDashed } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import appConfig from "@/app.config";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -59,9 +59,13 @@ export function IntegrationsClient({
                 <span className="inline-flex items-center gap-1.5 text-sm font-medium text-success">
                   <CheckCircle2 className="h-4 w-4" /> {ui.connected}
                 </span>
+              ) : it.key === "stripe" ? (
+                <span className="text-sm text-muted-foreground/50">
+                  {lang === "tr" ? "Yakında" : "Coming soon"}
+                </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-                  <CircleDashed className="h-4 w-4" /> {ui.demoMode}
+                <span className="text-sm text-muted-foreground">
+                  {lang === "tr" ? "Kurulum sırasında etkinleştirilecek" : "Activated during setup"}
                 </span>
               )}
             </div>

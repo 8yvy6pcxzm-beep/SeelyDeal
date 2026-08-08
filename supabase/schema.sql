@@ -13,6 +13,11 @@ create table if not exists companies (
   email text,
   plan text not null default 'lite' check (plan in ('lite', 'pro', 'custom')),
   ai_monthly_limit integer not null default 10,
+  sso_enabled boolean not null default false,
+  sso_provider text check (sso_provider in ('okta', 'azure_ad', 'salesforce')),
+  sso_domain text,
+  sso_metadata_url text,
+  sso_configured_at timestamptz,
   created_at timestamptz not null default now()
 );
 
@@ -95,8 +100,22 @@ create table if not exists ai_usage (
 create table if not exists profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   company_id uuid not null references companies(id) on delete cascade,
-  role text not null default 'member' check (role in ('owner', 'member')),
+  role text not null default 'member' check (role in ('owner', 'admin', 'member', 'viewer')),
+  permissions jsonb not null default '{}'::jsonb,
+  email text,
   created_at timestamptz not null default now()
+);
+
+-- Pending seats invited by email, joined to the company on signup (Custom plan "user roles" feature).
+create table if not exists team_invites (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references companies(id) on delete cascade,
+  email text not null,
+  role text not null default 'member' check (role in ('admin', 'member', 'viewer')),
+  permissions jsonb not null default '{}'::jsonb,
+  invited_by uuid references profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  unique (company_id, email)
 );
 
 -- ── Row Level Security: every table scoped to the caller's own company ────────
@@ -108,6 +127,7 @@ alter table proposals enable row level security;
 alter table templates enable row level security;
 alter table ai_usage enable row level security;
 alter table profiles enable row level security;
+alter table team_invites enable row level security;
 
 create or replace function auth_company_id()
 returns uuid
@@ -125,7 +145,16 @@ create policy "own clients" on clients for all using (company_id = auth_company_
 create policy "own proposals" on proposals for all using (company_id = auth_company_id());
 create policy "own templates" on templates for all using (company_id = auth_company_id());
 create policy "own usage" on ai_usage for all using (company_id = auth_company_id());
+create policy "own invites" on team_invites for all using (company_id = auth_company_id());
 create policy "own profile" on profiles for select using (id = auth.uid());
+create policy "teammates in same company" on profiles for select using (company_id = auth_company_id());
+create policy "admins manage teammates" on profiles for update using (
+  company_id = auth_company_id()
+  and exists (
+    select 1 from profiles me
+    where me.id = auth.uid() and me.role in ('owner', 'admin')
+  )
+);
 
 -- If you already ran this schema before payment_link/signed_at existed, run just this:
 -- alter table proposals add column if not exists payment_link text;
