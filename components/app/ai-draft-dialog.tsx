@@ -387,7 +387,10 @@ export function AiDraftDialog({
     if (!open || initialTemplateId || resumeProposalId) return;
     fetch("/api/settings/onboarding")
       .then((r) => r.json())
-      .then((d) => setOnboardingPending(d.onboardingCompleted === false))
+      .then((d) => {
+        setOnboardingPending(d.onboardingCompleted === false);
+        if (d.defaultSections) setCheckedSections(d.defaultSections);
+      })
       .catch(() => {});
   }, [open, initialTemplateId, resumeProposalId]);
 
@@ -677,6 +680,35 @@ export function AiDraftDialog({
               }
             })
             .catch(() => setError(lang === "tr" ? "Hizmet/fiyatlandırma kaydedilemedi." : "Couldn't save the service/pricing summary."));
+        }
+        if (data.brand.defaultTemplateContent) {
+          fetch("/api/settings/default-template", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content: data.brand.defaultTemplateContent }),
+          })
+            .then(async (r) => {
+              if (!r.ok) {
+                const d = await r.json().catch(() => null);
+                setError(d?.error || (lang === "tr" ? "Varsayılan şablon kaydedilemedi." : "Couldn't save the default template."));
+              }
+            })
+            .catch(() => setError(lang === "tr" ? "Varsayılan şablon kaydedilemedi." : "Couldn't save the default template."));
+        }
+        if (data.brand.defaultSections) {
+          setCheckedSections(data.brand.defaultSections);
+          fetch("/api/settings/default-sections", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sections: data.brand.defaultSections }),
+          })
+            .then(async (r) => {
+              if (!r.ok) {
+                const d = await r.json().catch(() => null);
+                setError(d?.error || (lang === "tr" ? "Varsayılan bölümler kaydedilemedi." : "Couldn't save the default sections."));
+              }
+            })
+            .catch(() => setError(lang === "tr" ? "Varsayılan bölümler kaydedilemedi." : "Couldn't save the default sections."));
         }
       }
       if (data.onboarding?.completed) {

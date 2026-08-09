@@ -12,8 +12,15 @@ export async function GET(req: Request) {
   const { data: profile } = await service.from("profiles").select("company_id").eq("id", user.id).maybeSingle();
   if (!profile) return NextResponse.json({ error: "Şirket profilin bulunamadı." }, { status: 404 });
 
-  const { data: company } = await service.from("companies").select("onboarding_completed").eq("id", profile.company_id).maybeSingle();
-  return NextResponse.json({ onboardingCompleted: company?.onboarding_completed ?? true });
+  const { data: company } = await service
+    .from("companies")
+    .select("onboarding_completed, default_sections")
+    .eq("id", profile.company_id)
+    .maybeSingle();
+  return NextResponse.json({
+    onboardingCompleted: company?.onboarding_completed ?? true,
+    defaultSections: company?.default_sections ?? null,
+  });
 }
 
 /** Marks the company's first-chat intro flow (Seely's İLK TANIŞMA AKIŞI, see

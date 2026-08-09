@@ -256,6 +256,37 @@ Sözleşme: ${resolved.contractText}`
 7. Sözleşme Şartları — varsa revize edilmiş contractText, yoksa boş bırak.
 8. Sonraki Adımlar — kabul sonrası süreç (nextSteps, 3-5 adım).`;
 
+  // Onboarding (Adım 4.5c) lets a company pick which of the 8 standard sections
+  // should be included by default in every future proposal — surface that choice
+  // here so it's actually honored on every new draft, not just remembered.
+  const SECTION_LABELS: Record<string, string> = {
+    intro: "Ön Yazı",
+    about: "Hakkımızda",
+    team: "Ekibimiz",
+    scope: "Hizmet Kapsamı",
+    process: "Süreç/Nasıl Çalışıyoruz",
+    pricing: "Paket ve Ücret",
+    terms: "Sözleşme Şartları",
+    next: "Sonraki Adımlar",
+  };
+  const defaultSections = company?.default_sections as Record<string, boolean> | null | undefined;
+  const defaultSectionsBlock =
+    !currentDraft && defaultSections
+      ? `\nVARSAYILAN BÖLÜM TERCİHİ: Şirket, aksi açıkça istenmedikçe her yeni teklifte şu bölümleri kullanmak istiyor: ${Object.entries(
+          defaultSections,
+        )
+          .filter(([, v]) => v)
+          .map(([k]) => SECTION_LABELS[k] ?? k)
+          .join(", ")}${
+          Object.values(defaultSections).some((v) => !v)
+            ? ` (şunları İSTEMİYOR: ${Object.entries(defaultSections)
+                .filter(([, v]) => !v)
+                .map(([k]) => SECTION_LABELS[k] ?? k)
+                .join(", ")})`
+            : ""
+        }. Kullanıcı bu teklif için özel olarak farklı bölümler isterse (örn. "kapsamlı olsun" deyip hepsini isterse ya da belirli bölümler sayarsa) onun isteğini önceliklendir, aksi halde bu varsayılanı kullan.\n`
+      : "";
+
   // Stay in the onboarding script for the WHOLE flow, not just the first turn —
   // otherwise the model only ever sees the "say hi" instruction and never the
   // later steps (company intro, name confirm, AI instructions, completion
@@ -271,6 +302,9 @@ Sözleşme: ${resolved.contractText}`
 - Adım 3 (adım 2'den SONRAKİ, ayrı bir mesajda): şirketini tanımasını iste. Şirket profili için tam olarak NELERE ihtiyacın olduğunu AÇIKÇA say: şirket/marka adı, iletişim e-postası, slogan (varsa), logo/marka rengi, sunduğu hizmet(ler) ve fiyatlandırma yaklaşımı (sabit ücret mi, paket mi, saatlik mi). Bunun en hızlı yolunun, daha önce hazırladıkları bir örnek teklifi (PDF/Word/resim) YA DA sitelerinin bir ekran görüntüsünü paylaşmaları olduğunu söyle — TEK bir dosya bunların hepsini karşılayabilir. "bu bizim hazırladığımız bir teklif" veya "bu bizim sitemiz" diye bir dosya/ekran görüntüsü paylaşırlarsa, içeriğinden bu bilgileri SEN çıkarırsın. Ekran görüntüsü önermenin sebebi: bir site LİNKİ paylaşırlarsa senin görebileceğin sadece düz metin olur, marka renklerini/görsel kimliğini/logoyu bir linkten ÇIKARAMAZSIN — bunu kullanıcıya söyleme gerek yok ama kendi tercihini buna göre yap. Kullanıcı yine de bir site linki paylaşırsa: paylaşılan linkten çıkarılan metni (varsa, aşağıda "Paylaşılan web sitesinden..." notunda) hizmet/ton bilgisi için kullan, ama marka rengi/görsel kimlik/logo istiyorsan nazikçe sitenin bir ekran görüntüsünü de rica et. Bunu kendi paragrafında, kısa ve tek bir istek olarak yaz. Bu adımı ASLA açıklama mesajıyla veya müşteri/teklif sorusuyla birleştirme — sırasıyla ayrı mesajlar olmalı: (1) tanıtım+açıklama teklifi, (2) [istendiyse] açıklama, (3) şirket tanıma isteği + gereken bilgilerin listesi, (4) TEK BİR ONAY MESAJI (aşağıda anlatılıyor), (5) ancak onay alındıktan SONRA müşteri teklifine geçilir. Kullanıcı dosya/ekran görüntüsü yüklemek istemezse, aynı bilgileri birkaç kısa soruyla sohbetten topla (yine tek seferde hepsini üst üste sormadan, birer birer).
 - ADIM 3'TEN 4'E GEÇME KOŞULU: adım 3'te istenen bilgilerin (şirket/marka adı, e-posta, slogan, logo/renk, hizmetler, fiyatlandırma yaklaşımı) HER BİRİ en az bir kez sorulmuş/istenmiş olmalı — kullanıcı cevabında bir kısmını atlarsa (örn. sadece kendi adını/unvanını söylerse), eksik kalanları AYRI bir mesajda, teker teker sor. Kullanıcı "bilmiyorum/boşver/şimdilik geç" derse ısrar etme, o alanı boş bırakıp devam et — ama en azından SORMADAN adım 4'e geçme.
 - ADIM 4 — TEK KONSOLİDE ONAY (ÇOK ÖNEMLİ): Tüm bilgiler toplandıktan (veya mümkün olduğunca toplandıktan) SONRA, bunları TEK BİR mesajda özetleyip açıkça onay iste — örn. "Bu bilgileri varsayılan olarak şirket profiline ekliyorum, onaylıyor musun?" dedikten sonra kısa bir liste: "Şirket adı: ..., E-posta: ..., Slogan: ..., Marka rengi: ..., Hizmetler/fiyatlandırma: ...". Kullanıcı "evet/onaylıyorum/tamam" gibi net bir onay verene kadar \`\`\`brand\`\`\` bloğunu EKLEME — bu bilgiler kullanıcı açıkça onaylamadan KAYDEDİLMEZ. Kullanıcı onaylarsa, o turun cevabında (kısa bir teşekkür/teyit cümlesiyle) \`\`\`brand\`\`\` bloğuna toplanan TÜM alanları doldur: {"name": "...", "email": "...", "tagline": "...", "setLogo": ..., "primaryColor": ..., "servicesSummary": "..."} (sadece gerçekten bilgi varsa doldur, yoksa alanı hiç ekleme). \`servicesSummary\`, hizmetlerin ve fiyatlandırma yaklaşımının net, kısa bir özeti olsun (madde madde de olabilir, örn. "- Web sitesi tasarımı: $2000 sabit ücret\\n- Aylık bakım: $200/ay") — bu, Şirket Profili → Varsayılan İçerik'te "Hizmetler ve Fiyatlandırma" adlı bir doküman olarak kaydedilir ve BUNDAN SONRAKİ HER teklif taslağında otomatik kullanılır. ÇOK ÖNEMLİ: bu, kullanıcının KENDİ hizmet/fiyat bilgisidir — aşağıdaki GERÇEK PAKETLERİMİZ (SeelyDeal'ın kendi Lite/Pro/Custom fiyatları) listesini burada ASLA önerme veya varsayılan olarak sunma, o tamamen ayrı ve alakasız bir liste. Kullanıcı bazı alanları reddederse/düzeltirse, sadece düzeltilenle güncelleyip tekrar TEK bir onay iste.
+- ADIM 4.5a — VARSAYILAN TEKLİF ŞABLONU (adım 4'ün onayından SONRA, ayrı bir mesajda, SADECE kullanıcı bu sohbette daha önce TAM bir örnek teklif paylaştıysa — "bu bizim hazırladığımız bir teklif", "bundan yapacağız" gibi bir şeyle birlikte gelen, gerçek bir teklifin tam içeriği; sadece kısa bir marka/site bilgisi DEĞİL): paylaşılan içeriği kullanarak "Bunu varsayılan teklif şablonun yapalım mı? Böylece bundan sonraki her teklif bu formatla, bu üslupla yazılır." diye sor. Kullanıcı örnek paylaşmadıysa bu adımı TAMAMEN ATLA, hiç sorma. Kullanıcı onaylarsa, cevabının sonundaki \`\`\`brand\`\`\` bloğuna \`"defaultTemplateContent"\` alanını ekle: paylaşılan örneğin düz metin içeriği (başlıklar/bölümler korunarak, gereksiz tekrar olmadan). Kullanıcı istemezse veya değişiklik isterse, onun dediğini uygula ya da bu adımı atla.
+- ADIM 4.5b — LOGO (eksikse, ayrı bir mesajda): Şirketin logosu hâlâ verilmediyse ("aşağıda 'Şirketin henüz logosu...' notu görüyorsan"), burada BİR KEZ daha sor: "Logonu da alabilir miyim? Resmi buraya yapıştırman yeterli, direkt kaydederim." Kullanıcı geçerse ısrar etme, hemen sıradaki adıma geç. Zaten verilmişse bu adımı hiç yazma.
+- ADIM 4.5c — VARSAYILAN BÖLÜMLER (ayrı bir mesajda): "Her yeni teklifte varsayılan olarak hangi bölümler yer alsın?" diye sorup şu 8 bölümü TEK TEK say: Ön Yazı, Hakkımızda, Ekibimiz, Hizmet Kapsamı, Süreç/Nasıl Çalışıyoruz, Paket ve Ücret, Sözleşme Şartları, Sonraki Adımlar. Kullanıcı "hepsi", "hepsi olsun" derse hepsini true yap. "Sade/basit olsun" derse SADECE çekirdek olanları true yap: Ön Yazı, Hizmet Kapsamı, Paket ve Ücret, Sonraki Adımlar — geri kalanı false. Kullanıcı belirli bölümler sayarsa (örn. "ekip ve süreç olmasın") sadece onları false, diğerlerini true yap. Cevabının sonuna \`\`\`brand\`\`\` bloğuna \`"defaultSections"\` alanını ekle: {"intro": true/false, "about": ..., "team": ..., "scope": ..., "process": ..., "pricing": ..., "terms": ..., "next": ...} — SEKİZ alanın HEPSİNİ doldur, hiçbirini atlama.
 - Şirket adı netleştiği/onaylandığı an (adım 4'ün onayından hemen sonraki cevabında), "Şimdi kendimize geldik! Selam [şirket adı], ya da sana nasıl hitap etmemi istersin?" gibi bir karşılamayla geç — bunu hafif, nabız yoklar gibi sor, ISRARCI olma. Kullanıcı "farketmez", "bilmiyorum", "istemiyorum" gibi cevap verirse ya da soruyu geçerse hemen bırak, tekrar sorma; şirket adını (veya varsayılan bir hitabı) kullanmaya devam et.
 - Son adımda, teklifleri onun için nasıl daha kişisel yazacağını sor — kalıcı AI talimatları toplamaya çalış (örn. ton, kaçınılacak ifadeler, hep uygulanacak kurallar — bunlar adım 4'te kaydedilen hizmet/fiyatlandırma özetine EK olarak, ayrı bir \`\`\`instruction\`\`\` bloğuyla kaydedilir). Kullanıcı doldurmak istemezse "geç" seçeneği sun ve o cevap verdiğinde ısrar etmeden akışı TAMAMLA.
 - Bu akış tamamlandığında (kullanıcı talimat verdi VEYA geçti fark etmez), cevabının SONUNA (varsa diğer bloklardan sonra) ayrı bir \`\`\`onboarding ... \`\`\` bloğu ekle: {"completed": true}. Bu bloğu SADECE tanışma akışının son adımı bittiğinde ekle, akış devam ederken EKLEME.
@@ -368,7 +402,7 @@ ${docsBlock || "(henüz doküman eklenmedi)"}
           ? `ÖZEL ŞABLON — "${resolved.name}"${resolved.nickname ? ` (kod adı "${resolved.nickname}")` : ""}: kullanıcı bu teklif için bu şablonu seçti. Şirketin kendi standart teklif formatı da mevcut ("${defaultTemplate.title}", DOKÜMAN KÜTÜPHANESİ'nde) — ÜSLUP, MADDE İÇERİĞİ ve ŞARTLAR için ÖNCELİKLE o dokümanı kullan; "${resolved.name}" şablonundan ise SADECE bölüm sırasını/başlıklarını${resolved.theme ? " ve görsel temasını (otomatik uygulanacak)" : ""} al — ikisini harmanla. "${resolved.name}" şablonunda olup ne dokümanda ne sohbette karşılığı olmayan, ÇEKİRDEK OLMAYAN bölümler (örn. Kritik Tarihler gibi proje detayları) varsa, o bölümü draft'a UYDURMA İÇERİKLE EKLEME — sessizce atla, section listesinden çıkar, tekrar da sorma (çekirdek alanlar için yukarıdaki ÇEKİRDEK ALANLAR kuralı geçerli, bu ayrı). Kullanıcı henüz müşteri/proje bilgisi vermediyse, json döndürmeden önce doğal bir sohbet diliyle eksikleri sor.\n\n`
           : `ÖZEL ŞABLON — "${resolved.name}"${resolved.nickname ? ` (kod adı "${resolved.nickname}")` : ""}: kullanıcı bu teklif için bu şablonu seçti. VARSAYILAN TEKLİF ŞABLONU'nu YOK SAY, bunun yerine AŞAĞIDAKİ yapıyı ve bölüm başlıklarını takip et (metinleri kullanıcının brief'ine göre uyarla, sadece kopyalama; kullanıcı henüz müşteri/proje bilgisi vermediyse json döndürmeden önce doğal bir sohbet diliyle eksikleri sor):\n${resolvedBlock}\n${resolved.theme ? "Renk teması ve font otomatik uygulanacak, bunu ayrıca söylemene gerek yok.\n" : ""}\n`
         : `VARSAYILAN TEKLİF ŞABLONU:\n${defaultTemplate ? `"${defaultTemplate.title}":\n${defaultTemplate.content}` : builtInComprehensiveTemplate}\n\n`
-  }GERÇEK PAKETLERİMİZ:
+  }${defaultSectionsBlock}GERÇEK PAKETLERİMİZ:
 ${pricingBlock}${websiteContext}${prefillBlock}`;
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -426,6 +460,8 @@ ${pricingBlock}${websiteContext}${prefillBlock}`;
     tagline?: string;
     email?: string;
     servicesSummary?: string;
+    defaultTemplateContent?: string;
+    defaultSections?: Record<string, boolean>;
   } | null = null;
   if (brandMatch) {
     try {
