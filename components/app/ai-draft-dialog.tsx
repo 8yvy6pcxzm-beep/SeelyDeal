@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Sparkles, X, Send, Loader2, Check, Link2, CreditCard, Paperclip, FileText } from "lucide-react";
+import { Sparkles, X, Send, Loader2, Check, Link2, CreditCard, Paperclip, FileText, Mic, MicOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLang } from "@/components/i18n/language-provider";
@@ -158,6 +158,10 @@ export function AiDraftDialog({
   const [selectedFormat, setSelectedFormat] = useState<"pdf" | "html" | undefined>(undefined);
   const [recentTemplates, setRecentTemplates] = useState<{ id: string; name: string }[]>([]);
   const [input, setInput] = useState("");
+  const [recording, setRecording] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [showWebsiteField, setShowWebsiteField] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -340,6 +344,44 @@ export function AiDraftDialog({
     processFiles(files);
   }
 
+  function toggleRecording() {
+    if (recording) {
+      recognitionRef.current?.stop();
+      return;
+    }
+    setVoiceError(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setVoiceError(
+        lang === "tr"
+          ? "Tarayıcın ses tanımayı desteklemiyor — Chrome veya Edge'de dener misin?"
+          : "Your browser doesn't support voice input — try Chrome or Edge.",
+      );
+      return;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const recognition: any = new SpeechRecognition();
+    recognition.lang = lang === "tr" ? "tr-TR" : "en-US";
+    recognition.interimResults = false;
+    recognition.continuous = false;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (e: any) => {
+      const transcript = Array.from(e.results as ArrayLike<{ 0: { transcript: string } }>)
+        .map((r) => r[0].transcript)
+        .join(" ");
+      setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+    };
+    recognition.onerror = () => {
+      setVoiceError(lang === "tr" ? "Ses tanınamadı, tekrar dener misin?" : "Couldn't recognize speech — try again?");
+      setRecording(false);
+    };
+    recognition.onend = () => setRecording(false);
+    recognitionRef.current = recognition;
+    recognition.start();
+    setRecording(true);
+  }
+
   // Just prevents the browser's default "navigate to the dropped file"
   // behavior — no visual drag-over state. Detecting "is this actually a file
   // being dragged" via dataTransfer.types is unreliable across browsers (it
@@ -378,6 +420,12 @@ export function AiDraftDialog({
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.stop();
+    };
   }, []);
 
   useEffect(() => {
@@ -1273,6 +1321,7 @@ export function AiDraftDialog({
               </div>
             )}
             {attachError && <p className="text-xs text-destructive">{attachError}</p>}
+            {voiceError && <p className="text-xs text-destructive">{voiceError}</p>}
             <div className="flex items-end gap-2">
               <input
                 ref={fileInputRef}
@@ -1290,6 +1339,29 @@ export function AiDraftDialog({
               >
                 <Paperclip className="h-4 w-4" />
               </button>
+              {planAllows(plan, "voice_input") && (
+                <button
+                  onClick={toggleRecording}
+                  disabled={loading}
+                  title={
+                    recording
+                      ? lang === "tr"
+                        ? "Kaydı durdur"
+                        : "Stop recording"
+                      : lang === "tr"
+                        ? "Sesli mesaj: 'Ali Bey'e 10 bin liralık sosyal medya danışmanlığı teklifi hazırla' de"
+                        : "Voice input: say what proposal to draft"
+                  }
+                  className={cn(
+                    "grid h-10 w-10 shrink-0 place-items-center rounded-lg border transition-colors disabled:opacity-50",
+                    recording
+                      ? "animate-pulse border-destructive bg-destructive/10 text-destructive"
+                      : "border-border text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  {recording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                </button>
+              )}
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}

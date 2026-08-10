@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Link2, Eye } from "lucide-react";
+import { X, Link2, Eye, Download } from "lucide-react";
 import { StatusPill, ClientAvatar } from "@/components/app/proposal-bits";
 import { useLang } from "@/components/i18n/language-provider";
 import { formatUsd } from "@/lib/utils";
@@ -109,17 +109,26 @@ export function ProposalPreviewDialog({
             </div>
           )}
 
-          {clientLinkHref && (
+          <div className="flex gap-2">
+            {clientLinkHref && (
+              <a
+                href={clientLinkHref}
+                target="_blank"
+                rel="noreferrer"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border py-2.5 text-[13px] font-semibold transition-colors hover:bg-muted"
+              >
+                <Link2 className="h-3.5 w-3.5" />
+                {lang === "tr" ? "Müşteri linkini aç" : "Open client link"}
+              </a>
+            )}
             <a
-              href={clientLinkHref}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center justify-center gap-1.5 rounded-lg border border-border py-2.5 text-[13px] font-semibold transition-colors hover:bg-muted"
+              href={`/api/proposals/${proposal.id}/pdf`}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border py-2.5 text-[13px] font-semibold transition-colors hover:bg-muted"
             >
-              <Link2 className="h-3.5 w-3.5" />
-              {lang === "tr" ? "Müşteri linkini aç" : "Open client link"}
+              <Download className="h-3.5 w-3.5" />
+              {lang === "tr" ? "PDF olarak indir" : "Download as PDF"}
             </a>
-          )}
+          </div>
         </div>
       </div>
     </div>,

@@ -18,7 +18,8 @@ export type GatedFeature =
   | "premium_design"
   | "templates_create"
   | "user_roles"
-  | "sso";
+  | "sso"
+  | "voice_input";
 
 const GATED_FEATURE_MIN_PLAN: Record<GatedFeature, Plan> = {
   crm_integrations: "pro",
@@ -34,6 +35,7 @@ const GATED_FEATURE_MIN_PLAN: Record<GatedFeature, Plan> = {
   templates_create: "pro",
   user_roles: "custom",
   sso: "custom",
+  voice_input: "custom",
 };
 
 const PLAN_RANK: Record<Plan, number> = { lite: 0, pro: 1, custom: 2 };
