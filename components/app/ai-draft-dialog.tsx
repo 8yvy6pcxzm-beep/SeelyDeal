@@ -387,7 +387,11 @@ export function AiDraftDialog({
     // Kick off the chat ourselves — the AI resolves the template server-side and
     // drafts real content from it (blended with the company's own doc library,
     // if any) instead of us dumping raw template text into the preview.
-    send(lang === "tr" ? "Bu şablonu kullanmak istiyorum." : "I'd like to use this template.");
+    // (templateIdOverride: setActiveTemplateId above hasn't re-rendered yet when
+    // send() reads state synchronously, so pass it explicitly too.)
+    send(lang === "tr" ? "Bu şablonu kullanmak istiyorum." : "I'd like to use this template.", {
+      templateIdOverride: initialTemplateId,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialTemplateId]);
 
@@ -431,6 +435,7 @@ export function AiDraftDialog({
     rememberRecentTemplate(id);
     send(
       lang === "tr" ? `"${name}" şablonunu kullanmak istiyorum.` : `I'd like to use the "${name}" template.`,
+      { templateIdOverride: id },
     );
   }
 
@@ -528,7 +533,7 @@ export function AiDraftDialog({
     return /^(kaydet(?:sene)?|kaydediver|teklife ekle|ekle|save( it| this)?)[.!?]*$/i.test(text.trim());
   }
 
-  async function send(override?: string, opts?: { hidden?: boolean }) {
+  async function send(override?: string, opts?: { hidden?: boolean; templateIdOverride?: string }) {
     if ((!override?.trim() && !input.trim() && attachments.length === 0) || loading) return;
     const text =
       override?.trim() ||
@@ -568,7 +573,7 @@ export function AiDraftDialog({
       websiteUrl: websiteUrl || undefined,
       attachments: sentAttachments.length ? sentAttachments : undefined,
       currentDraft: draft ?? undefined,
-      templateId: !draft ? activeTemplateId : undefined,
+      templateId: !draft ? opts?.templateIdOverride ?? activeTemplateId : undefined,
     });
 
     // A dropped connection/transient network blip shouldn't dead-end the user
