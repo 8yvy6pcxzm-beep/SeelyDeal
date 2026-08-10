@@ -5,6 +5,7 @@ import { getAuthedUser } from "@/lib/supabase/auth-user";
 import appConfig, { aiOveragePack } from "@/app.config";
 import { safeFetchWebsiteText } from "@/lib/safe-fetch-website";
 import { templates } from "@/lib/demo/data";
+import { planAllows } from "@/lib/plan";
 import type { createServiceClient as CreateServiceClient } from "@/lib/supabase/server";
 
 // AI drafting (company context + template docs + an optional attachment) routinely
@@ -123,10 +124,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Şirket profilin bulunamadı." }, { status: 404 });
   }
 
-  const [{ data: company }, { data: team }, { data: docs }] = await Promise.all([
+  const [{ data: company }, { data: team }, { data: docs }, { data: userDefault }, { data: recentOwnProposals }] = await Promise.all([
     service.from("companies").select("*").eq("id", profile.company_id).single(),
     service.from("team_members").select("name, title").eq("company_id", profile.company_id),
     service.from("company_documents").select("type, title, content, is_default_template").eq("company_id", profile.company_id),
+    service.from("user_defaults").select("*").eq("profile_id", user.id).maybeSingle(),
+    // Last 2 proposals THIS person drafted (not just anyone in the company) — used to
+    // notice "keeps picking the same template+format" and offer to save it as default.
+    service
+      .from("proposals")
+      .select("template_id, format")
+      .eq("company_id", profile.company_id)
+      .eq("created_by", user.id)
+      .order("created_at", { ascending: false })
+      .limit(2),
   ]);
 
   // Enforce the plan's monthly AI draft limit (customer-facing) and a much more
@@ -171,11 +182,15 @@ export async function POST(req: Request) {
   // in free-form chat. Only resolved on the first message of a new draft (no currentDraft yet) —
   // once a real draft exists, edits go through DÜZENLEME MODU below instead.
   const fullChatText = messages.map((m) => m.content).join("\n").toLowerCase();
-  const resolved: ResolvedTemplate | undefined = currentDraft
+  // Templates are Pro+ (see app/(app)/templates/page.tsx) — Lite ignores any
+  // templateId/nickname reference even if sent directly to this API.
+  const resolved: ResolvedTemplate | undefined = !planAllows(company?.plan, "templates_create")
     ? undefined
-    : templateId
-      ? await resolveTemplateById(templateId, profile.company_id, service)
-      : matchNamedTemplate(fullChatText);
+    : currentDraft
+      ? undefined
+      : templateId
+        ? await resolveTemplateById(templateId, profile.company_id, service)
+        : matchNamedTemplate(fullChatText);
   const resolvedBlock = resolved
     ? `"${resolved.name}"${resolved.nickname ? ` (kod adı "${resolved.nickname}")` : ""}:
 Ön Yazı: ${resolved.introText}
@@ -286,6 +301,24 @@ Sözleşme: ${resolved.contractText}`
         }. Kullanıcı bu teklif için özel olarak farklı bölümler isterse (örn. "kapsamlı olsun" deyip hepsini isterse ya da belirli bölümler sayarsa) onun isteğini önceliklendir, aksi halde bu varsayılanı kullan.\n`
       : "";
 
+  // Kişiye özel varsayılan (Faz 2): her kullanıcı (profil) için ayrı — bir şirkette
+  // birden fazla kişi farklı şablon/format tercih edebilir. userDefault varsa
+  // sessizce uygula (tekrar sorma); yoksa ve son 2 teklif de aynı şablon+formatı
+  // kullandıysa, bunu varsayılan yapmayı TEKLİF ET.
+  const lastTwo = (recentOwnProposals ?? []) as { template_id: string | null; format: string | null }[];
+  const personalDefaultBlock = !currentDraft
+    ? userDefault
+      ? `\nKİŞİSEL VARSAYILAN (bu kullanıcı için kayıtlı — "${userDefault.label}"): şablon id: ${userDefault.template_id ?? "(yok)"}, çıktı formatı: ${userDefault.preferred_format ?? "(belirtilmemiş)"}. Kullanıcı bu teklif için AÇIKÇA farklı bir şey istemediği sürece (örn. "bu sefer farklı bir şablon kullan" derse), bu varsayılanı SESSİZCE uygula — şablon veya format hakkında TEKRAR SORMA, zaten biliyorsun. Kullanıcı "aksine bir ayarlama yapana kadar" demişti, yani sen değiştirmediği sürece hep bunu kullan.\n`
+      : `\nKİŞİSEL VARSAYILAN: Bu kullanıcı için henüz kayıtlı bir varsayılan yok. Çıktı formatını (PDF mi, yoksa paylaşılabilir bir link/HTML sayfası mı) sohbette henüz belirtmediyse SOR (bir kez, kısaca: "Bu teklifi PDF olarak mı, yoksa paylaşılabilir bir link olarak mı hazırlayayım?"). ${
+          lastTwo.length >= 1
+            ? `Bu kullanıcının bir önceki teklifinde kullandığı şablon/format: şablon id ${lastTwo[0].template_id ?? "(yok)"}, format ${lastTwo[0].format ?? "(yok)"}. Eğer BU teklifte kullanıcı AYNI şablonu VE AYNI formatı seçtiyse, teklifi kaydettikten SONRAKİ cevabında şunu sor: "Fark ettim, art arda aynı şablon ve formatı kullanıyorsun — bunu senin için varsayılan yapayım mı? Aksine bir ayarlama yapana kadar tüm tekliflerini böyle hazırlarım." Kullanıcı "evet" derse, cevabının sonuna \`\`\`userDefault\`\`\` bloğu ekle: {"label": "[kullanıcının adı/hitap şekli] Varsayılanı", "templateId": "...", "preferredFormat": "pdf veya html"} — kullanıcının adını onboarding'de verdiği hitap şeklinden (ya da bilmiyorsan sor) al.`
+            : "Bu kullanıcının daha önce kaydedilmiş bir teklifi yok, örüntü karşılaştırması yapılamaz — bu adımı atla."
+        }\n`
+    : "";
+  const formatBlockRule = !currentDraft
+    ? `\nÇIKTI FORMATI KAYDI: Bu teklif için çıktı formatı (PDF ya da link/HTML) netleştiği HER turda (sorulup cevaplandığında ya da kişisel varsayılandan sessizce alındığında), cevabının sonuna ayrı bir \`\`\`format\`\`\` bloğu ekle: {"value": "pdf"} veya {"value": "html"} — bu, uygulamanın teklifi kaydederken kullanması için gerekli, sadece bir kez değil, format netleştiği her turda tekrar ekle.\n`
+    : "";
+
   // Stay in the onboarding script for the WHOLE flow, not just the first turn —
   // otherwise the model only ever sees the "say hi" instruction and never the
   // later steps (company intro, name confirm, AI instructions, completion
@@ -341,6 +374,7 @@ KURALLAR:
 - ÇOK ÖNEMLİ — OKUNAKLILIK (SOHBET METNİ): Cevap metnini TEK BİR YOĞUN BLOK halinde yazma. Birden fazla fikri/soruyu/adımı art arda söylüyorsan, her birini ayrı bir paragrafa böl (aralarında boş satır bırak) — biri selamlama, biri soru, biri sıradaki adımsa bunlar 3 ayrı kısa paragraf olsun. Numaralı/madde işaretli bir liste yazıyorsan HER madde ayrı satırda olsun ve madde başına bir cümleyi geçmesin — birden fazla cümleyi tek maddeye sıkıştırma, gerekirse maddeyi ikiye böl. Tek cümlelik kısa onaylarda (örn. "Tamam, kaydettim.") bu kurala gerek yok.
 - Türkçe konuş (kullanıcı İngilizce yazarsa İngilizce cevap ver).
 - Teklif hazırlamak için gerekli bilgiler eksikse (müşteri adı, sunulacak hizmet, fiyatlandırma yaklaşımı) TEK TEK, doğal bir sohbet diliyle sor. Kullanıcı "nelere ihtiyacın var" derse hepsini liste halinde sun.
+- MÜŞTERİLERE EKLEME: Kullanıcı içerik kütüphanesi kurarken ya da herhangi bir sohbette paylaştığı bir örnekteki karşı tarafı (müşteriyi) "müşterilerime ekle" gibi AÇIKÇA isterse, cevabının sonuna \`\`\`addClient\`\`\` bloğu ekle: {"name": "...", "email": "..." (varsa), "website": "..." (varsa)}. Kullanıcı bunu açıkça İSTEMEDİĞİ sürece bu konuyu SEN kendiliğinden hiç açma, sorma ya da önerme — bu tamamen kullanıcının inisiyatifinde.
 - ÇOK ÖNEMLİ — MÜŞTERİ UNVAN/ADRES BİLGİSİ: \`clientContact.company\` (şirket unvanı) veya \`clientContact.address\` eksikse ve kullanıcı bunları sohbette de vermediyse, ÖNCE şuna benzer bir soru sor (aynen kopyalamak zorunda değilsin ama anlamı korunmalı): "Karşı tarafın bilgilerini detaylı görüp teklife ekleyebileceğim bir müşteri web sayfası ekler misin? Bu iletişim sayfası olabilir — oradan unvan, adres gibi bilgileri ben çıkarabilirim." Kullanıcı link/görsel paylaşmak istemez ya da elinde yoksa, o zaman bilgileri elle sormaya geç (zorunlu tutma, sadece öncelik sırası bu). Kullanıcı bir link ya da görsel paylaşırsa oradan unvan/adresi çıkar (metinde net geçmiyorsa UYDURMA, boş bırak ve tekrar sor).
 - ÇOK ÖNEMLİ — ÇEKİRDEK ALANLAR: Müşteri/karşı taraf bilgisi, hizmeti sağlayan taraf bilgisi, sunulan hizmetin/kapsamın özeti ve fiyat — bu dördü hiçbir kaynaktan (sohbet, yüklenen doküman, şablon) gelmiyorsa SESSİZCE boş/0 değerle json'a geçme. Önce normal akışta sor; kullanıcı boş geçer ya da belirsiz cevap verirse ("bilmiyorum", "sonra eklerim", "boş kalsın" gibi) BİR KEZ DAHA, daha net bir soruyla teyit iste (örn. "Fiyat bilgisi olmadan mı devam edeyim, yoksa henüz netleşmedi mi?"). Kullanıcı ikinci kez de net bir yanıt vermezse (veya açıkça "evet boş kalsın" derse) o zaman devam et — amaç iki kez sorup dikkat çekmek, sonsuza kadar ısrar etmek değil.
 - ÇOK ÖNEMLİ — SİTE UYDURMA: Bir firma adı duyduğunda ("X firması için teklif hazırla" gibi) ASLA o firmanın web sitesini kendin tahmin etme, aratma veya "muhtemelen x.com'dur" diye varsayma — yanlış firmanın bilgilerini teklife karıştırırsın. SADECE kullanıcının sohbette paylaştığı (yazdığı/yapıştırdığı) gerçek bir link varsa onu kullan; bu durumda link zaten otomatik olarak senin için çekiliyor, aşağıda "Paylaşılan web sitesinden..." notunu göreceksin — böyle bir not yoksa site paylaşılmamış demektir, siteyi açamadığını söyleme, sadece paylaşmasını nazikçe iste ("müşterinin web sitesini paylaşır mısın?").${
@@ -351,6 +385,7 @@ KURALLAR:
 - TALİMAT KAYDI vs MARKA KAYDI ÖNCELİĞİ: Kullanıcı "hep bu rengi kullan", "logomuz hep bu olsun" gibi kalıcı bir ifadeyle logo/marka rengi/şirket adı/e-posta/slogan belirtirse, bunu SADECE \`\`\`instruction\`\`\` bloğuna yazma — bu yapılandırılmış alanlar (renk/logo/isim/e-posta/slogan) ASIL olarak \`\`\`brand\`\`\` bloğuna (MARKA KAYDI kuralı, primaryColor/setLogo/name/email/tagline) kaydedilmeli, çünkü sadece \`\`\`brand\`\`\` bloğu gerçek şirket profili alanlarına yazar — \`\`\`instruction\`\`\` bloğu sadece serbest metin bir not olarak kalır ve şirket profilindeki asıl alan (örn. marka rengi kutusu) BOŞ görünmeye devam eder, bu da kullanıcıya "bu bilgiyi vermedim mi" diye tekrar sorulmasına yol açar. Kural: renk/logo/isim/e-posta/slogan gibi somut, yapılandırılmış bir veri varsa → \`\`\`brand\`\`\`; ton, üslup, kaçınılacak ifade, davranış kuralı gibi soyut bir tercihse → \`\`\`instruction\`\`\`. İkisi aynı anda da olabilir ama somut veri ASLA sadece instruction'da kalmasın.
 - TALİMAT KAYDI: Kullanıcı sana kalıcı bir kural/tercih bildirirse — "bundan sonra hep böyle yap", "her zaman", "bunu hatırla", "bir daha sorma, direkt X yap" gibi bir ifadeyle, gelecekteki teklifler için de geçerli olacak bir talimat verirse (örn. "opsiyonel kalemleri hep işaretsiz bırak", "ödeme linkini hiç sorma, ben eklerim") — cevabının SONUNA (varsa json/brand bloklarından sonra) ayrı bir \`\`\`instruction ... \`\`\` bloğu ekle: {"text": "kısa, net, tekrar kullanılabilir talimat cümlesi (emir kipiyle, örn. \\"Opsiyonel kalemleri varsayılan olarak işaretsiz bırak.\\")"}. Bu SADECE bu teklife özel değil, GELECEKTEKİ TÜM tekliflere uygulanacak kalıcı bir kural olduğunda ekle — tek seferlik bir istek ("bu teklifte X yap") için ekleme. Cevap metninde kısaca teyit et (örn. "Tamam, bunu bundan sonraki tüm tekliflerde hatırlayacağım.").
 - Kullanıcı bir dosya (PDF, resim, ekran görüntüsü) eklerse, içeriğini oku ve teklif için gereken bilgileri (marka, fiyatlandırma, kapsam, müşteri bilgisi vb.) oradan çıkar — tekrar sorma.
+- ÇOK ÖNEMLİ — İÇERİK KÜTÜPHANESİ İÇİN ÖRNEK İSTERKEN (KVKK): Kullanıcıdan içerik kütüphanesi/varsayılan şablon için "halihazırda kullandığınız bir teklif örneği" isterken, ÖNCELİKLE içinde herhangi bir müşteri bilgisi OLMAYAN, boş/şablon bir örnek istediğini belirt. Kullanıcının paylaştığı dosyada gerçek bir müşterinin bilgileri (isim, e-posta, adres vb.) varsa, bunu fark ettiğinde cevabında MUTLAKA şunu söyle (aynen kopyalamak zorunda değilsin ama anlamı korunmalı): "Müşterinizin bilgileri sizin onayınız olmadıkça saklanmaz — burada eklenmesi gereken KVKK bölümleri varsa bunu araştırıp güncelleyebilirim." Bu uyarıyı atlama.
 - Kullanıcı "standart sözleşmemi/teklif formatımı kullan, şunu revize et" derse, aşağıdaki VARSAYILAN İÇERİK'ten ilgili dokümanı bul, verdiği talimatlara göre revize ederek kullan.
 - ÇOK ÖNEMLİ — GERÇEK PAKETLERİMİZ SADECE SEELYDEAL SATIŞINDA: Aşağıdaki GERÇEK PAKETLERİMİZ listesi (Lite/Pro/Custom) SeelyDeal ürününün KENDİ abonelik fiyatlarıdır — SADECE kullanıcı SeelyDeal'ı (bu uygulamanın kendisini) bir müşteriye satan bir teklif hazırlatıyorsa kullan. DİĞER TÜM DURUMLARDA (kullanıcının KENDİ hizmetini/ürününü sattığı normal senaryo, ki neredeyse her zaman budur) bu paket listesini kesinlikle ASLA önerme, hizmet/fiyatlandırma sorusuna cevap olarak sunma veya "varsayılan olarak bunu kullanabiliriz" deme — bu listenin şirketin kendi hizmet/fiyat listesiyle HİÇBİR ilgisi yok. Kullanıcının kendi hizmetleri/fiyatlandırması belirsizse veya sorulduğunda cevap vermediyse, GERÇEK PAKETLERİMİZ'e otomatik geçmek yerine kullanıcıya doğrudan sor (örn. "Hangi hizmeti ne ücrete sunuyorsun?") ve cevap gelmeden fiyat uydurma.
 - ÇOK ÖNEMLİ — TEK PAKET VARSAYILANI: Kullanıcı SeelyDeal'ı (bu ürünün kendisini) bir müşteriye satan bir teklif hazırlatıyorsa, VARSAYILAN OLARAK sadece TEK bir paket (müşterinin ihtiyacına en uygun olanı, belirsizse Pro) öner — o paketin fiyatını normal bir \`lineItem\` olarak yaz, \`billingOptions\` dizisini BOŞ bırak. \`billingOptions\`u (birden fazla, birbirini dışlayan seçenek — ki bu her seçenek için ayrı bir ödeme linki kutusu doğurur) SADECE kullanıcı açıkça "müşteri birden fazla paket arasından seçsin", "aylık ve yıllık ikisini de sunayım", "farklı seçenekler göster" gibi bir şey istediğinde kullan. "Kapsamlı olsun", "tüm bölümler dahil olsun" gibi genel istekler bunu TETİKLEMEZ — bunlar sadece bölüm/içerik zenginliğiyle ilgilidir, paket sayısıyla değil.
@@ -406,7 +441,7 @@ ${docsBlock || "(henüz doküman eklenmedi)"}
           ? `ÖZEL ŞABLON — "${resolved.name}"${resolved.nickname ? ` (kod adı "${resolved.nickname}")` : ""}: kullanıcı bu teklif için bu şablonu seçti. ÇOK ÖNEMLİ — ŞABLONLAR SADECE GÖRSELDİR: bu şablondan SADECE${resolved.theme ? " görsel temasını (renk/font, otomatik uygulanacak)" : " hiçbir şey"} al — bölüm sırasını, başlıklarını, metnini ASLA bu şablondan alma/kopyalama. İçerik (bölümler, sıralama, metin, ücretler) için Şirketin kendi standart teklif formatını ("${defaultTemplate.title}", DOKÜMAN KÜTÜPHANESİ'nde) ve kullanıcının sohbette/dosyada verdiği bilgiyi kullan — kullanıcının verdiği içerik SIRASI ve YAPISI olduğu gibi korunur, şablon bunu değiştirmez. Kullanıcı henüz müşteri/proje bilgisi vermediyse, json döndürmeden önce doğal bir sohbet diliyle eksikleri sor.\n\n`
           : `ÖZEL ŞABLON — "${resolved.name}"${resolved.nickname ? ` (kod adı "${resolved.nickname}")` : ""}: kullanıcı bu teklif için bu şablonu seçti. ÇOK ÖNEMLİ — ŞABLONLAR SADECE GÖRSELDİR: bu şablondan SADECE${resolved.theme ? " görsel temasını (renk/font, otomatik uygulanacak)" : " hiçbir şey"} al — bölüm sırasını, başlıklarını veya metnini bu şablondan ASLA kopyalama/uyarlama. İçerik için VARSAYILAN TEKLİF ŞABLONU'nu (aşağıda) ve kullanıcının sohbette/dosyada verdiği bilgiyi kullan; kullanıcı kendi içeriğini (metin, sıralama) verdiyse onu OLDUĞU GİBİ koru, sadece seçilen şablonun görsel iskeletine yerleştir. Kullanıcı henüz müşteri/proje bilgisi vermediyse, json döndürmeden önce doğal bir sohbet diliyle eksikleri sor.\n\n`
         : `VARSAYILAN TEKLİF ŞABLONU:\n${defaultTemplate ? `"${defaultTemplate.title}":\n${defaultTemplate.content}` : builtInComprehensiveTemplate}\n\n`
-  }${defaultSectionsBlock}GERÇEK PAKETLERİMİZ:
+  }${defaultSectionsBlock}${personalDefaultBlock}${formatBlockRule}GERÇEK PAKETLERİMİZ:
 ${pricingBlock}${websiteContext}${prefillBlock}`;
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -498,6 +533,42 @@ ${pricingBlock}${websiteContext}${prefillBlock}`;
     }
   }
 
+  // Optional ```addClient``` block — user explicitly asked to add a shared example's
+  // counterpart to their Clients list (see MÜŞTERİLERE EKLEME rule above).
+  const addClientMatch = replyText.match(/```addClient\s*([\s\S]*?)```/);
+  let addClient: { name?: string; email?: string; website?: string } | null = null;
+  if (addClientMatch) {
+    try {
+      addClient = JSON.parse(addClientMatch[1]);
+    } catch {
+      addClient = null;
+    }
+  }
+
+  // Optional ```format``` block — the output format (pdf/html) settled on this turn (see ÇIKTI FORMATI KAYDI rule).
+  const formatMatch = replyText.match(/```format\s*([\s\S]*?)```/);
+  let format: "pdf" | "html" | null = null;
+  if (formatMatch) {
+    try {
+      const parsed = JSON.parse(formatMatch[1]) as { value?: string };
+      format = parsed.value === "pdf" || parsed.value === "html" ? parsed.value : null;
+    } catch {
+      format = null;
+    }
+  }
+
+  // Optional ```userDefault``` block — user approved saving their current template/format
+  // choice as a personal default (see KİŞİSEL VARSAYILAN rule above).
+  const userDefaultMatch = replyText.match(/```userDefault\s*([\s\S]*?)```/);
+  let userDefaultOut: { label?: string; templateId?: string; preferredFormat?: string } | null = null;
+  if (userDefaultMatch) {
+    try {
+      userDefaultOut = JSON.parse(userDefaultMatch[1]);
+    } catch {
+      userDefaultOut = null;
+    }
+  }
+
   // The draft quota (customer-facing) only counts a produced proposal; the message
   // count (cost backstop) always increments, since every call is a real API charge.
   await service.from("ai_usage").upsert(
@@ -510,7 +581,20 @@ ${pricingBlock}${websiteContext}${prefillBlock}`;
     .replace(/```brand[\s\S]*?```/, "")
     .replace(/```instruction[\s\S]*?```/, "")
     .replace(/```onboarding[\s\S]*?```/, "")
+    .replace(/```format[\s\S]*?```/, "")
+    .replace(/```userDefault[\s\S]*?```/, "")
+    .replace(/```addClient[\s\S]*?```/, "")
     .trim();
 
-  return NextResponse.json({ reply, draft, brand, instruction, onboarding, remaining: limit - (draft ? used + 1 : used) });
+  return NextResponse.json({
+    reply,
+    draft,
+    brand,
+    instruction,
+    onboarding,
+    format,
+    userDefault: userDefaultOut,
+    addClient,
+    remaining: limit - (draft ? used + 1 : used),
+  });
 }

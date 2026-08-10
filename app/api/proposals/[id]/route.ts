@@ -60,6 +60,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const validDays = Number(body.validDays);
     patch.valid_days = Number.isFinite(validDays) ? validDays : 15;
   }
+  if (body.templateId !== undefined) patch.template_id = body.templateId || null;
+  if (body.format === "pdf" || body.format === "html") patch.format = body.format;
   if (body.client) {
     const { data: existing } = await service
       .from("clients")

@@ -11,6 +11,7 @@ import { TemplateHtmlBlock } from "@/components/app/template-html-block";
 import { AiDraftDialog } from "@/components/app/ai-draft-dialog";
 import { usePlan } from "@/components/app/plan-provider";
 import { planAllows } from "@/lib/plan";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 
 type RealTemplateRow = {
   id: string;
@@ -91,6 +92,10 @@ function TemplatesPageInner() {
     return Array.from(byCategory.values());
   }, [templates]);
   const canCreateTemplates = planAllows(plan, "templates_create");
+  // Templates (visual/design starting points) are a Pro+ feature end to end — Lite
+  // can't browse or use them either, not just create new ones. Lite customizes
+  // brand color/logo only (see company-profile-client.tsx + the onboarding brand flow).
+  const templatesAllowed = planAllows(plan, "templates_create");
 
   function draftFromCurrent() {
     // Hand off just the template's id — the AI chat resolves it server-side and
@@ -98,6 +103,23 @@ function TemplatesPageInner() {
     // instead of us dumping raw template text (with unfilled placeholders) here.
     sessionStorage.setItem("seelydeal:draftFromTemplate", JSON.stringify({ templateId: current.id }));
     router.push("/proposals?fromTemplate=1");
+  }
+
+  if (!templatesAllowed) {
+    return (
+      <div className="mx-auto max-w-[1100px]">
+        <Card>
+          <CardHeader>
+            <CardTitle>{lang === "tr" ? "Şablonlar" : "Templates"}</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {lang === "tr"
+                ? "Şablonlar Pro ve Custom paketlerinde kullanılabilir. Lite'ta marka rengini ve logonu Şirket Profili'nden özelleştirebilirsin — tekliflerin o marka kimliğiyle hazırlanır."
+                : "Templates are available on the Pro and Custom plans. On Lite, customize your brand color and logo from Company Profile — proposals are drafted with that identity."}
+            </p>
+          </CardHeader>
+        </Card>
+      </div>
+    );
   }
 
   return (

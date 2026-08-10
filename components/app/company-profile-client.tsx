@@ -9,6 +9,7 @@ import { Input, Label } from "@/components/ui/input";
 import { useLang } from "@/components/i18n/language-provider";
 import appConfig, { aiOveragePack } from "@/app.config";
 import { planAllows, type Plan } from "@/lib/plan";
+import { PersonalDefaultCard } from "@/components/app/personal-default-card";
 
 type Company = {
   id: string;
@@ -407,6 +408,8 @@ export function CompanyProfileClient() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
+      {/* Personal default — only shown here for Lite, which has no content library page */}
+      {!planAllows(company.plan, "document_library") && <PersonalDefaultCard />}
       {/* Brand */}
       <Card>
         <CardHeader>

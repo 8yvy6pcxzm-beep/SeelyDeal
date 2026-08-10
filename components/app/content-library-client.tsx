@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLang } from "@/components/i18n/language-provider";
+import { PersonalDefaultCard } from "@/components/app/personal-default-card";
 
 type CompanyDocument = {
   id: string;
@@ -148,6 +149,7 @@ export function ContentLibraryClient() {
 
   return (
     <div className="mx-auto max-w-[1100px] space-y-6">
+      <PersonalDefaultCard />
       {readyContent.length > 0 && (
         <Card>
           <CardHeader>

@@ -155,6 +155,7 @@ export function AiDraftDialog({
   const [mounted, setMounted] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [activeTemplateId, setActiveTemplateId] = useState<string | undefined>(initialTemplateId);
+  const [selectedFormat, setSelectedFormat] = useState<"pdf" | "html" | undefined>(undefined);
   const [recentTemplates, setRecentTemplates] = useState<{ id: string; name: string }[]>([]);
   const [input, setInput] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
@@ -765,6 +766,27 @@ export function AiDraftDialog({
         setOnboardingPending(false);
         fetch("/api/settings/onboarding", { method: "POST" }).catch(() => {});
       }
+      if (data.format === "pdf" || data.format === "html") {
+        setSelectedFormat(data.format);
+      }
+      if (data.userDefault?.label) {
+        fetch("/api/settings/user-default", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            label: data.userDefault.label,
+            templateId: data.userDefault.templateId ?? activeTemplateId,
+            preferredFormat: data.userDefault.preferredFormat ?? selectedFormat,
+          }),
+        }).catch(() => setError(lang === "tr" ? "Kişisel varsayılan kaydedilemedi." : "Couldn't save your personal default."));
+      }
+      if (data.addClient?.name) {
+        fetch("/api/clients", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: data.addClient.name, email: data.addClient.email, website: data.addClient.website }),
+        }).catch(() => setError(lang === "tr" ? "Müşteri eklenemedi." : "Couldn't add the client."));
+      }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError" && stoppedRef.current) {
         // User hit Esc — silently stop, no error toast; stopGeneration() already
@@ -814,7 +836,12 @@ export function AiDraftDialog({
           : await fetch(savedProposalId ? `/api/proposals/${savedProposalId}` : "/api/proposals", {
               method: savedProposalId ? "PATCH" : "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ ...toSave, paymentLink: paymentLink.trim() || undefined }),
+              body: JSON.stringify({
+                ...toSave,
+                paymentLink: paymentLink.trim() || undefined,
+                templateId: activeTemplateId,
+                format: selectedFormat,
+              }),
             });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
