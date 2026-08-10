@@ -64,6 +64,14 @@ proposals, clients, view timelines, e-sign states). That is intentional — it l
 anyone boot the app instantly. Real integrations replace the demo data once their
 keys are present.
 
+## Must — AI chatbot language quality (Seely / SeelyNow)
+
+The Seely chatbot's system prompt (`app/api/draft-proposal/route.ts`) must always
+require **correct, natural, non-robotic Turkish** — no stale/overused "-eyim/-ayım"
+filler patterns ("yardımcı olayım", "bakayım" stacked back to back), no
+translation-flavored or overly formal phrasing. This applies to SeelyDeal's Seely
+**and** the separate SeelyNow chatbot — keep both prompts held to this bar.
+
 ## This is NOT the Next.js you may know
 
 This is Next.js 16 (App Router, React 19, Tailwind v4). APIs and conventions may
