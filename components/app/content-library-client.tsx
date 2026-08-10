@@ -183,7 +183,7 @@ export function ContentLibraryClient() {
       )}
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle>{lang === "tr" ? "Teklif Örnekleriniz" : "Your proposal examples"}</CardTitle>
             <p className="text-sm text-muted-foreground">
@@ -192,7 +192,7 @@ export function ContentLibraryClient() {
                 : "Your own contract, proposal formats, and service description. Mark a \"proposal format\" as default and the AI will follow its skeleton."}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <input
               ref={fileInputRef}
               type="file"
