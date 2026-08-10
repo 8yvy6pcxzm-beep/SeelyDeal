@@ -32,21 +32,6 @@ type TeamMember = {
   email: string | null;
 };
 
-type CompanyDocument = {
-  id: string;
-  type: "contract" | "proposal_template" | "service_description" | "other";
-  title: string;
-  content: string;
-  is_default_template: boolean;
-};
-
-const DOC_TYPES: { value: CompanyDocument["type"]; tr: string; en: string }[] = [
-  { value: "contract", tr: "Sözleşme", en: "Contract" },
-  { value: "proposal_template", tr: "Teklif formatı", en: "Proposal format" },
-  { value: "service_description", tr: "Hizmet açıklaması", en: "Service description" },
-  { value: "other", tr: "Diğer", en: "Other" },
-];
-
 function textareaClass(extra?: string) {
   return `flex w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring transition-colors ${extra ?? ""}`;
 }
@@ -157,13 +142,9 @@ export function CompanyProfileClient() {
   const [sessionExpired, setSessionExpired] = useState(false);
   const [company, setCompany] = useState<Company | null>(null);
   const [team, setTeam] = useState<TeamMember[]>([]);
-  const [docs, setDocs] = useState<CompanyDocument[]>([]);
   const [saving, setSaving] = useState(false);
   const [aiUsage, setAiUsage] = useState(0);
   const [crediting, setCrediting] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -202,10 +183,9 @@ export function CompanyProfileClient() {
         return;
       }
 
-      const [{ data: companyRow }, { data: teamRows }, { data: docRows }, { data: usageRow }] = await Promise.all([
+      const [{ data: companyRow }, { data: teamRows }, { data: usageRow }] = await Promise.all([
         supabase.from("companies").select("*").eq("id", profile.company_id).single(),
         supabase.from("team_members").select("*").eq("company_id", profile.company_id).order("created_at"),
-        supabase.from("company_documents").select("*").eq("company_id", profile.company_id).order("created_at"),
         supabase
           .from("ai_usage")
           .select("count")
@@ -216,7 +196,6 @@ export function CompanyProfileClient() {
 
       setCompany(companyRow);
       setTeam(teamRows ?? []);
-      setDocs(docRows ?? []);
       setAiUsage(usageRow?.count ?? 0);
       setLoading(false);
     })();
@@ -274,55 +253,6 @@ export function CompanyProfileClient() {
   async function removeTeamMember(id: string) {
     setTeam((t) => t.filter((m) => m.id !== id));
     await supabase.from("team_members").delete().eq("id", id);
-  }
-
-  async function addDocument() {
-    if (!company) return;
-    const { data } = await supabase
-      .from("company_documents")
-      .insert({
-        company_id: company.id,
-        type: "contract",
-        title: lang === "tr" ? "Yeni doküman" : "New document",
-        content: "",
-      })
-      .select("*")
-      .single();
-    if (data) setDocs((d) => [...d, data]);
-  }
-
-  async function uploadDocument(file: File) {
-    setUploadError(null);
-    setUploading(true);
-    try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve((reader.result as string).split(",")[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      const res = await fetch("/api/company-documents/upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ fileName: file.name, mediaType: file.type, base64, title: file.name }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setUploadError(data?.error || (lang === "tr" ? "Yüklenemedi." : "Upload failed."));
-        return;
-      }
-      setDocs((d) => [...d, data.document]);
-    } catch {
-      setUploadError(lang === "tr" ? "Yüklenemedi." : "Upload failed.");
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
   }
 
   async function uploadLogo(file: File) {
@@ -441,30 +371,6 @@ export function CompanyProfileClient() {
       const input = photoInputRefs.current[memberId];
       if (input) input.value = "";
     }
-  }
-
-  function setDocumentLocal(id: string, patch: Partial<CompanyDocument>) {
-    setDocs((d) => d.map((x) => (x.id === id ? { ...x, ...patch } : x)));
-  }
-
-  async function persistDocument(id: string, patch: Partial<CompanyDocument>) {
-    await supabase.from("company_documents").update(patch).eq("id", id);
-  }
-
-  async function removeDocument(id: string) {
-    setDocs((d) => d.filter((x) => x.id !== id));
-    await supabase.from("company_documents").delete().eq("id", id);
-  }
-
-  async function makeDefaultTemplate(id: string) {
-    if (!company) return;
-    setDocs((d) => d.map((x) => ({ ...x, is_default_template: x.type === "proposal_template" && x.id === id })));
-    await supabase
-      .from("company_documents")
-      .update({ is_default_template: false })
-      .eq("company_id", company.id)
-      .eq("type", "proposal_template");
-    await supabase.from("company_documents").update({ is_default_template: true }).eq("id", id);
   }
 
   if (loading) {
@@ -718,91 +624,23 @@ export function CompanyProfileClient() {
         </CardContent>
       </Card>
 
-      {/* Default content */}
+      {/* Default content moved to the dedicated İçerik Kütüphanesi page (icon-grid UI) */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>{lang === "tr" ? "Varsayılan içerik" : "Default content"}</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              {lang === "tr"
-                ? "Standart sözleşmen, teklif formatların ve hizmet/fiyatlandırma açıklaman. PDF/Word dosyanı yükleyebilir, birebir metnini buraya ekleyebilirsin. Bir \"teklif formatı\"nı varsayılan yaparsan AI teklifleri o iskelete göre yazar; bir \"hizmet açıklaması\" ekleyip hangi hizmeti ne ücrete sunduğunu yazarsan, AI her teklifte bunu varsayılan olarak kullanır."
-                : "Your standard contract, go-to proposal formats, and your services/pricing description. Upload a PDF/Word file to add its exact text here. Mark a \"proposal format\" as default and the AI will follow its skeleton; add a \"service description\" listing what you offer and at what price, and the AI will use it as the default for every proposal."}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) uploadDocument(file);
-              }}
-            />
-            <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="gap-1.5">
-              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-              {lang === "tr" ? "Dosyadan yükle" : "Upload file"}
-            </Button>
-            <Button variant="outline" onClick={addDocument} className="gap-1.5">
-              <Plus className="h-4 w-4" />
-              {lang === "tr" ? "Ekle" : "Add"}
-            </Button>
-          </div>
+        <CardHeader>
+          <CardTitle>{lang === "tr" ? "Varsayılan içerik" : "Default content"}</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            {lang === "tr"
+              ? "Sözleşmen, teklif formatların, hizmet açıklaman ve teklif örneklerin artık İçerik Kütüphanesi'nde."
+              : "Your contract, proposal formats, service description, and proposal examples now live in the Content Library."}
+          </p>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {uploadError && <p className="text-sm text-destructive">{uploadError}</p>}
-          {docs.length === 0 && (
-            <p className="text-sm text-muted-foreground">{lang === "tr" ? "Henüz doküman yok." : "No documents yet."}</p>
-          )}
-          {docs.map((d) => (
-            <div key={d.id} className="space-y-2 rounded-lg border border-border p-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  className={textareaClass("h-9 w-auto")}
-                  value={d.type}
-                  onChange={(e) => {
-                    const type = e.target.value as CompanyDocument["type"];
-                    setDocumentLocal(d.id, { type });
-                    persistDocument(d.id, { type });
-                  }}
-                >
-                  {DOC_TYPES.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {lang === "tr" ? opt.tr : opt.en}
-                    </option>
-                  ))}
-                </select>
-                <Input
-                  className="flex-1"
-                  value={d.title}
-                  onChange={(e) => setDocumentLocal(d.id, { title: e.target.value })}
-                  onBlur={(e) => persistDocument(d.id, { title: e.target.value })}
-                  placeholder={lang === "tr" ? "Başlık" : "Title"}
-                />
-                {d.type === "proposal_template" &&
-                  (d.is_default_template ? (
-                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-                      {lang === "tr" ? "Varsayılan şablon" : "Default template"}
-                    </span>
-                  ) : (
-                    <Button variant="outline" size="sm" onClick={() => makeDefaultTemplate(d.id)}>
-                      {lang === "tr" ? "Varsayılan yap" : "Make default"}
-                    </Button>
-                  ))}
-                <Button variant="outline" size="icon" onClick={() => removeDocument(d.id)}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-              <textarea
-                className={textareaClass("min-h-32")}
-                value={d.content}
-                onChange={(e) => setDocumentLocal(d.id, { content: e.target.value })}
-                onBlur={(e) => persistDocument(d.id, { content: e.target.value })}
-                placeholder={lang === "tr" ? "Metni buraya yapıştır…" : "Paste the text here…"}
-              />
-            </div>
-          ))}
+        <CardContent>
+          <a href="/content">
+            <Button variant="outline" className="gap-1.5">
+              <Upload className="h-4 w-4" />
+              {lang === "tr" ? "İçerik Kütüphanesi'ne git" : "Go to Content Library"}
+            </Button>
+          </a>
         </CardContent>
       </Card>
     </div>

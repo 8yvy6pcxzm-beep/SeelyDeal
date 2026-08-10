@@ -31,10 +31,9 @@ type ResolvedTemplate = {
   nickname?: string;
 };
 
-/** Finds the named ("Leo" etc.) demo template a chat is asking for, if any. Nicknames
- *  only exist on kapsamlı-variant templates. When the same nickname exists in more than
- *  one sector (e.g. "leo" in both İnşaat and Genel), prefer the one whose sector name
- *  also appears in the chat, falling back to the sector-neutral "Genel" one. */
+/** Finds the named demo template a chat is asking for, if any. Nicknames are opt-in
+ *  per template. When the same nickname exists in more than one sector, prefer the
+ *  one whose sector name also appears in the chat, falling back to "Genel". */
 function matchNamedTemplate(chatText: string): ResolvedTemplate | undefined {
   const hits = templates.filter((t) => t.nickname && new RegExp(`\\b${t.nickname}\\b`, "i").test(chatText));
   const picked =
@@ -168,7 +167,7 @@ export async function POST(req: Request) {
   }
 
   // Which system/custom template (if any) this draft is based on: an explicit id from
-  // "Bu şablonla yaz" takes priority; otherwise fall back to a nickname ("Leo") mentioned
+  // "Bu şablonla yaz" takes priority; otherwise fall back to a template nickname mentioned
   // in free-form chat. Only resolved on the first message of a new draft (no currentDraft yet) —
   // once a real draft exists, edits go through DÜZENLEME MODU below instead.
   const fullChatText = messages.map((m) => m.content).join("\n").toLowerCase();
@@ -404,8 +403,8 @@ ${docsBlock || "(henüz doküman eklenmedi)"}
       ? ""
       : resolved
         ? defaultTemplate
-          ? `ÖZEL ŞABLON — "${resolved.name}"${resolved.nickname ? ` (kod adı "${resolved.nickname}")` : ""}: kullanıcı bu teklif için bu şablonu seçti. Şirketin kendi standart teklif formatı da mevcut ("${defaultTemplate.title}", DOKÜMAN KÜTÜPHANESİ'nde) — ÜSLUP, MADDE İÇERİĞİ ve ŞARTLAR için ÖNCELİKLE o dokümanı kullan; "${resolved.name}" şablonundan ise SADECE bölüm sırasını/başlıklarını${resolved.theme ? " ve görsel temasını (otomatik uygulanacak)" : ""} al — ikisini harmanla. "${resolved.name}" şablonunda olup ne dokümanda ne sohbette karşılığı olmayan, ÇEKİRDEK OLMAYAN bölümler (örn. Kritik Tarihler gibi proje detayları) varsa, o bölümü draft'a UYDURMA İÇERİKLE EKLEME — sessizce atla, section listesinden çıkar, tekrar da sorma (çekirdek alanlar için yukarıdaki ÇEKİRDEK ALANLAR kuralı geçerli, bu ayrı). Kullanıcı henüz müşteri/proje bilgisi vermediyse, json döndürmeden önce doğal bir sohbet diliyle eksikleri sor.\n\n`
-          : `ÖZEL ŞABLON — "${resolved.name}"${resolved.nickname ? ` (kod adı "${resolved.nickname}")` : ""}: kullanıcı bu teklif için bu şablonu seçti. VARSAYILAN TEKLİF ŞABLONU'nu YOK SAY, bunun yerine AŞAĞIDAKİ yapıyı ve bölüm başlıklarını takip et (metinleri kullanıcının brief'ine göre uyarla, sadece kopyalama; kullanıcı henüz müşteri/proje bilgisi vermediyse json döndürmeden önce doğal bir sohbet diliyle eksikleri sor):\n${resolvedBlock}\n${resolved.theme ? "Renk teması ve font otomatik uygulanacak, bunu ayrıca söylemene gerek yok.\n" : ""}\n`
+          ? `ÖZEL ŞABLON — "${resolved.name}"${resolved.nickname ? ` (kod adı "${resolved.nickname}")` : ""}: kullanıcı bu teklif için bu şablonu seçti. ÇOK ÖNEMLİ — ŞABLONLAR SADECE GÖRSELDİR: bu şablondan SADECE${resolved.theme ? " görsel temasını (renk/font, otomatik uygulanacak)" : " hiçbir şey"} al — bölüm sırasını, başlıklarını, metnini ASLA bu şablondan alma/kopyalama. İçerik (bölümler, sıralama, metin, ücretler) için Şirketin kendi standart teklif formatını ("${defaultTemplate.title}", DOKÜMAN KÜTÜPHANESİ'nde) ve kullanıcının sohbette/dosyada verdiği bilgiyi kullan — kullanıcının verdiği içerik SIRASI ve YAPISI olduğu gibi korunur, şablon bunu değiştirmez. Kullanıcı henüz müşteri/proje bilgisi vermediyse, json döndürmeden önce doğal bir sohbet diliyle eksikleri sor.\n\n`
+          : `ÖZEL ŞABLON — "${resolved.name}"${resolved.nickname ? ` (kod adı "${resolved.nickname}")` : ""}: kullanıcı bu teklif için bu şablonu seçti. ÇOK ÖNEMLİ — ŞABLONLAR SADECE GÖRSELDİR: bu şablondan SADECE${resolved.theme ? " görsel temasını (renk/font, otomatik uygulanacak)" : " hiçbir şey"} al — bölüm sırasını, başlıklarını veya metnini bu şablondan ASLA kopyalama/uyarlama. İçerik için VARSAYILAN TEKLİF ŞABLONU'nu (aşağıda) ve kullanıcının sohbette/dosyada verdiği bilgiyi kullan; kullanıcı kendi içeriğini (metin, sıralama) verdiyse onu OLDUĞU GİBİ koru, sadece seçilen şablonun görsel iskeletine yerleştir. Kullanıcı henüz müşteri/proje bilgisi vermediyse, json döndürmeden önce doğal bir sohbet diliyle eksikleri sor.\n\n`
         : `VARSAYILAN TEKLİF ŞABLONU:\n${defaultTemplate ? `"${defaultTemplate.title}":\n${defaultTemplate.content}` : builtInComprehensiveTemplate}\n\n`
   }${defaultSectionsBlock}GERÇEK PAKETLERİMİZ:
 ${pricingBlock}${websiteContext}${prefillBlock}`;

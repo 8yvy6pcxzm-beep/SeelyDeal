@@ -6,6 +6,8 @@ import { Sparkles, X, Send, Loader2, Check, Link2, CreditCard, Paperclip, FileTe
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLang } from "@/components/i18n/language-provider";
+import { usePlan } from "@/components/app/plan-provider";
+import { planAllows } from "@/lib/plan";
 import { cn } from "@/lib/utils";
 
 type Msg = { role: "user" | "assistant"; content: string; attachmentNames?: string[]; hidden?: boolean };
@@ -149,8 +151,11 @@ export function AiDraftDialog({
   resumeProposalId?: string;
 }) {
   const { lang } = useLang();
+  const plan = usePlan();
   const [mounted, setMounted] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
+  const [activeTemplateId, setActiveTemplateId] = useState<string | undefined>(initialTemplateId);
+  const [recentTemplates, setRecentTemplates] = useState<{ id: string; name: string }[]>([]);
   const [input, setInput] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [showWebsiteField, setShowWebsiteField] = useState(false);
@@ -376,12 +381,57 @@ export function AiDraftDialog({
 
   useEffect(() => {
     if (!open || !initialTemplateId || resumeProposalId || messages.length > 0) return;
+    setActiveTemplateId(initialTemplateId);
+    rememberRecentTemplate(initialTemplateId);
     // Kick off the chat ourselves — the AI resolves the template server-side and
     // drafts real content from it (blended with the company's own doc library,
     // if any) instead of us dumping raw template text into the preview.
     send(lang === "tr" ? "Bu şablonu kullanmak istiyorum." : "I'd like to use this template.");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialTemplateId]);
+
+  // "Son kullanılan şablonlar" strip (Custom/Pro only) — a lightweight
+  // localStorage-backed recency list, no DB changes needed. Loaded once per
+  // open; clicking a thumbnail starts a fresh draft from that template.
+  useEffect(() => {
+    if (!open || !planAllows(plan, "templates_create") || messages.length > 0) return;
+    try {
+      const recentIds: string[] = JSON.parse(localStorage.getItem("seelydeal:recent-templates") ?? "[]");
+      if (recentIds.length === 0) return;
+      fetch("/api/templates")
+        .then((r) => r.json())
+        .then((d) => {
+          const byId = new Map((d.templates ?? []).map((t: { id: string; name: string }) => [t.id, t.name]));
+          setRecentTemplates(
+            recentIds
+              .filter((id) => byId.has(id))
+              .slice(0, 5)
+              .map((id) => ({ id, name: byId.get(id) as string })),
+          );
+        })
+        .catch(() => {});
+    } catch {
+      // localStorage unavailable (private mode etc.) — just skip the strip.
+    }
+  }, [open, plan, messages.length]);
+
+  function rememberRecentTemplate(id: string) {
+    try {
+      const recentIds: string[] = JSON.parse(localStorage.getItem("seelydeal:recent-templates") ?? "[]");
+      const next = [id, ...recentIds.filter((x) => x !== id)].slice(0, 5);
+      localStorage.setItem("seelydeal:recent-templates", JSON.stringify(next));
+    } catch {
+      // ignore
+    }
+  }
+
+  function useRecentTemplate(id: string, name: string) {
+    setActiveTemplateId(id);
+    rememberRecentTemplate(id);
+    send(
+      lang === "tr" ? `"${name}" şablonunu kullanmak istiyorum.` : `I'd like to use the "${name}" template.`,
+    );
+  }
 
   useEffect(() => {
     if (!open || initialTemplateId || resumeProposalId) return;
@@ -517,7 +567,7 @@ export function AiDraftDialog({
       websiteUrl: websiteUrl || undefined,
       attachments: sentAttachments.length ? sentAttachments : undefined,
       currentDraft: draft ?? undefined,
-      templateId: !draft ? initialTemplateId : undefined,
+      templateId: !draft ? activeTemplateId : undefined,
     });
 
     // A dropped connection/transient network blip shouldn't dead-end the user
@@ -1112,6 +1162,23 @@ export function AiDraftDialog({
         </div>
 
         <div className="space-y-2 border-t border-border p-4">
+            {recentTemplates.length > 0 && messages.length === 0 && (
+              <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {lang === "tr" ? "Son kullanılan:" : "Recently used:"}
+                </span>
+                {recentTemplates.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => useRecentTemplate(t.id, t.name)}
+                    disabled={loading}
+                    className="shrink-0 rounded-lg border border-border bg-muted/40 px-2.5 py-1 text-xs font-medium hover:bg-muted disabled:opacity-50"
+                  >
+                    {t.name}
+                  </button>
+                ))}
+              </div>
+            )}
             {showWebsiteField ? (
               <Input
                 value={websiteUrl}

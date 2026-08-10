@@ -79,7 +79,7 @@ function TemplatesPageInner() {
   const current = templates.find((tpl) => tpl.id === selected) ?? templates[0];
 
   // Group templates by category (sector) — a sector with multiple named variants
-  // (ör. İnşaat — Sade / İnşaat — Leo) renders as ONE card with a variant switcher
+  // (ör. İnşaat — Sade / İnşaat — Kapsamlı) renders as ONE card with a variant switcher
   // inside, instead of one full card per variant.
   const groups = useMemo(() => {
     const byCategory = new Map<string, Template[]>();
@@ -141,7 +141,7 @@ function TemplatesPageInner() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-        {/* Template grid — one card per sector; multi-variant sectors get a Sade/Leo switcher inside */}
+        {/* Template grid — one card per sector; multi-variant sectors get a Sade/Kapsamlı switcher inside */}
         <div className="grid gap-4 sm:grid-cols-2">
           {groups.map((group) => {
             // Which variant of this group is currently shown: whichever one is `selected`, else the first.

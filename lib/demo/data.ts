@@ -475,13 +475,12 @@ export const templates: Template[] = [
   },
   {
     id: "t6",
-    name: { tr: "İnşaat — Leo (Kapsamlı)", en: "Construction — Leo (Comprehensive)" },
+    name: { tr: "İnşaat — Kapsamlı", en: "Construction — Comprehensive" },
     category: { tr: "İnşaat", en: "Construction" },
     uses: 0,
     winRate: 0,
     accent: "var(--seg-1)",
     variant: "kapsamli",
-    nickname: "leo",
     theme: { primaryColor: "#00173c", accentColor: "#a04100", font: "Hanken Grotesk" },
     introText: {
       tr: "Sayın [Müşteri Yetkilisi],\n\n[Müşteri firma]nın hedeflerini yakından takip ediyor ve [proje adı]nda sizlere değer katmak için bu kapsamlı teklifi sunmaktan onur duyuyoruz. Projenin çevresel sürdürülebilirlik ve modern mimari estetik gereksinimlerini derinden anlıyoruz.\n\nAmacımız, sadece işi tamamlamak değil, aynı zamanda uzun vadeli operasyonel maliyetlerinizi optimize etmektir. Yenilikçi malzeme seçimlerimiz ve detaylı iş planımızla, belirlenen bütçe ve takvim sınırları içerisinde tamamlanmasını taahhüt ediyoruz.\n\nİşbirliğimizin her iki tarafa da uzun vadeli değer katacağına inancımız tamdır. Saygılarımızla.",
@@ -574,13 +573,12 @@ export const templates: Template[] = [
   },
   {
     id: "t8",
-    name: { tr: "Genel — Leo (Kapsamlı)", en: "General — Leo (Comprehensive)" },
+    name: { tr: "Genel — Kapsamlı", en: "General — Comprehensive" },
     category: { tr: "Genel", en: "General" },
     uses: 0,
     winRate: 0,
     accent: "var(--seg-2)",
     variant: "kapsamli",
-    nickname: "leo",
     introText: {
       tr: "Sayın [Müşteri Yetkilisi],\n\n[Müşteri firma]nın hedeflerini yakından takip ediyor ve [proje/iş adı]nda sizlere değer katmak için bu kapsamlı teklifi sunmaktan onur duyuyoruz.\n\nAmacımız, işi zamanında ve bütçe dahilinde teslim ederken uzun vadeli değer yaratmaktır.\n\nİşbirliğimizin her iki tarafa da uzun vadeli değer katacağına inancımız tamdır. Saygılarımızla.",
       en: "Dear [Client Contact],\n\nWe are honored to submit this comprehensive proposal for [project/work name] to help you reach your goals.\n\nOur aim is to deliver on time and on budget while creating lasting value.\n\nWe believe this partnership will create lasting value for both sides. Best regards.",
