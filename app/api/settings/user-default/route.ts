@@ -27,6 +27,11 @@ export async function POST(req: Request) {
   };
   if (!label?.trim()) return NextResponse.json({ error: "Bir isim gerekli." }, { status: 400 });
 
+  // The AI can name a built-in (non-DB) template like "standart-kapsamli" —
+  // only persist templateId when it's a real UUID, otherwise the uuid column
+  // insert fails and the whole default silently never saves.
+  const isUuid = (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+
   const service = createServiceClient();
   const { data: profile } = await service.from("profiles").select("company_id").eq("id", user.id).maybeSingle();
   if (!profile) return NextResponse.json({ error: "Şirket profilin bulunamadı." }, { status: 404 });
@@ -36,7 +41,7 @@ export async function POST(req: Request) {
       profile_id: user.id,
       company_id: profile.company_id,
       label: label.trim(),
-      template_id: templateId || null,
+      template_id: templateId && isUuid(templateId) ? templateId : null,
       preferred_format: preferredFormat === "pdf" || preferredFormat === "html" ? preferredFormat : null,
       updated_at: new Date().toISOString(),
     },

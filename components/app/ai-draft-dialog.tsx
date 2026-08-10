@@ -788,14 +788,22 @@ export function AiDraftDialog({
             templateId: data.userDefault.templateId ?? activeTemplateId,
             preferredFormat: data.userDefault.preferredFormat ?? selectedFormat,
           }),
-        }).catch(() => setError(lang === "tr" ? "Kişisel varsayılan kaydedilemedi." : "Couldn't save your personal default."));
+        })
+          .then((res) => {
+            if (!res.ok) setError(lang === "tr" ? "Kişisel varsayılan kaydedilemedi." : "Couldn't save your personal default.");
+          })
+          .catch(() => setError(lang === "tr" ? "Kişisel varsayılan kaydedilemedi." : "Couldn't save your personal default."));
       }
       if (data.addClient?.name) {
         fetch("/api/clients", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: data.addClient.name, email: data.addClient.email, website: data.addClient.website }),
-        }).catch(() => setError(lang === "tr" ? "Müşteri eklenemedi." : "Couldn't add the client."));
+        })
+          .then((res) => {
+            if (!res.ok) setError(lang === "tr" ? "Müşteri eklenemedi." : "Couldn't add the client.");
+          })
+          .catch(() => setError(lang === "tr" ? "Müşteri eklenemedi." : "Couldn't add the client."));
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError" && stoppedRef.current) {
