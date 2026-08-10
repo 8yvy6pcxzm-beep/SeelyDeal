@@ -81,7 +81,7 @@
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>' +
     '</button>' +
     '<div class="panel">' +
-      '<div class="hd"><span class="dot"></span><div class="t"><b>Seely</b><span>seelynow ajansı · AI asistanı</span></div>' +
+      '<div class="hd"><span class="dot"></span><div class="t"><b>seelynow destek</b><span>AI asistanı</span></div>' +
       '<button class="close" aria-label="Kapat"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>' +
       '<div class="msgs"></div>' +
       '<div class="cta">' +
