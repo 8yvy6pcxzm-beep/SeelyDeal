@@ -27,6 +27,11 @@
     "background:radial-gradient(circle,rgba(201,245,107,.55) 0%,rgba(201,245,107,0) 70%);" +
     "animation:fabpulse 2s infinite;z-index:2147482999;pointer-events:none;}" +
     "@keyframes fabpulse{0%,100%{opacity:.5;transform:scale(.9)}50%{opacity:1;transform:scale(1.4)}}" +
+    /* "we're online" ring — a visible pulsing green border around the bubble, distinct from
+       the softer glow above, so the widget reads as actively staffed even before it's opened. */
+    ".fabring{position:absolute;bottom:22px;right:22px;width:48px;height:48px;border-radius:50%;" +
+    "border:2px solid #a9e23d;animation:fabring 1.8s ease-in-out infinite;z-index:2147482998;pointer-events:none;}" +
+    "@keyframes fabring{0%,100%{opacity:.9;box-shadow:0 0 0 0 rgba(169,226,61,.5)}50%{opacity:.35;box-shadow:0 0 0 5px rgba(169,226,61,0)}}" +
     ".panel{position:fixed;bottom:96px;right:22px;width:360px;max-width:calc(100vw - 32px);height:520px;" +
     "max-height:calc(100vh - 140px);background:#faf9ff;border-radius:22px;" +
     "box-shadow:0 24px 60px -12px rgba(83,52,201,.35),0 8px 24px rgba(0,0,0,.12);" +
@@ -71,11 +76,12 @@
   var wrap = document.createElement("div");
   wrap.innerHTML =
     '<span class="fabglow"></span>' +
+    '<span class="fabring"></span>' +
     '<button class="fab" aria-label="AI ile sohbet et">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>' +
     '</button>' +
     '<div class="panel">' +
-      '<div class="hd"><span class="dot"></span><div class="t"><b>Seely</b><span>seelynow AI asistanı</span></div>' +
+      '<div class="hd"><span class="dot"></span><div class="t"><b>Seely</b><span>seelynow ajansı · AI asistanı</span></div>' +
       '<button class="close" aria-label="Kapat"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>' +
       '<div class="msgs"></div>' +
       '<div class="cta">' +
@@ -120,7 +126,7 @@
     panel.classList.add("open");
     if (!greeted) {
       greeted = true;
-      addMsg("bot", "Merhaba! Ben Seely, seelynow'un AI asistanıyım. Otomasyon ihtiyaçların hakkında soru sorabilir ya da direkt bir görüşme ayarlayabilirsin. Nasıl yardımcı olabilirim?");
+      addMsg("bot", "Merhaba! Ben Seely, seelynow ajansının AI asistanıyım. Otomasyon ihtiyaçların hakkında soru sorabilir ya da direkt bir görüşme ayarlayabilirsin. Nasıl yardımcı olabilirim?");
     }
     input.focus();
   }

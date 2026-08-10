@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import appConfig from "@/app.config";
+import { createServiceClient } from "@/lib/supabase/server";
 
 const MODEL = "claude-sonnet-5";
 
@@ -20,11 +21,18 @@ function corsHeaders(origin: string | null) {
   };
 }
 
-const COMMON_TONE = `TON: Sıcak, kısa cümleler, gereksiz resmiyet yok ama profesyonel. Emoji kullanma. Türkçe yazan kullanıcıya Türkçe, İngilizce yazana İngilizce cevap ver. Kısa cevaplar ver (2-4 cümle), soru sormaktan çekinme. Bilmediğin/uydurman gereken bir şey sorulursa uydurma — "Bu konuda net bilgi veremem, lütfen elif@seelynow.ink ile iletişime geçiniz." de (ya da kısa bir görüşme öner).`;
+const COMMON_TONE = `TON: Sıcak, kısa cümleler, gereksiz resmiyet yok ama profesyonel. Emoji kullanma. Türkçe yazan kullanıcıya Türkçe, İngilizce yazana İngilizce cevap ver. Kısa cevaplar ver (2-4 cümle), soru sormaktan çekinme. Bilmediğin/uydurman gereken bir şey sorulursa uydurma — "Bu konuda net bilgi veremem, lütfen elif@seelynow.ink ile iletişime geçiniz." de (ya da kısa bir görüşme öner).
+ÇOK ÖNEMLİ — DÜZGÜN TÜRKÇE: Türkçeyi yazım ve dil bilgisi kurallarına birebir uygun, akıcı kullan; devrik cümle kurma. Özellikle şu hataya DÜŞME: bir soru cümlesinin ("...var mı?") hemen ardından, aralarında hiçbir bağlaç/şart eki olmadan istek kipi ("...yardımcı olayım") ekleme — bu anlatım bozukluğu yaratır ve yapay/robotik bir Türkçe izlenimi verir. Örnek:
+- YANLIŞ: "SeelyDeal hakkında merak ettiğin bir şey var mı, yardımcı olayım."
+- DOĞRU seçenekler (hepsi geçerli, bağlama göre seç): "...var mı? Yardımcı olmak isterim." / "...var mı? Sana yardımcı olabilirim." / "...var mı, yardımcı olayım mı?" / "...varsa yardımcı olayım."
+Genel kural: bir cümlede soru kipiyle istek kipini yan yana, bağlaçsız kullanmayacaksın — ya ayrı iki cümle yap, ya soruyu "mı/mi" ile istek kipine çevir, ya da "-sa/-se" şartıyla bağla.
+ÇOK ÖNEMLİ — ŞİKAYET/GERİ BİLDİRİM: Kullanıcı bir şikayet, sorun ya da geri bildirim paylaşırsa, önce içtenlikle teşekkür et ve en kısa sürede kendisiyle iletişime geçileceğini belirt (örn. "Geri bildirimin için çok teşekkür ederiz, en kısa sürede sana dönüş yapılacak.") — çözüm sözü verme, teknik detaya girme ya da soruşturma yapma, sadece teşekkür + bilgilendirme yeterli. Cevabının SONUNA ayrı bir \`\`\`feedback\`\`\` bloğu ekle: {"message": "kullanıcının şikayetinin/geri bildiriminin kısa bir özeti"}. Bu bloğu SADECE kullanıcı gerçekten bir şikayet/sorun/geri bildirim paylaştığında ekle — normal bir soru ya da genel sohbette asla ekleme.`;
 
 const AGENCY_SYSTEM_PROMPT = `Sen seelynow adlı bir dijital otomasyon ve yapay zekâ ajansının web sitesinde ziyaretçilerle konuşan, tatlı ve samimi bir AI asistanısın. Adın "Seely".
 
 ${COMMON_TONE}
+
+ÇOK ÖNEMLİ — KİMLİK: Ziyaretçinin, seninle konuştuğu şeyin "seelynow" adlı bir ajansın kendi asistanı olduğunu bilmesi gerekiyor — kimliğini asla belirsiz bırakma. Kendini tanıtırken/karşılarken "Ben Seely, seelynow ajansının AI asistanıyım" gibi net bir ifade kullan (sadece "seelynow'un asistanıyım" değil, "ajans" kelimesini de geçir). Biri "sen kimsin/bu ne/hangi şirketsin" diye sorarsa da aynı netlikte cevap ver: seelynow'un işletmelere yapay zekâ destekli dijital otomasyon çözümleri kuran bir ajans olduğunu söyle.
 
 NE YAPARSIN:
 - seelynow'un ne iş yaptığını anlat: işletmeler için yapay zekâ destekli dijital otomasyon çözümleri kuruyoruz (satış & pazarlama, müşteri desteği, operasyon, admin & finans alanlarında).
@@ -109,7 +117,26 @@ export async function POST(req: Request) {
       system: pickSystemPrompt(origin),
       messages: messages.map((m) => ({ role: m.role, content: m.content })),
     });
-    const reply = response.content.map((b) => (b.type === "text" ? b.text : "")).join("");
+    const rawReply = response.content.map((b) => (b.type === "text" ? b.text : "")).join("");
+
+    // Optional ```feedback``` block — a complaint/feedback the model spotted this turn (see
+    // ŞİKAYET/GERİ BİLDİRİM rule in COMMON_TONE). Store it for the owner and strip it from
+    // what the visitor actually sees.
+    const feedbackMatch = rawReply.match(/```feedback\s*([\s\S]*?)```/);
+    if (feedbackMatch) {
+      try {
+        const parsed = JSON.parse(feedbackMatch[1]) as { message?: string };
+        if (parsed.message?.trim()) {
+          await createServiceClient()
+            .from("site_feedback")
+            .insert({ message: parsed.message.trim() });
+        }
+      } catch {
+        // malformed block — don't fail the chat reply over it
+      }
+    }
+    const reply = rawReply.replace(/```feedback[\s\S]*?```/, "").trim();
+
     return Response.json({ reply }, { headers });
   } catch (err) {
     const message = err instanceof Error ? err.message : "AI yanıt veremedi.";
