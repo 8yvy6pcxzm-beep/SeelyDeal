@@ -306,18 +306,14 @@ Sözleşme: ${resolved.contractText}`
   // sessizce uygula (tekrar sorma); yoksa ve son 2 teklif de aynı şablon+formatı
   // kullandıysa, bunu varsayılan yapmayı TEKLİF ET.
   const lastTwo = (recentOwnProposals ?? []) as { template_id: string | null; format: string | null }[];
-  const personalDefaultBlock = !currentDraft
-    ? userDefault
-      ? `\nKİŞİSEL VARSAYILAN (bu kullanıcı için kayıtlı — "${userDefault.label}"): şablon id: ${userDefault.template_id ?? "(yok)"}, çıktı formatı: ${userDefault.preferred_format ?? "(belirtilmemiş)"}. Kullanıcı bu teklif için AÇIKÇA farklı bir şey istemediği sürece (örn. "bu sefer farklı bir şablon kullan" derse), bu varsayılanı SESSİZCE uygula — şablon veya format hakkında TEKRAR SORMA, zaten biliyorsun. Kullanıcı "aksine bir ayarlama yapana kadar" demişti, yani sen değiştirmediği sürece hep bunu kullan.\n`
-      : `\nKİŞİSEL VARSAYILAN: Bu kullanıcı için henüz kayıtlı bir varsayılan yok. Çıktı formatını (PDF mi, yoksa paylaşılabilir bir link/HTML sayfası mı) sohbette henüz belirtmediyse SOR (bir kez, kısaca: "Bu teklifi PDF olarak mı, yoksa paylaşılabilir bir link olarak mı hazırlayayım?"). ${
-          lastTwo.length >= 1
-            ? `Bu kullanıcının bir önceki teklifinde kullandığı şablon/format: şablon id ${lastTwo[0].template_id ?? "(yok)"}, format ${lastTwo[0].format ?? "(yok)"}. Eğer BU teklifte kullanıcı AYNI şablonu VE AYNI formatı seçtiyse, teklifi kaydettikten SONRAKİ cevabında şunu sor: "Fark ettim, art arda aynı şablon ve formatı kullanıyorsun — bunu senin için varsayılan yapayım mı? Aksine bir ayarlama yapana kadar tüm tekliflerini böyle hazırlarım." Kullanıcı "evet" derse, cevabının sonuna \`\`\`userDefault\`\`\` bloğu ekle: {"label": "[kullanıcının adı/hitap şekli] Varsayılanı", "templateId": "...", "preferredFormat": "pdf veya html"} — kullanıcının adını onboarding'de verdiği hitap şeklinden (ya da bilmiyorsan sor) al.`
-            : "Bu kullanıcının daha önce kaydedilmiş bir teklifi yok, örüntü karşılaştırması yapılamaz — bu adımı atla."
-        }\n`
-    : "";
-  const formatBlockRule = !currentDraft
-    ? `\nÇIKTI FORMATI KAYDI: Bu teklif için çıktı formatı (PDF ya da link/HTML) netleştiği HER turda (sorulup cevaplandığında ya da kişisel varsayılandan sessizce alındığında), cevabının sonuna ayrı bir \`\`\`format\`\`\` bloğu ekle: {"value": "pdf"} veya {"value": "html"} — bu, uygulamanın teklifi kaydederken kullanması için gerekli, sadece bir kez değil, format netleştiği her turda tekrar ekle.\n`
-    : "";
+  const personalDefaultBlock = userDefault
+    ? `\nKİŞİSEL VARSAYILAN (bu kullanıcı için kayıtlı — "${userDefault.label}"): şablon id: ${userDefault.template_id ?? "(yok)"}, çıktı formatı: ${userDefault.preferred_format ?? "(belirtilmemiş)"}. Kullanıcı bu teklif için AÇIKÇA farklı bir şey istemediği sürece (örn. "bu sefer farklı bir şablon kullan" derse), bu varsayılanı SESSİZCE uygula — şablon veya format hakkında TEKRAR SORMA, zaten biliyorsun. Kullanıcı "aksine bir ayarlama yapana kadar" demişti, yani sen değiştirmediği sürece hep bunu kullan.\n`
+    : `\nKİŞİSEL VARSAYILAN: Bu kullanıcı için henüz kayıtlı bir varsayılan yok. Çıktı formatını (PDF mi, yoksa paylaşılabilir bir link/HTML sayfası mı) sohbette henüz belirtmediyse SOR (bir kez, kısaca: "Bu teklifi PDF olarak mı, yoksa paylaşılabilir bir link olarak mı hazırlayayım?"). ${
+        lastTwo.length >= 1
+          ? `Bu kullanıcının bir önceki teklifinde kullandığı şablon/format: şablon id ${lastTwo[0].template_id ?? "(yok)"}, format ${lastTwo[0].format ?? "(yok)"}. Eğer BU teklifte kullanıcı AYNI şablonu VE AYNI formatı seçtiyse, kullanıcı teklifi ONAYLAYIP KAYDETTİĞİ o TAM cevapta (json bloğuyla aynı cevapta), cevap metninin başına/sonuna şunu ekleyerek sor: "Fark ettim, art arda aynı şablon ve formatı kullanıyorsun — bunu senin için varsayılan yapayım mı? Aksine bir ayarlama yapana kadar tüm tekliflerini böyle hazırlarım." Bunu SADECE taslak onaylanıp kaydedilirken (confirmed:true olacağı turda) sor, daha önce değil. Kullanıcı bir sonraki mesajında "evet" derse, cevabının sonuna \`\`\`userDefault\`\`\` bloğu ekle: {"label": "[kullanıcının adı/hitap şekli] Varsayılanı", "templateId": "...", "preferredFormat": "pdf veya html"} — kullanıcının adını onboarding'de verdiği hitap şeklinden (ya da bilmiyorsan sor) al.`
+          : "Bu kullanıcının daha önce kaydedilmiş bir teklifi yok, örüntü karşılaştırması yapılamaz — bu adımı atla."
+      }\n`;
+  const formatBlockRule = `\nÇIKTI FORMATI KAYDI: Bu teklif için çıktı formatı (PDF ya da link/HTML) netleştiği HER turda (sorulup cevaplandığında ya da kişisel varsayılandan sessizce alındığında), cevabının sonuna ayrı bir \`\`\`format\`\`\` bloğu ekle: {"value": "pdf"} veya {"value": "html"} — bu, uygulamanın teklifi kaydederken kullanması için gerekli, sadece bir kez değil, format netleştiği her turda tekrar ekle.\n`;
 
   // Stay in the onboarding script for the WHOLE flow, not just the first turn —
   // otherwise the model only ever sees the "say hi" instruction and never the
