@@ -160,6 +160,7 @@ export function AiDraftDialog({
   const [input, setInput] = useState("");
   const [recording, setRecording] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [speechSupported, setSpeechSupported] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
   const [websiteUrl, setWebsiteUrl] = useState("");
@@ -420,6 +421,15 @@ export function AiDraftDialog({
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    // Feature-detect rather than sniff the UA — iOS (Safari and every other
+    // browser there, since all are required to use WebKit) has no
+    // SpeechRecognition implementation at all, so this naturally hides the
+    // mic button there instead of showing a button that always errors.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    setSpeechSupported(!!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition));
   }, []);
 
   useEffect(() => {
@@ -1339,7 +1349,7 @@ export function AiDraftDialog({
               >
                 <Paperclip className="h-4 w-4" />
               </button>
-              {planAllows(plan, "voice_input") && (
+              {planAllows(plan, "voice_input") && speechSupported && (
                 <button
                   onClick={toggleRecording}
                   disabled={loading}
