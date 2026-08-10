@@ -45,7 +45,14 @@ export function ContentLibraryClient() {
 
   useEffect(() => {
     (async () => {
-      const { data: auth } = await supabase.auth.getUser();
+      let { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) {
+        // Client session may just be stale (expired access token not yet
+        // refreshed) rather than an actual logged-out state — retry once
+        // after a refresh before giving up (see company-profile-client.tsx).
+        await supabase.auth.refreshSession();
+        ({ data: auth } = await supabase.auth.getUser());
+      }
       if (!auth.user) {
         setLoading(false);
         return;
