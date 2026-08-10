@@ -469,7 +469,7 @@ ${pricingBlock}${websiteContext}${prefillBlock}`;
   try {
     response = await anthropic.messages.create({
       model: MODEL,
-      max_tokens: 4096,
+      max_tokens: 8192,
       system: systemPrompt,
       messages: anthropicMessages as any,
     });
@@ -590,6 +590,11 @@ ${pricingBlock}${websiteContext}${prefillBlock}`;
     .replace(/```format[\s\S]*?```/, "")
     .replace(/```userDefault[\s\S]*?```/, "")
     .replace(/```addClient[\s\S]*?```/, "")
+    // If the response got cut off (max_tokens, or the model just never closed the
+    // fence) mid-block, the regexes above all require a closing ``` and miss it —
+    // strip any dangling unterminated fenced block at the very end so raw
+    // json/format/etc. text never leaks into the visible chat bubble.
+    .replace(/```[a-zA-Z]*\s*[\s\S]*$/, "")
     .trim();
 
   return NextResponse.json({
