@@ -728,6 +728,20 @@ export function AiDraftDialog({
             })
             .catch(() => setError(lang === "tr" ? "E-posta kaydedilemedi." : "Couldn't save the email."));
         }
+        if (data.brand.address || data.brand.phone) {
+          fetch("/api/settings/contact-info", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ address: data.brand.address, phone: data.brand.phone }),
+          })
+            .then(async (r) => {
+              if (!r.ok) {
+                const d = await r.json().catch(() => null);
+                setError(d?.error || (lang === "tr" ? "Adres/telefon kaydedilemedi." : "Couldn't save the address/phone."));
+              }
+            })
+            .catch(() => setError(lang === "tr" ? "Adres/telefon kaydedilemedi." : "Couldn't save the address/phone."));
+        }
         if (data.brand.servicesSummary) {
           fetch("/api/settings/service-description", {
             method: "POST",

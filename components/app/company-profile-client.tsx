@@ -19,6 +19,8 @@ type Company = {
   primary_color: string | null;
   font: string | null;
   email: string | null;
+  address: string | null;
+  phone: string | null;
   overage_link: string | null;
   ai_instructions: string | null;
   tagline: string | null;
@@ -225,6 +227,8 @@ export function CompanyProfileClient() {
         primary_color: company.primary_color,
         font: company.font,
         email: company.email,
+        address: company.address,
+        phone: company.phone,
         overage_link: company.overage_link,
         ai_instructions: company.ai_instructions,
         tagline: company.tagline,
@@ -426,6 +430,19 @@ export function CompanyProfileClient() {
           <div className="space-y-1.5">
             <Label>{lang === "tr" ? "E-posta" : "Email"}</Label>
             <Input value={company.email ?? ""} onChange={(e) => setCompany({ ...company, email: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>{lang === "tr" ? "Telefon" : "Phone"}</Label>
+            <Input value={company.phone ?? ""} onChange={(e) => setCompany({ ...company, phone: e.target.value })} />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>{lang === "tr" ? "Adres" : "Address"}</Label>
+            <p className="text-xs text-muted-foreground">
+              {lang === "tr"
+                ? "Tekliflerde ve antetli sunumlarda \"Hizmeti Sunan\" tarafında görünür."
+                : "Shows on the \"provided by\" side of proposals and letterhead-style exports."}
+            </p>
+            <Input value={company.address ?? ""} onChange={(e) => setCompany({ ...company, address: e.target.value })} />
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label>{lang === "tr" ? "Slogan" : "Tagline"}</Label>

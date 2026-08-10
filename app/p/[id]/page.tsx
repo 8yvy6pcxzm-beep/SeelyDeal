@@ -43,6 +43,8 @@ type PublicProposal = {
     cover_image_url: string | null;
     primary_color: string | null;
     email: string | null;
+    address: string | null;
+    phone: string | null;
     plan: string | null;
   } | null;
   team: { name: string; title: string | null; photo_url: string | null }[];
@@ -467,6 +469,8 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
                       {lang === "tr" ? "Hizmeti Sunan" : "Provider"}
                     </p>
                     <p className="mt-1 text-sm font-semibold">{company?.name}</p>
+                    {company?.address && <p className="text-xs text-muted-foreground">{company.address}</p>}
+                    {company?.phone && <p className="text-xs text-muted-foreground">{company.phone}</p>}
                     {company?.email && <p className="text-xs text-muted-foreground">{company.email}</p>}
                     <p className="text-xs text-muted-foreground">{appConfig.domain}</p>
                   </div>

@@ -62,7 +62,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   const { data: proposal } = await service
     .from("proposals")
-    .select("*, clients(name), companies(name, primary_color, email, logo_url)")
+    .select("*, clients(name), companies(name, primary_color, email, logo_url, address, phone)")
     .eq("id", id)
     .eq("company_id", profile.company_id)
     .maybeSingle();
@@ -171,6 +171,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
               { style: styles.partyBox },
               React.createElement(Text, { style: styles.partyLabel }, "Hizmeti Sunan"),
               React.createElement(Text, { style: styles.partyName }, company?.name ?? ""),
+              company?.address ? React.createElement(Text, { style: styles.partyLine }, company.address) : null,
+              company?.phone ? React.createElement(Text, { style: styles.partyLine }, company.phone) : null,
               company?.email ? React.createElement(Text, { style: styles.partyLine }, company.email) : null,
               React.createElement(Text, { style: styles.partyLine }, appConfig.domain),
             ),
