@@ -61,6 +61,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Dosyada okunabilir metin bulunamadı." }, { status: 422 });
   }
 
+  // Keep the original file too (not just the extracted text) so the library can show a real
+  // visual preview of what was uploaded, rather than only the AI-readable text summary.
+  const ext = mediaType === "application/pdf" ? "pdf" : "docx";
+  const filePath = `${profile.company_id}/${crypto.randomUUID()}.${ext}`;
+  const { error: storageError } = await service.storage
+    .from("company-documents")
+    .upload(filePath, buffer, { contentType: mediaType });
+
   const { data: doc, error } = await service
     .from("company_documents")
     .insert({
@@ -68,6 +76,7 @@ export async function POST(req: Request) {
       type: type ?? "proposal_template",
       title: title || fileName || "Yüklenen doküman",
       content,
+      ...(storageError ? {} : { file_path: filePath, file_mime: mediaType, file_name: fileName || null }),
     })
     .select("*")
     .single();

@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { getAuthedUser } from "@/lib/supabase/auth-user";
 import appConfig, { aiOveragePack } from "@/app.config";
 import { safeFetchWebsiteText } from "@/lib/safe-fetch-website";
+import { isSeelyDealPricingLeak } from "@/lib/seelydeal-pricing-leak";
 import { templates } from "@/lib/demo/data";
 import { planAllows } from "@/lib/plan";
 import type { createServiceClient as CreateServiceClient } from "@/lib/supabase/server";
@@ -241,15 +242,33 @@ Sözleşme: ${resolved.contractText}`
   }
 
   type Doc = { type: string; title: string; content: string; is_default_template: boolean };
-  const docsBlock = (docs ?? []).map((d: Doc) => `- [${d.type}] "${d.title}":\n${d.content}`).join("\n\n");
-
-  const defaultTemplate: Doc | undefined =
-    (docs ?? []).find((d: Doc) => d.type === "proposal_template" && d.is_default_template) ??
-    (docs ?? []).find((d: Doc) => d.type === "proposal_template");
 
   const pricingBlock = appConfig.marketing.pricing
     .map((p) => `${p.name}: ${p.price}${p.period ? p.period.tr : ""} — ${p.features.map((f) => f.label.tr).join(", ")}`)
     .join("\n");
+
+  // Onboarding has repeatedly been observed writing SeelyDeal's OWN Lite/Pro/Custom
+  // pricing (the GERÇEK PAKETLERİMİZ block, meant only for "selling SeelyDeal itself")
+  // into a company's "Hizmetler ve Fiyatlandırma" content-library doc — the exact
+  // mix-up the KURALLAR section warns against, just committed at save time instead of
+  // read time. A doc like that is worse than no doc: it silently answers pricing
+  // questions with SeelyDeal's subscription tiers instead of the company's own
+  // services. Detect it (isSeelyDealPricingLeak, shared with the write-side guard in
+  // app/api/settings/service-description/route.ts) and drop it from context, telling
+  // the model why instead of letting it either use the wrong numbers or claim the
+  // library is empty.
+  const corruptedDocs = (docs ?? []).filter((d: Doc) => d.type === "service_description" && isSeelyDealPricingLeak(d.content));
+  const cleanDocs = (docs ?? []).filter((d: Doc) => !corruptedDocs.includes(d));
+
+  const docsBlock = cleanDocs.map((d: Doc) => `- [${d.type}] "${d.title}":\n${d.content}`).join("\n\n");
+  const corruptedDocsNote =
+    corruptedDocs.length > 0
+      ? `\nNOT — HATALI KAYIT: Kütüphanede "${corruptedDocs.map((d: Doc) => d.title).join(", ")}" adlı bir doküman var ama içeriği yanlışlıkla SeelyDeal'ın KENDİ Lite/Pro/Custom abonelik paketleriyle doldurulmuş (muhtemelen bir onboarding hatası) — bu, şirketin kendi hizmet/fiyatlandırması DEĞİL, bu yüzden yukarıdaki VARSAYILAN İÇERİK'ten çıkarıldı. Kullanıcı fiyatlandırma/kütüphane sorarsa "kütüphanen tamamen boş" DEME — bunun yerine "kütüphanende bir kayıt var ama içeriği SeelyDeal'ın kendi paket bilgisiyle karışmış görünüyor, senin gerçek hizmet/fiyatlarını öğrenip Şirket Profili → Varsayılan İçerik'ten düzeltebilir misin ya da bana burada anlatır mısın?" gibi doğru bir açıklama yap.\n`
+      : "";
+
+  const defaultTemplate: Doc | undefined =
+    (docs ?? []).find((d: Doc) => d.type === "proposal_template" && d.is_default_template) ??
+    (docs ?? []).find((d: Doc) => d.type === "proposal_template");
 
   const teamBlock = (team ?? [])
     .map((m: { name: string; title: string | null }) => `${m.name}${m.title ? ` (${m.title})` : ""}`)
@@ -349,7 +368,7 @@ Sözleşme: ${resolved.contractText}`
   // block the model has zero instructions about "onboarding"/"kurulum" once
   // isOnboarding is false, and was observed flatly refusing ("onboarding
   // konusunda yardımcı olamam") instead of just finishing the missing bits.
-  const hasServiceDoc = (docs ?? []).some((d: { type: string }) => d.type === "service_description");
+  const hasServiceDoc = cleanDocs.some((d: Doc) => d.type === "service_description");
   const missingProfileFields: string[] = [];
   if (!company?.email) missingProfileFields.push("iletişim e-postası");
   if (!company?.tagline) missingProfileFields.push("slogan");
@@ -365,7 +384,7 @@ Sözleşme: ${resolved.contractText}`
   // İçerik kütüphanesi kurulumu (Custom/Pro): onboarding sadece BİR KEZ soruyor,
   // ama kütüphane hâlâ boşsa (kullanıcı onboarding'de örnek paylaşmadıysa ya da
   // atladıysa) her yeni teklifte tekrar sorulmalı — kütüphane dolana kadar.
-  const hasOwnLibraryDocs = (docs ?? []).some((d: { type: string }) => d.type !== "content_block");
+  const hasOwnLibraryDocs = cleanDocs.some((d: Doc) => d.type !== "content_block");
   const libraryOnboardingBlock =
     !isOnboarding && !currentDraft && messages.length <= 1 && planAllows(company?.plan, "document_library") && !hasOwnLibraryDocs && !resolved
       ? `\nİÇERİK KÜTÜPHANESİ HÂLÂ BOŞ: Bu şirketin içerik kütüphanesinde henüz kendi teklif örneği/eki yok. Bu teklife başlamadan ÖNCE, ayrı bir ilk mesajda kısaca sor: "Halihazırda kullandığınız bir teklif örneğiniz var mı, yoksa sıfırdan mı ilerleyelim?" — içinde müşteri bilgisi OLMAYAN, boş/şablon bir örnek istediğini de belirt (KVKK kuralına bak). Kullanıcı bir örnek paylaşırsa, içeriğini kullanarak normal akışa devam et VE cevabının sonuna \`\`\`brand\`\`\` bloğuna \`"defaultTemplateContent"\` alanını ekleyerek içerik kütüphanesine kaydet (aşağıdaki VARSAYILAN TEKLİF ŞABLONU kuralındaki gibi). Kullanıcı "sıfırdan başlayalım", "örneğim yok", "geç" gibi bir şey derse ISRAR ETME, bu teklif için hiç sorma ve normal müşteri/hizmet sorularına geç — ama bunu SADECE bu turda uygulama, kütüphane hâlâ boş olduğu için gelecek tekliflerde tekrar sorulacak (bu senin kontrolünde değil, otomatik).\n`
@@ -380,8 +399,8 @@ KURALLAR:
 - ÇOK ÖNEMLİ — KISA TUT: Bir cevapta İKİDEN FAZLA konuyu/soruyu aynı anda açma (örn. "onayladım + yeni soru + başka bir hatırlatma" gibi üç şeyi tek mesaja sıkıştırma). Bir onay/özet cümlesi + EN FAZLA bir sonraki soru yeterli — geri kalanı bir sonraki tura bırak. Kullanıcı zaten bildiği ya da sorulduğunda cevaplayacağı ayrıntıları (örn. sonradan sorulacak "kaç kullanıcı", "aylık mı yıllık mı" gibi ince detayları) aynı mesajda üst üste sorma, tek seferde bir ana soru sor.
 - Türkçe konuş (kullanıcı İngilizce yazarsa İngilizce cevap ver).
 - ÇOK ÖNEMLİ — DÜZGÜN TÜRKÇE: Türkçeyi doğru, akıcı ve zarif kullan. "Yardımcı olayım", "bakayım", "diyeyim" gibi eskimiş/yapmacık "-eyim/-ayım" kalıplarını art arda kullanma — bunun yerine doğal, günlük konuşma diline yakın ifadeler tercih et (örn. "Yardımcı olayım." yerine "Hemen yardımcı oluyorum." veya doğrudan konuya gir). Kulağa robotik, çeviri kokan veya gereksiz resmi gelen cümlelerden kaçın.
-- Teklif hazırlamak için gerekli bilgiler eksikse (sunulacak hizmet, fiyatlandırma yaklaşımı, müşteri adı) TEK TEK, doğal bir sohbet diliyle sor. Kullanıcı "nelere ihtiyacın var" derse hepsini liste halinde sun.
-- ÇOK ÖNEMLİ — SORU SIRASI: VARSAYILAN olarak ÖNCE ne teklif ettiğini (hangi hizmet, hangi kapsam, fiyatlandırma) sor, MÜŞTERİ bilgisini (kim için, hangi şirket) EN SONA bırak — kullanıcı zaten kendiliğinden müşteri adını ilk mesajında vermediyse, konuşmanın ilk sorusu ASLA "hangi müşteri için" olmasın. Kullanıcı müşteri bilgisini kendisi erken paylaşırsa elbette kullan, ama SEN sorarken her zaman önce hizmet/fiyat, sonra müşteri sırasını izle.
+- Teklif hazırlamak için gerekli bilgiler eksikse (sunulacak hizmet, fiyatlandırma yaklaşımı, müşteri adı) TEK TEK, doğal bir sohbet diliyle sor — bir mesajda ASLA birden fazla soruyu üst üste sorma (örn. "hangi müşteri... ayrıca hizmetini nasıl tanımlarsın... fiyatlandırman nasıl?" gibi üç soruyu tek mesaja sıkıştırmak YASAK), her mesaj SADECE bir soru sorsun. Kullanıcı "nelere ihtiyacın var" derse hepsini liste halinde sun (bu tek istisna).
+- ÇOK ÖNEMLİ — SORU SIRASI (MÜŞTERİ EN SON, TASLAK HAZIRLANDIKTAN SONRA BİLE SORULABİLİR): Müşteri bilgisi (kim için, hangi şirket) kesinlikle EN SON toplanan bilgidir — kullanıcı zaten kendiliğinden vermediyse, sohbetin İLK SORUSU ASLA "hangi müşteri için" olmasın, hatta ikinci ya da üçüncü soru bile olmasın. Önce hizmet/kapsamı, sonra fiyatlandırmayı netleştir; içerik (sections, lineItems, fiyat) tamamen netleşene kadar müşteri adını hiç sorma. Taslağı önce müşteri adı olmadan (clientContact boş / "[Müşteri Adı]" placeholder ile) da tamamlayıp \`\`\`json\`\`\` bloğuyla gösterebilirsin — kullanıcı önce içeriği görüp beğenmek isteyebilir; müşteri bilgisini en son, taslak zaten ortadayken bir kerede sor ("Taslak hazır — bunu hangi müşteriye göndereceğiz, adını/şirketini yazar mısın?"). Kullanıcı müşteri bilgisini kendisi erken paylaşırsa elbette kullan, ama SEN sorarken bu sırayı asla bozma.
 - MÜŞTERİLERE EKLEME: Kullanıcı içerik kütüphanesi kurarken ya da herhangi bir sohbette paylaştığı bir örnekteki karşı tarafı (müşteriyi) "müşterilerime ekle" gibi AÇIKÇA isterse, cevabının sonuna \`\`\`addClient\`\`\` bloğu ekle: {"name": "...", "email": "..." (varsa), "website": "..." (varsa)}. Kullanıcı bunu açıkça İSTEMEDİĞİ sürece bu konuyu SEN kendiliğinden hiç açma, sorma ya da önerme — bu tamamen kullanıcının inisiyatifinde.
 - ÇOK ÖNEMLİ — MÜŞTERİ UNVAN/ADRES BİLGİSİ: \`clientContact.company\` (şirket unvanı) veya \`clientContact.address\` eksikse ve kullanıcı bunları sohbette de vermediyse, ÖNCE şuna benzer bir soru sor (aynen kopyalamak zorunda değilsin ama anlamı korunmalı): "Karşı tarafın bilgilerini detaylı görüp teklife ekleyebileceğim bir müşteri web sayfası ekler misin? Bu iletişim sayfası olabilir — oradan unvan, adres gibi bilgileri ben çıkarabilirim." Kullanıcı link/görsel paylaşmak istemez ya da elinde yoksa, o zaman bilgileri elle sormaya geç (zorunlu tutma, sadece öncelik sırası bu). Kullanıcı bir link ya da görsel paylaşırsa oradan unvan/adresi çıkar (metinde net geçmiyorsa UYDURMA, boş bırak ve tekrar sor).
 - ÇOK ÖNEMLİ — ÇEKİRDEK ALANLAR: Müşteri/karşı taraf bilgisi, hizmeti sağlayan taraf bilgisi, sunulan hizmetin/kapsamın özeti ve fiyat — bu dördü hiçbir kaynaktan (sohbet, yüklenen doküman, şablon) gelmiyorsa SESSİZCE boş/0 değerle json'a geçme. Önce normal akışta sor; kullanıcı boş geçer ya da belirsiz cevap verirse ("bilmiyorum", "sonra eklerim", "boş kalsın" gibi) BİR KEZ DAHA, daha net bir soruyla teyit iste (örn. "Fiyat bilgisi olmadan mı devam edeyim, yoksa henüz netleşmedi mi?"). Kullanıcı ikinci kez de net bir yanıt vermezse (veya açıkça "evet boş kalsın" derse) o zaman devam et — amaç iki kez sorup dikkat çekmek, sonsuza kadar ısrar etmek değil.
@@ -440,7 +459,7 @@ ${
   }${
     `VARSAYILAN İÇERİK:
 ${docsBlock || "(henüz doküman eklenmedi)"}
-
+${corruptedDocsNote}
 `
   }${
     currentDraft

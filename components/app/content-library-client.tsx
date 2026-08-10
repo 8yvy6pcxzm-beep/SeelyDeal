@@ -15,6 +15,9 @@ type CompanyDocument = {
   title: string;
   content: string;
   is_default_template: boolean;
+  file_path?: string | null;
+  file_mime?: string | null;
+  file_name?: string | null;
 };
 
 const DOC_TYPES: { value: Exclude<CompanyDocument["type"], "content_block">; tr: string; en: string }[] = [
@@ -223,10 +226,8 @@ export function ContentLibraryClient() {
             {ownDocs.map((d) => (
               <button
                 key={d.id}
-                onClick={() => setSelectedId(d.id === selectedId ? null : d.id)}
-                className={`flex flex-col items-center gap-1.5 rounded-xl p-2 text-center transition-colors ${
-                  selectedId === d.id ? "bg-muted" : "hover:bg-muted/50"
-                }`}
+                onClick={() => setSelectedId(d.id)}
+                className="flex flex-col items-center gap-1.5 rounded-xl p-2 text-center transition-colors hover:bg-muted/50"
               >
                 <div className="relative grid h-16 w-16 place-items-center rounded-2xl bg-muted text-muted-foreground">
                   <FileText className="h-6 w-6" />
@@ -240,60 +241,179 @@ export function ContentLibraryClient() {
               </button>
             ))}
           </div>
-
-          {selected && (
-            <div className="space-y-2 rounded-lg border border-border p-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  className={textareaClass("h-9 w-auto")}
-                  value={selected.type === "content_block" ? "other" : selected.type}
-                  onChange={(e) => {
-                    const type = e.target.value as CompanyDocument["type"];
-                    setDocumentLocal(selected.id, { type });
-                    persistDocument(selected.id, { type });
-                  }}
-                >
-                  {DOC_TYPES.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {lang === "tr" ? opt.tr : opt.en}
-                    </option>
-                  ))}
-                </select>
-                <Input
-                  className="flex-1"
-                  value={selected.title}
-                  onChange={(e) => setDocumentLocal(selected.id, { title: e.target.value })}
-                  onBlur={(e) => persistDocument(selected.id, { title: e.target.value })}
-                  placeholder={lang === "tr" ? "Başlık" : "Title"}
-                />
-                {selected.type === "proposal_template" &&
-                  (selected.is_default_template ? (
-                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-                      {lang === "tr" ? "Varsayılan şablon" : "Default template"}
-                    </span>
-                  ) : (
-                    <Button variant="outline" size="sm" onClick={() => makeDefaultTemplate(selected.id)}>
-                      {lang === "tr" ? "Varsayılan yap" : "Make default"}
-                    </Button>
-                  ))}
-                <Button variant="outline" size="icon" onClick={() => removeDocument(selected.id)}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-                <Button variant="outline" size="icon" onClick={() => setSelectedId(null)}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <textarea
-                className={textareaClass("min-h-32")}
-                value={selected.content}
-                onChange={(e) => setDocumentLocal(selected.id, { content: e.target.value })}
-                onBlur={(e) => persistDocument(selected.id, { content: e.target.value })}
-                placeholder={lang === "tr" ? "Metni buraya yapıştır…" : "Paste the text here…"}
-              />
-            </div>
-          )}
         </CardContent>
       </Card>
+
+      {selected && (
+        <DocumentPreviewModal
+          doc={selected}
+          onClose={() => setSelectedId(null)}
+          onChangeLocal={(patch) => setDocumentLocal(selected.id, patch)}
+          onPersist={(patch) => persistDocument(selected.id, patch)}
+          onMakeDefault={() => makeDefaultTemplate(selected.id)}
+          onRemove={() => {
+            removeDocument(selected.id);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Full-screen preview of one library document: the real uploaded file (PDF renders
+ * inline, DOCX offers a direct download since browsers can't render it natively) up
+ * top, with title/type/AI-text editing tucked below as secondary, less prominent controls. */
+function DocumentPreviewModal({
+  doc,
+  onClose,
+  onChangeLocal,
+  onPersist,
+  onMakeDefault,
+  onRemove,
+}: {
+  doc: CompanyDocument;
+  onClose: () => void;
+  onChangeLocal: (patch: Partial<CompanyDocument>) => void;
+  onPersist: (patch: Partial<CompanyDocument>) => void;
+  onMakeDefault: () => void;
+  onRemove: () => void;
+}) {
+  const { lang } = useLang();
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [showText, setShowText] = useState(!doc.file_path);
+
+  useEffect(() => {
+    setPreviewUrl(null);
+    setPreviewError(null);
+    setShowText(!doc.file_path);
+    if (!doc.file_path) return;
+    setPreviewLoading(true);
+    fetch(`/api/company-documents/${doc.id}/preview`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.error) setPreviewError(data.error);
+        else setPreviewUrl(data.url);
+      })
+      .catch(() => setPreviewError(lang === "tr" ? "Önizleme yüklenemedi." : "Couldn't load preview."))
+      .finally(() => setPreviewLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc.id, doc.file_path]);
+
+  const isPdf = doc.file_mime === "application/pdf";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div
+        className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-pop"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <Input
+            className="h-9 flex-1 border-none px-0 text-[15px] font-semibold shadow-none focus-visible:ring-0"
+            value={doc.title}
+            onChange={(e) => onChangeLocal({ title: e.target.value })}
+            onBlur={(e) => onPersist({ title: e.target.value })}
+            placeholder={lang === "tr" ? "Başlık" : "Title"}
+          />
+          <Button variant="outline" size="icon" onClick={onClose} className="ml-2 shrink-0">
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="grid min-h-[300px] flex-1 place-items-center overflow-auto bg-muted/30">
+          {doc.file_path ? (
+            previewLoading ? (
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            ) : previewError ? (
+              <p className="p-6 text-sm text-muted-foreground">{previewError}</p>
+            ) : previewUrl && isPdf ? (
+              <iframe src={previewUrl} title={doc.title} className="h-[60vh] w-full" />
+            ) : previewUrl ? (
+              <div className="flex flex-col items-center gap-3 p-6 text-center">
+                <FileText className="h-10 w-10 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  {lang === "tr"
+                    ? "Word dosyaları tarayıcıda görüntülenemiyor — orijinalini indirip açabilirsin."
+                    : "Word files can't be previewed in the browser — download the original to open it."}
+                </p>
+                <a href={previewUrl} download={doc.file_name ?? undefined}>
+                  <Button variant="outline" size="sm">
+                    {lang === "tr" ? "Orijinal dosyayı indir" : "Download original file"}
+                  </Button>
+                </a>
+              </div>
+            ) : null
+          ) : (
+            <p className="p-6 text-sm text-muted-foreground">
+              {lang === "tr" ? "Bu doküman için yüklenmiş bir dosya yok — sadece metin." : "No uploaded file for this document — text only."}
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-2 border-t border-border px-4 py-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              className={textareaClass("h-9 w-auto")}
+              value={doc.type === "content_block" ? "other" : doc.type}
+              onChange={(e) => {
+                const type = e.target.value as CompanyDocument["type"];
+                onChangeLocal({ type });
+                onPersist({ type });
+              }}
+            >
+              {DOC_TYPES.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {lang === "tr" ? opt.tr : opt.en}
+                </option>
+              ))}
+            </select>
+            {doc.type === "proposal_template" &&
+              (doc.is_default_template ? (
+                <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                  {lang === "tr" ? "Varsayılan şablon" : "Default template"}
+                </span>
+              ) : (
+                <Button variant="outline" size="sm" onClick={onMakeDefault}>
+                  {lang === "tr" ? "Varsayılan yap" : "Make default"}
+                </Button>
+              ))}
+            <button
+              type="button"
+              className="ml-auto text-xs text-muted-foreground underline-offset-2 hover:underline"
+              onClick={() => setShowText((v) => !v)}
+            >
+              {showText
+                ? lang === "tr"
+                  ? "AI metnini gizle"
+                  : "Hide AI text"
+                : lang === "tr"
+                  ? "Seely'nin okuduğu metni göster/düzenle"
+                  : "Show/edit the text Seely reads"}
+            </button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                onRemove();
+                onClose();
+              }}
+            >
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          </div>
+          {showText && (
+            <textarea
+              className={textareaClass("min-h-32")}
+              value={doc.content}
+              onChange={(e) => onChangeLocal({ content: e.target.value })}
+              onBlur={(e) => onPersist({ content: e.target.value })}
+              placeholder={lang === "tr" ? "Metni buraya yapıştır…" : "Paste the text here…"}
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 }

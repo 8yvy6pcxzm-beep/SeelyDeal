@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getAuthedUser } from "@/lib/supabase/auth-user";
+import { isSeelyDealPricingLeak } from "@/lib/seelydeal-pricing-leak";
 
 const TITLE = "Hizmetler ve Fiyatlandırma";
 
@@ -16,6 +17,18 @@ export async function POST(req: Request) {
 
   const { content } = (await req.json()) as { content?: string };
   if (!content?.trim()) return NextResponse.json({ error: "İçerik boş olamaz." }, { status: 400 });
+
+  // The AI drafting chat has repeatedly mistaken SeelyDeal's own Lite/Pro/Custom
+  // subscription pricing (e.g. after a user mentions "custom paketim") for the
+  // company's own service/pricing summary and auto-saved it here — see
+  // lib/seelydeal-pricing-leak.ts. Reject it at the source so it can't be persisted
+  // again, whether it comes from that auto-save or a manual paste.
+  if (isSeelyDealPricingLeak(content)) {
+    return NextResponse.json(
+      { error: "Bu içerik SeelyDeal'ın kendi paket fiyatlarıyla eşleşiyor gibi görünüyor — bu, sizin kendi hizmet/fiyatlandırmanız olmayabilir. Lütfen kendi hizmetlerinizi ve fiyatlarınızı girin." },
+      { status: 400 },
+    );
+  }
 
   const service = createServiceClient();
   const { data: profile } = await service.from("profiles").select("company_id").eq("id", user.id).maybeSingle();

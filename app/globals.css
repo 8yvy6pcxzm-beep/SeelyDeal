@@ -139,7 +139,16 @@ body {
 }
 
 ::selection {
-  background: color-mix(in oklch, var(--color-primary) 22%, transparent);
+  background: color-mix(in oklch, var(--color-primary) 38%, transparent);
+  color: var(--color-foreground);
+}
+
+/* On solid-primary surfaces (e.g. the user's own chat bubbles) the default
+   primary-tinted selection is nearly invisible against the matching background —
+   use a light overlay there instead so a selection is unmistakably visible. */
+.bg-primary ::selection {
+  background: rgba(255, 255, 255, 0.35);
+  color: inherit;
 }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
