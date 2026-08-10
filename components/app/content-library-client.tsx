@@ -103,7 +103,6 @@ export function ContentLibraryClient() {
   }
 
   async function uploadDocument(file: File) {
-    console.log("[DEBUG] uploadDocument start", file.name);
     setUploadError(null);
     setUploading(true);
     try {
@@ -113,17 +112,14 @@ export function ContentLibraryClient() {
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-      console.log("[DEBUG] base64 ready, length", base64.length);
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      console.log("[DEBUG] session ready", !!session);
       const res = await fetch("/api/company-documents/upload", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
         body: JSON.stringify({ fileName: file.name, mediaType: file.type, base64, title: file.name }),
       });
-      console.log("[DEBUG] fetch responded", res.status);
       const data = await res.json();
       if (!res.ok) {
         setUploadError(data?.error || (lang === "tr" ? "Yüklenemedi." : "Upload failed."));
@@ -131,11 +127,9 @@ export function ContentLibraryClient() {
       }
       setDocs((d) => [...d, data.document]);
       setSelectedId(data.document.id);
-    } catch (e) {
-      console.log("[DEBUG] caught error", e);
+    } catch {
       setUploadError(lang === "tr" ? "Yüklenemedi." : "Upload failed.");
     } finally {
-      console.log("[DEBUG] finally");
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
