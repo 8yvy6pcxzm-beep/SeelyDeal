@@ -633,7 +633,12 @@ export function AiDraftDialog({
         setDraft(nextDraft);
         // The model only sets this after the user explicitly confirmed the final
         // proposal in chat — save it immediately instead of waiting for a manual click.
-        if (data.draft.confirmed) saveDraft(nextDraft);
+        // Pass this turn's format directly (rather than relying on selectedFormat
+        // state, which won't have re-rendered yet if the format block arrived in
+        // this same response) so a same-turn confirm doesn't save format: undefined.
+        if (data.draft.confirmed) {
+          saveDraft(nextDraft, data.format === "pdf" || data.format === "html" ? data.format : undefined);
+        }
       }
       if (data.instruction) {
         fetch("/api/settings/ai-instructions", {
@@ -815,7 +820,7 @@ export function AiDraftDialog({
     }
   }
 
-  async function saveDraft(draftOverride?: Draft): Promise<boolean> {
+  async function saveDraft(draftOverride?: Draft, formatOverride?: "pdf" | "html"): Promise<boolean> {
     const toSave = draftOverride ?? draft;
     if (!toSave) return false;
     setLoading(true);
@@ -845,7 +850,7 @@ export function AiDraftDialog({
                 ...toSave,
                 paymentLink: paymentLink.trim() || undefined,
                 templateId: activeTemplateId,
-                format: selectedFormat,
+                format: formatOverride ?? selectedFormat,
               }),
             });
       const data = await res.json().catch(() => null);
