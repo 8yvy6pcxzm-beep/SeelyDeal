@@ -2,13 +2,14 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, Sparkles, Upload } from "lucide-react";
+import { Check, FileText, Loader2, Sparkles, Upload } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input, Label } from "@/components/ui/input";
+import { Label } from "@/components/ui/input";
 import { Logo } from "@/components/ui/logo";
 import { useLang } from "@/components/i18n/language-provider";
 import { cn } from "@/lib/utils";
+import { PROPOSAL_FONT_KEYS, PROPOSAL_FONT_LABELS, type ProposalFontKey } from "@/lib/proposal-fonts";
 
 type StepData = {
   name: string;
@@ -27,6 +28,7 @@ type StepData = {
   logoPreview: string | null;
   servicesSummary: string;
   aiInstructions: string;
+  fontKey: ProposalFontKey;
 };
 
 const COLOR_PRESETS = ["#5B3DF6", "#7C3AED", "#0EA5A4", "#F97316", "#DB2777", "#111827"];
@@ -74,12 +76,22 @@ export function OnboardingWizard({ initialName, userEmail }: { initialName: stri
   const { lang, t } = useLang();
   const router = useRouter();
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const exampleInputRef = useRef<HTMLInputElement>(null);
 
-  const TOTAL_STEPS = 3;
+  const TOTAL_STEPS = 4;
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
+
+  // Step 3 — example proposal upload → single analyze-example call, no chat.
+  const [exampleFileName, setExampleFileName] = useState<string | null>(null);
+  const [examplePreview, setExamplePreview] = useState<string | null>(null); // data: URI, images only
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analyzed, setAnalyzed] = useState(false);
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [defaultTemplateContent, setDefaultTemplateContent] = useState<string | null>(null);
+  const [fontTouchedByUser, setFontTouchedByUser] = useState(false);
 
   const [data, setData] = useState<StepData>({
     name: initialName,
@@ -98,6 +110,7 @@ export function OnboardingWizard({ initialName, userEmail }: { initialName: stri
     logoPreview: null,
     servicesSummary: "",
     aiInstructions: "",
+    fontKey: "default",
   });
   const [sections, setSections] = useState<Record<string, boolean>>(
     Object.fromEntries(SECTION_OPTIONS.map((s) => [s.key, s.core])),
@@ -126,6 +139,46 @@ export function OnboardingWizard({ initialName, userEmail }: { initialName: stri
     reader.onerror = () => {
       setError(lang === "tr" ? "Logo okunamadı." : "Couldn't read the logo file.");
       setLogoUploading(false);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function handleExampleFile(file: File) {
+    setError(null);
+    setAnalyzing(true);
+    setAnalyzed(false);
+    setExampleFileName(file.name);
+    const isImage = file.type.startsWith("image/");
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const result = reader.result as string;
+      const base64 = result.split(",")[1] ?? "";
+      if (isImage) setExamplePreview(result);
+
+      try {
+        const res = await fetch("/api/settings/onboarding/analyze-example", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mediaType: file.type, base64, fileName: file.name }),
+        });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body?.error || (lang === "tr" ? "Dosya analiz edilemedi." : "Couldn't analyze the file."));
+
+        if (body.servicesSummary) patch({ servicesSummary: body.servicesSummary });
+        if (!fontTouchedByUser) patch({ fontKey: body.fontKey || "default" });
+        setCoverUrl(body.coverUrl || null);
+        setDefaultTemplateContent(body.isFullProposalExample ? body.extractedText || null : null);
+        setAnalyzed(true);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : lang === "tr" ? "Dosya analiz edilemedi." : "Couldn't analyze the file.");
+      } finally {
+        setAnalyzing(false);
+      }
+    };
+    reader.onerror = () => {
+      setError(lang === "tr" ? "Dosya okunamadı." : "Couldn't read the file.");
+      setAnalyzing(false);
     };
     reader.readAsDataURL(file);
   }
@@ -240,6 +293,26 @@ export function OnboardingWizard({ initialName, userEmail }: { initialName: stri
         );
       }
 
+      if (data.fontKey !== "default") {
+        calls.push(
+          fetch("/api/settings/font", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ font: data.fontKey }),
+          }),
+        );
+      }
+
+      if (defaultTemplateContent) {
+        calls.push(
+          fetch("/api/settings/default-template", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content: defaultTemplateContent }),
+          }),
+        );
+      }
+
       calls.push(
         fetch("/api/settings/default-sections", {
           method: "POST",
@@ -279,6 +352,17 @@ export function OnboardingWizard({ initialName, userEmail }: { initialName: stri
           }
         }
       }
+
+      // Cover: use the example upload's cover-worthy image if we found one,
+      // otherwise generate a plain gradient from the (now-saved) logo + brand
+      // color — either way the customer is never asked for a cover separately.
+      // Runs after the batch above so logo/brand-color are already persisted
+      // when the generator reads them.
+      await fetch("/api/settings/cover-image/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(coverUrl ? { url: coverUrl } : {}),
+      }).catch(() => {});
 
       const completeRes = await fetch("/api/settings/onboarding", { method: "POST" });
       if (!completeRes.ok) {
@@ -580,13 +664,125 @@ export function OnboardingWizard({ initialName, userEmail }: { initialName: stri
               <div className="space-y-6">
                 <div>
                   <h2 className="font-display text-xl font-semibold tracking-tight">
-                    {lang === "tr" ? "Hizmetlerin ve teklif tercihlerin" : "Your services and proposal preferences"}
+                    {lang === "tr" ? "Örnek teklifini paylaş" : "Share an example proposal"}
                   </h2>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {lang === "tr"
-                      ? "Bunlar her yeni teklif taslağında otomatik kullanılır — sonradan Şirket Profili'nden düzenleyebilirsin."
-                      : "These auto-apply to every new proposal draft — you can edit them later from Company Profile."}
+                      ? "Varsa, daha önce hazırladığın bir teklifi, antetli kağıdını ya da sitenin ekran görüntüsünü yükle — Seely hizmetlerini, yazı stilini ve kapak görselini bundan otomatik çıkarır. İstersen atlayabilirsin."
+                      : "If you have one, upload a past proposal, letterhead, or a screenshot of your site — Seely automatically pulls your services, font style, and cover image from it. Feel free to skip this."}
                   </p>
+                </div>
+
+                <div>
+                  <input
+                    ref={exampleInputRef}
+                    type="file"
+                    accept="application/pdf,image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleExampleFile(file);
+                    }}
+                  />
+                  {!exampleFileName ? (
+                    <button
+                      type="button"
+                      onClick={() => exampleInputRef.current?.click()}
+                      className="flex w-full flex-col items-center gap-2 rounded-xl border border-dashed border-border px-4 py-8 text-center transition-colors hover:bg-muted"
+                    >
+                      <Upload className="h-5 w-5 text-muted-foreground" />
+                      <span className="text-[13px] font-medium text-foreground">
+                        {lang === "tr" ? "Dosya seç" : "Choose a file"}
+                      </span>
+                      <span className="text-[11.5px] text-muted-foreground">PDF, PNG, JPG, WEBP</span>
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-3 rounded-xl border border-border px-3.5 py-3">
+                      <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-lg border border-border bg-muted">
+                        {examplePreview ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={examplePreview} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <FileText className="h-5 w-5 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] font-medium text-foreground">{exampleFileName}</p>
+                        <p className="text-[11.5px] text-muted-foreground">
+                          {analyzing
+                            ? lang === "tr"
+                              ? "Analiz ediliyor…"
+                              : "Analyzing…"
+                            : analyzed
+                              ? lang === "tr"
+                                ? "Analiz tamamlandı, aşağıda düzenleyebilirsin."
+                                : "Analysis done — you can edit it below."
+                              : ""}
+                        </p>
+                      </div>
+                      {analyzing ? (
+                        <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => exampleInputRef.current?.click()}
+                          className="shrink-0 text-[12px] font-medium text-primary hover:underline"
+                        >
+                          {lang === "tr" ? "Değiştir" : "Change"}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {analyzed && (
+                  <div className="rounded-xl border border-border bg-muted/40 px-3.5 py-3">
+                    <div className="flex items-center gap-2 text-[12.5px] text-foreground">
+                      <div
+                        className="h-8 w-14 shrink-0 rounded-md border border-border bg-cover bg-center"
+                        style={
+                          coverUrl
+                            ? { backgroundImage: `url(${coverUrl})` }
+                            : { backgroundImage: "var(--grad-brand)" }
+                        }
+                      />
+                      <span>
+                        {coverUrl
+                          ? lang === "tr"
+                            ? "Bu görsel kapak olarak kullanılacak."
+                            : "This image will be used as your cover."
+                          : lang === "tr"
+                            ? "Kapağın, marka renginden otomatik oluşturulacak."
+                            : "Your cover will be auto-generated from your brand color."}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <Label className="mb-2 block text-xs uppercase tracking-wide text-muted-foreground">
+                    {lang === "tr" ? "Yazı tipi" : "Font"}
+                  </Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {PROPOSAL_FONT_KEYS.map((key) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => {
+                          setFontTouchedByUser(true);
+                          patch({ fontKey: key });
+                        }}
+                        className={cn(
+                          "rounded-xl border px-2.5 py-2.5 text-center text-[12px] font-medium transition-colors",
+                          data.fontKey === key
+                            ? "border-primary bg-primary/5 text-primary ring-1 ring-primary/30"
+                            : "border-border text-foreground hover:bg-muted",
+                        )}
+                      >
+                        {t(PROPOSAL_FONT_LABELS[key])}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <Field label={lang === "tr" ? "Hizmetlerin ve fiyatlandırma yaklaşımın (opsiyonel)" : "Your services and pricing approach (optional)"}>
@@ -598,6 +794,21 @@ export function OnboardingWizard({ initialName, userEmail }: { initialName: stri
                     placeholder={lang === "tr" ? "Örn. Web sitesi tasarımı: 2000$ sabit ücret\nAylık bakım: 200$/ay" : "e.g. Website design: $2,000 flat fee\nMonthly maintenance: $200/mo"}
                   />
                 </Field>
+              </div>
+            )}
+
+            {step === 4 && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="font-display text-xl font-semibold tracking-tight">
+                    {lang === "tr" ? "Son tercihlerin" : "Your last preferences"}
+                  </h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {lang === "tr"
+                      ? "Bunlar her yeni teklif taslağında otomatik kullanılır — sonradan Şirket Profili'nden düzenleyebilirsin."
+                      : "These auto-apply to every new proposal draft — you can edit them later from Company Profile."}
+                  </p>
+                </div>
 
                 <Field label={lang === "tr" ? "Seely'nin ton/üslup talimatı (opsiyonel)" : "Tone/style instructions for Seely (optional)"}>
                   <textarea
@@ -674,7 +885,7 @@ export function OnboardingWizard({ initialName, userEmail }: { initialName: stri
                 <span />
               )}
               {step < TOTAL_STEPS ? (
-                <Button type="button" onClick={goNext} className="ml-auto">
+                <Button type="button" onClick={goNext} disabled={analyzing} className="ml-auto">
                   {lang === "tr" ? "Devam et" : "Continue"}
                 </Button>
               ) : (

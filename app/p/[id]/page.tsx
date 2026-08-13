@@ -1,17 +1,33 @@
 "use client";
 
 import { use, useEffect, useRef, useState } from "react";
-import { Hanken_Grotesk } from "next/font/google";
+import { Hanken_Grotesk, Playfair_Display } from "next/font/google";
 import { CheckCircle2, Loader2, PenLine, ExternalLink, Copy, Check, FileText, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { useLang } from "@/components/i18n/language-provider";
 import { cn, formatUsd } from "@/lib/utils";
 import appConfig from "@/app.config";
+import { isProposalFontKey, type ProposalFontKey } from "@/lib/proposal-fonts";
 
-// Loaded only for proposals whose template declares theme.font (e.g. the construction
-// template) — applied via inline style below, so it never touches the app-wide font.
+// Loaded for proposals whose theme (from a template, or the company's own default —
+// see lib/proposal-fonts.ts) declares a non-default font — applied via inline style
+// below, so it never touches the app-wide font. "default" needs no extra load, it's
+// the app's own --font-display-app (Instrument Sans).
 const hankenGrotesk = Hanken_Grotesk({ subsets: ["latin"], weight: ["700", "800"] });
+const playfairDisplay = Playfair_Display({ subsets: ["latin"], weight: ["700", "800"] });
+
+/** theme.font holds either one of our curated keys (see lib/proposal-fonts.ts, set by
+ * onboarding or a company default) or an older free-text template value (e.g. the
+ * built-in "Hanken Grotesk" demo template) — any non-empty, non-"default" value that
+ * isn't recognized falls back to "bold" (Hanken Grotesk) to match the old behavior,
+ * where ANY truthy theme.font switched away from the app's own display font. */
+function displayFontFamily(fontKey: string | undefined): string | undefined {
+  if (!fontKey || fontKey === "default") return undefined;
+  const key: ProposalFontKey = isProposalFontKey(fontKey) ? fontKey : "bold";
+  if (key === "elegant") return playfairDisplay.style.fontFamily;
+  return hankenGrotesk.style.fontFamily;
+}
 
 type BillingOption = { key: string; label: { tr: string; en: string }; price: number; paymentLink?: string };
 type LineItem = { name: string; qty: number; unit: number; optional?: boolean; included?: boolean };
@@ -335,7 +351,11 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
   return (
     <div
       className="min-h-screen bg-background text-foreground"
-      style={theme?.font ? ({ "--font-display": hankenGrotesk.style.fontFamily } as React.CSSProperties) : undefined}
+      style={
+        theme?.font && displayFontFamily(theme.font)
+          ? ({ "--font-display": displayFontFamily(theme.font) } as React.CSSProperties)
+          : undefined
+      }
     >
       {/* Site-style top nav */}
       <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-border bg-card/95 px-4 backdrop-blur sm:px-8">

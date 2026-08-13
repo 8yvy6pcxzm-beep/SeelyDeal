@@ -502,6 +502,10 @@ ${pricingBlock}${websiteContext}${prefillBlock}`;
   // a theme (e.g. "Genel Leo") leave themeJson unset — the proposal keeps the company's own color.
   if (draft && resolved?.theme) {
     draft.themeJson = resolved.theme;
+  } else if (draft && company?.font && company.font !== "default") {
+    // No themed template chosen — fall back to the company's own onboarding-set
+    // default font (see lib/proposal-fonts.ts) instead of leaving it unset.
+    draft.themeJson = { ...(draft.themeJson || {}), font: company.font };
   }
 
   // Optional ```brand``` block — logo/color (and, during onboarding, company name) the model detected this turn (see MARKA KAYDI rule above).
