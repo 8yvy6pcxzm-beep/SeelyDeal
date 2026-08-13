@@ -547,14 +547,6 @@ export function AiDraftDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, resumeProposalId]);
 
-  useEffect(() => {
-    if (!open || !onboardingPending || initialTemplateId || resumeProposalId || messages.length > 0) return;
-    // Kick off Seely's first-chat intro ourselves — no visible user bubble, the
-    // company just sees the intro appear the moment the dialog opens.
-    send(lang === "tr" ? "Merhaba" : "Hi", { hidden: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, onboardingPending]);
-
   /** Esc while Seely is replying stops the request and puts the last message back
    * in the input so the user can fix a typo/instruction and resend — mirrors how
    * Esc interrupts an in-progress agent turn here in Claude Code. */

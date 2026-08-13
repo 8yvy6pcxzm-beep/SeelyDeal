@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/app/sidebar";
 import { Topbar } from "@/components/app/topbar";
 import { PlanProvider } from "@/components/app/plan-provider";
@@ -13,17 +14,20 @@ async function getCurrentUser(): Promise<{
   email: string | null;
   trialDaysLeft: number | null;
   trialExpired: boolean;
+  onboardingPending: boolean;
 }> {
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) return { plan: "lite", name: null, email: null, trialDaysLeft: null, trialExpired: false };
+  if (!auth.user)
+    return { plan: "lite", name: null, email: null, trialDaysLeft: null, trialExpired: false, onboardingPending: false };
 
   const service = createServiceClient();
   const { data: profile } = await service.from("profiles").select("company_id").eq("id", auth.user.id).maybeSingle();
-  if (!profile) return { plan: "lite", name: null, email: auth.user.email ?? null, trialDaysLeft: null, trialExpired: false };
+  if (!profile)
+    return { plan: "lite", name: null, email: auth.user.email ?? null, trialDaysLeft: null, trialExpired: false, onboardingPending: false };
 
   const [{ data: company }, { data: teamMember }] = await Promise.all([
-    service.from("companies").select("plan, created_at").eq("id", profile.company_id).maybeSingle(),
+    service.from("companies").select("plan, created_at, onboarding_completed").eq("id", profile.company_id).maybeSingle(),
     service.from("team_members").select("name").eq("company_id", profile.company_id).eq("email", auth.user.email).maybeSingle(),
   ]);
 
@@ -37,13 +41,20 @@ async function getCurrentUser(): Promise<{
     email: auth.user.email ?? null,
     trialDaysLeft: onTrial ? trialDaysLeft(company!.created_at) : null,
     trialExpired: onTrial ? isTrialExpired(company!.created_at) : false,
+    // Every plan (Lite/Pro/Custom) goes through the same form-based onboarding
+    // wizard at /onboarding before it can see the dashboard.
+    onboardingPending: company?.onboarding_completed === false,
   };
 }
 
 export default async function AppLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const { plan, name, email, trialDaysLeft: daysLeft, trialExpired } = await getCurrentUser();
+  const { plan, name, email, trialDaysLeft: daysLeft, trialExpired, onboardingPending } = await getCurrentUser();
+
+  if (onboardingPending) {
+    redirect("/onboarding");
+  }
 
   if (trialExpired) {
     return <TrialExpiredScreen />;
