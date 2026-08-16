@@ -37,6 +37,7 @@
     "box-shadow:0 24px 60px -12px rgba(83,52,201,.35),0 8px 24px rgba(0,0,0,.12);" +
     "display:none;flex-direction:column;overflow:hidden;z-index:2147483000;border:1px solid #e6e2fb;}" +
     ".panel.open{display:flex}" +
+    ".fab.hidden,.fabglow.hidden,.fabring.hidden{display:none}" +
     ".hd{background:linear-gradient(135deg,#8b7bf7 0%,#6d4de0 55%,#5334c9 100%);color:#fff;padding:16px 18px;" +
     "display:flex;align-items:center;gap:10px;position:relative;overflow:hidden;}" +
     ".hd::after{content:'';position:absolute;top:-40%;right:-10%;width:120px;height:120px;border-radius:50%;" +
@@ -95,6 +96,8 @@
   root.appendChild(wrap);
 
   var fab = root.querySelector(".fab");
+  var fabglow = root.querySelector(".fabglow");
+  var fabring = root.querySelector(".fabring");
   var panel = root.querySelector(".panel");
   var closeBtn = root.querySelector(".close");
   var msgsEl = root.querySelector(".msgs");
@@ -124,6 +127,9 @@
 
   function openPanel() {
     panel.classList.add("open");
+    fab.classList.add("hidden");
+    fabglow.classList.add("hidden");
+    fabring.classList.add("hidden");
     if (!greeted) {
       greeted = true;
       addMsg("bot", "Merhaba! Ben Seely, seelynow ajansının AI asistanıyım. Otomasyon ihtiyaçların hakkında soru sorabilir ya da direkt bir görüşme ayarlayabilirsin. Nasıl yardımcı olabilirim?");
@@ -131,14 +137,21 @@
     input.focus();
   }
 
+  function closePanel() {
+    panel.classList.remove("open");
+    fab.classList.remove("hidden");
+    fabglow.classList.remove("hidden");
+    fabring.classList.remove("hidden");
+  }
+
   fab.addEventListener("click", function () {
     if (panel.classList.contains("open")) {
-      panel.classList.remove("open");
+      closePanel();
     } else {
       openPanel();
     }
   });
-  closeBtn.addEventListener("click", function () { panel.classList.remove("open"); });
+  closeBtn.addEventListener("click", closePanel);
 
   function send() {
     var text = input.value.trim();
