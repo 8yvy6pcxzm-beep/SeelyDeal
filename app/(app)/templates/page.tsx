@@ -198,26 +198,43 @@ function TemplatesPageInner() {
                   <div className="min-w-0">
                     <p className="truncate font-semibold tracking-tight">{t(active.category)}</p>
                     {group.length > 1 ? (
-                      <div className="mt-1.5 flex flex-wrap gap-1.5" onClick={(e) => e.stopPropagation()}>
-                        {group.map((variant) => (
-                          <span
-                            key={variant.id}
-                            role="button"
-                            tabIndex={0}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelected(variant.id);
-                            }}
-                            className={cn(
-                              "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors",
-                              variant.id === active.id
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-muted text-muted-foreground hover:bg-muted/70",
-                            )}
-                          >
-                            {variant.nickname ?? `${lang === "tr" ? "Seçenek" : "Option"} ${group.indexOf(variant) + 1}`}
-                          </span>
-                        ))}
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                        {group.map((variant) =>
+                          variant.nickname ? (
+                            <span
+                              key={variant.id}
+                              role="button"
+                              tabIndex={0}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelected(variant.id);
+                              }}
+                              className={cn(
+                                "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors",
+                                variant.id === active.id
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted text-muted-foreground hover:bg-muted/70",
+                              )}
+                            >
+                              {variant.nickname}
+                            </span>
+                          ) : (
+                            <span
+                              key={variant.id}
+                              role="button"
+                              tabIndex={0}
+                              aria-label={lang === "tr" ? "Varyant seç" : "Select variant"}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelected(variant.id);
+                              }}
+                              className={cn(
+                                "h-2 w-2 rounded-full transition-colors",
+                                variant.id === active.id ? "bg-primary" : "bg-muted hover:bg-muted-foreground/40",
+                              )}
+                            />
+                          ),
+                        )}
                       </div>
                     ) : (
                       active.nickname && <p className="text-[11px] text-muted-foreground">{active.nickname}</p>
