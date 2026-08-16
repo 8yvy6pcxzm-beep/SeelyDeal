@@ -397,9 +397,15 @@ export interface Template {
   /** Optional per-template visual theme, carried into the proposal draft and applied only to
    *  proposals created from this template (see app/p/[id]/page.tsx) — never touches global CSS. */
   theme?: { primaryColor: string; accentColor: string; font?: string };
-  /** "sade" = short/neutral, no special theme. "kapsamli" = rich content, usually paired with a theme. */
-  variant?: "sade" | "kapsamli";
-  /** Short name recognized in AI chat (e.g. "leo") — only set on kapsamlı variants. See app/api/draft-proposal/route.ts. */
+  /** Unset (default) = a pure visual/design skeleton (Görsel Şablonlar) — the AI
+   *  only ever takes its `theme`, never its section text (see "ŞABLONLAR SADECE
+   *  GÖRSELDİR" in app/api/draft-proposal/route.ts). "draft" = a real, usable
+   *  starting proposal (Taslak Teklif Örnekleri) — its intro/sections/lineItems/
+   *  contractText are genuine content the user can load into the editor and
+   *  revise via lib/proposal-blocks/convert-legacy.ts + <BlockRenderer>. */
+  kind?: "draft";
+  /** Legacy chat-nickname matching (app/api/draft-proposal/route.ts) — no demo
+   *  template sets this anymore, kept only so that file's type still compiles. */
   nickname?: string;
 }
 
@@ -418,12 +424,13 @@ export const templates: Template[] = [
   { id: "t4", name: { tr: "Danışmanlık", en: "Consulting" }, category: { tr: "Hizmet", en: "Services" }, uses: 21, winRate: 62, accent: "var(--seg-4)", sections: GENERIC_SECTIONS },
   {
     id: "t5",
-    name: { tr: "İnşaat — Sade", en: "Construction — Simple" },
+    name: { tr: "İnşaat", en: "Construction" },
     category: { tr: "İnşaat", en: "Construction" },
     uses: 0,
     winRate: 0,
     accent: "var(--seg-1)",
-    variant: "sade",
+    kind: "draft",
+    theme: { primaryColor: "#00173c", accentColor: "#a04100", font: "Hanken Grotesk" },
     introText: {
       tr: "Sayın Ahmet Yılmaz,\n\nVizyoner hedeflerinizi yakından takip ediyor ve Ticari Kompleks Cephe Yenileme Projesi'nde sizlere değer katmak için bu kapsamlı teklifi sunmaktan onur duyuyoruz. Projenin çevresel sürdürülebilirlik ve modern mimari estetik gereksinimlerini derinden anlıyoruz.\n\nAmacımız sadece bir cephe yenileme işlemi gerçekleştirmek değil, aynı zamanda binanın enerji verimliliğini artırarak uzun vadeli operasyonel maliyetlerinizi optimize etmektir. Yenilikçi malzeme seçimlerimiz ve detaylı iş planımızla, projenin günlük faaliyetlerinizi aksatmadan, belirlenen bütçe ve takvim sınırları içerisinde tamamlanmasını taahhüt ediyoruz.\n\nİşbirliğimizin her iki tarafa da uzun vadeli değer katacağına inancımız tamdır. Saygılarımızla.",
       en: "Dear Client,\n\nWe are honored to submit this comprehensive proposal for your Commercial Complex Facade Renovation Project. We understand the environmental sustainability and modern architectural aesthetic requirements of the project.\n\nOur goal is not only to complete a facade renovation, but to reduce your long-term operating costs by improving the building's energy efficiency — delivered on budget and on schedule without disrupting your daily operations.\n\nWe believe this partnership will create lasting value for both sides. Best regards.",
@@ -474,111 +481,13 @@ export const templates: Template[] = [
     },
   },
   {
-    id: "t6",
-    name: { tr: "İnşaat — Kapsamlı", en: "Construction — Comprehensive" },
-    category: { tr: "İnşaat", en: "Construction" },
-    uses: 0,
-    winRate: 0,
-    accent: "var(--seg-1)",
-    variant: "kapsamli",
-    theme: { primaryColor: "#00173c", accentColor: "#a04100", font: "Hanken Grotesk" },
-    introText: {
-      tr: "Sayın [Müşteri Yetkilisi],\n\n[Müşteri firma]nın hedeflerini yakından takip ediyor ve [proje adı]nda sizlere değer katmak için bu kapsamlı teklifi sunmaktan onur duyuyoruz. Projenin çevresel sürdürülebilirlik ve modern mimari estetik gereksinimlerini derinden anlıyoruz.\n\nAmacımız, sadece işi tamamlamak değil, aynı zamanda uzun vadeli operasyonel maliyetlerinizi optimize etmektir. Yenilikçi malzeme seçimlerimiz ve detaylı iş planımızla, belirlenen bütçe ve takvim sınırları içerisinde tamamlanmasını taahhüt ediyoruz.\n\nİşbirliğimizin her iki tarafa da uzun vadeli değer katacağına inancımız tamdır. Saygılarımızla.",
-      en: "Dear [Client Contact],\n\nWe are honored to submit this comprehensive proposal for [project name]. We understand the environmental sustainability and modern architectural aesthetic requirements of the project.\n\nOur goal is not only to complete the work, but to optimize your long-term operating costs — delivered on budget and on schedule.\n\nWe believe this partnership will create lasting value for both sides. Best regards.",
-    },
-    aboutText: {
-      tr: "Firmamız, yirmi yılı aşkın süredir endüstriyel tesisler, ticari kompleksler ve nitelikli üst yapı projelerinde anahtar teslim taahhüt hizmetleri sunmaktadır. Mühendislik disiplini ve yenilikçi inşaat teknolojilerini harmanlayarak, sektörde güvenilirliğin ve kalitenin sembolü haline geldik.\n\n\"Zorlu hava koşullarına ve sıkışık takvime rağmen, projeyi beklediğimizden çok daha yüksek bir kalite standardıyla ve bütçe sınırları içinde teslim ettiler.\" — [Referans Adı], [Unvan], [Referans Firma]",
-      en: "For over twenty years we've delivered turnkey contracting services for industrial facilities, commercial complexes, and premium structures — combining engineering discipline with innovative construction technology.\n\n\"Despite tough weather and a tight schedule, they delivered well above our quality expectations and within budget.\" — [Reference Name], [Title], [Reference Company]",
-    },
-    sections: [
-      {
-        title: { tr: "Kapsam Dahilinde", en: "Included in Scope" },
-        body: {
-          tr: "• [Kapsam maddesi 1]\n• [Kapsam maddesi 2]\n• [Kapsam maddesi 3]\n• [Kapsam maddesi 4]\n• Şantiye güvenliği, iskele kurulumu ve trafik yönetimi.",
-          en: "• [Scope item 1]\n• [Scope item 2]\n• [Scope item 3]\n• [Scope item 4]\n• Site safety, scaffolding, and traffic management for the duration.",
-        },
-      },
-      {
-        title: { tr: "Kapsam Dışında", en: "Excluded from Scope" },
-        body: {
-          tr: "• [Kapsam dışı madde 1]\n• [Kapsam dışı madde 2]\n• Yapı ruhsatı/izin harçları (müşteri sorumluluğundadır).",
-          en: "• [Excluded item 1]\n• [Excluded item 2]\n• Building permit fees (client's responsibility).",
-        },
-      },
-      {
-        title: { tr: "Ekip", en: "Team" },
-        body: {
-          tr: "Proje müdürü, baş mühendis ve şantiye şefinden oluşan ekibimiz, sahada güvenli ve zamanında ilerleme için birlikte çalışır.",
-          en: "Our project manager, lead engineer, and site supervisor work together to keep the job on schedule and on safety standard.",
-        },
-      },
-      {
-        title: { tr: "Kritik Tarihler", en: "Key Dates" },
-        body: {
-          tr: "Planlanan başlangıç: [tarih]. Planlanan bitiş: [tarih] ([X] gün).",
-          en: "Planned start: [date]. Planned completion: [date] ([X] days).",
-        },
-      },
-    ],
-    lineItems: [
-      { name: { tr: "Malzeme", en: "Materials" }, qty: 1, unit: 0 },
-      { name: { tr: "İşçilik", en: "Labor" }, qty: 1, unit: 0 },
-      { name: { tr: "Ekipman", en: "Equipment" }, qty: 1, unit: 0 },
-      { name: { tr: "Taşeron", en: "Subcontractor" }, qty: 1, unit: 0 },
-    ],
-    contractText: {
-      tr: "Bu teklif belgesi, taraflarca elektronik ortamda onaylandığı andan itibaren yasal bağlayıcılığı olan bir ön sözleşme niteliği taşır. Onay, işbu belgede belirtilen kapsam, takvim ve bedel üzerinden verilmiş sayılır; kapsam değişiklikleri yazılı ek sözleşme ile yapılır.",
-      en: "This proposal becomes a legally binding preliminary agreement once approved electronically by both parties, on the scope, schedule and price stated herein; scope changes require a written change order.",
-    },
-  },
-  {
-    id: "t7",
-    name: { tr: "Genel — Sade", en: "General — Simple" },
-    category: { tr: "Genel", en: "General" },
-    uses: 0,
-    winRate: 0,
-    accent: "var(--seg-2)",
-    variant: "sade",
-    introText: {
-      tr: "Sayın [Müşteri Yetkilisi],\n\n[Proje/iş adı] için ihtiyaçlarınızı dinledik ve size en uygun çözümü bu teklifte topladık. Aşağıda kapsamı, takvimi ve fiyatlandırmayı bulabilirsiniz.\n\nSorularınız için her zaman buradayız. Saygılarımızla.",
-      en: "Dear [Client Contact],\n\nWe listened to your needs for [project/work name] and put together the right solution for you below — scope, timeline, and pricing.\n\nWe're here for any questions. Best regards.",
-    },
-    aboutText: {
-      tr: "[Firma adı], [sektör] alanında müşterilerine güvenilir ve hızlı çözümler sunar.",
-      en: "[Company name] delivers reliable, fast solutions for clients in [industry].",
-    },
-    sections: [
-      {
-        title: { tr: "Kapsam", en: "Scope" },
-        body: {
-          tr: "• [Kapsam maddesi 1]\n• [Kapsam maddesi 2]\n• [Kapsam maddesi 3]",
-          en: "• [Scope item 1]\n• [Scope item 2]\n• [Scope item 3]",
-        },
-      },
-      {
-        title: { tr: "Şartlar", en: "Terms" },
-        body: {
-          tr: "Ödeme ve teslim şartları [buraya].",
-          en: "Payment and delivery terms [here].",
-        },
-      },
-    ],
-    lineItems: [
-      { name: { tr: "Hizmet", en: "Service" }, qty: 1, unit: 0 },
-    ],
-    contractText: {
-      tr: "Bu teklif, taraflarca elektronik ortamda onaylandığı andan itibaren yasal bağlayıcılığı olan bir ön sözleşme niteliği taşır.",
-      en: "This proposal becomes a legally binding preliminary agreement once approved electronically by both parties.",
-    },
-  },
-  {
     id: "t8",
-    name: { tr: "Genel — Kapsamlı", en: "General — Comprehensive" },
+    name: { tr: "Genel", en: "General" },
     category: { tr: "Genel", en: "General" },
     uses: 0,
     winRate: 0,
     accent: "var(--seg-2)",
-    variant: "kapsamli",
+    kind: "draft",
     introText: {
       tr: "Sayın [Müşteri Yetkilisi],\n\n[Müşteri firma]nın hedeflerini yakından takip ediyor ve [proje/iş adı]nda sizlere değer katmak için bu kapsamlı teklifi sunmaktan onur duyuyoruz.\n\nAmacımız, işi zamanında ve bütçe dahilinde teslim ederken uzun vadeli değer yaratmaktır.\n\nİşbirliğimizin her iki tarafa da uzun vadeli değer katacağına inancımız tamdır. Saygılarımızla.",
       en: "Dear [Client Contact],\n\nWe are honored to submit this comprehensive proposal for [project/work name] to help you reach your goals.\n\nOur aim is to deliver on time and on budget while creating lasting value.\n\nWe believe this partnership will create lasting value for both sides. Best regards.",
@@ -633,15 +542,7 @@ export const templates: Template[] = [
     uses: 0,
     winRate: 0,
     accent: "var(--seg-4)",
-    variant: "sade",
-    introText: {
-      tr: "Sayın [Müşteri Yetkilisi],\n\nOrganizasyonunuzun hedeflerini yakından takip ediyor ve stratejik dönüşüm sürecinizde size değer katmak için bu teklifi sunmaktan onur duyuyoruz. Sektördeki tecrübemizle, kuruluşunuzun karşılaştığı temel zorlukları derinlemesine analiz ediyor ve sürdürülebilir büyüme için uygulanabilir, veriye dayalı çözümler öneriyoruz.\n\nAmacımız yalnızca bir danışmanlık raporu teslim etmek değil, hedeflerinize ulaşana kadar yanınızda kalan uzun vadeli bir iş ortaklığı kurmaktır. Aşağıda kapsamı, ekibimizi, takvimi ve yatırım planını bulacaksınız.\n\nSorularınız için her zaman buradayız. Saygılarımızla.",
-      en: "Dear [Client Contact],\n\nWe are honored to submit this proposal to support your organization's strategic transformation. Drawing on our experience in the sector, we've closely analyzed the core challenges your organization faces and propose sustainable, data-driven, actionable solutions.\n\nOur goal isn't just to deliver a consulting report — it's to build a long-term partnership that stays with you until you reach your goals. Below you'll find our scope, team, timeline, and investment plan.\n\nWe're here for any questions. Best regards.",
-    },
-    aboutText: {
-      tr: "On yılı aşkın süredir üst yönetimden saha operasyonlarına kadar kurumsal dönüşüm projelerinde yönetim danışmanlığı hizmeti veriyoruz. Stratejik netlik, operasyonel çeviklik ve ölçülebilir sonuçlar üzerine kurulu metodolojimizle, karmaşık iş problemlerini uygulanabilir yol haritalarına dönüştürüyoruz.\n\n\"Zorlu bir pazar ortamında, net bir yol haritası ve disiplinli uygulamayla bize beklediğimizin çok üzerinde bir değer kattılar.\" — [Referans Adı], [Unvan], [Referans Firma]",
-      en: "For over a decade we've provided management consulting across corporate transformation projects — from the boardroom to frontline operations. Our methodology, built on strategic clarity, operational agility, and measurable results, turns complex business problems into actionable roadmaps.\n\n\"In a tough market, they delivered far more value than we expected — with a clear roadmap and disciplined execution.\" — [Reference Name], [Title], [Reference Company]",
-    },
+    kind: "draft",
     sections: [
       {
         title: { tr: "Yönetici Özeti", en: "Executive Summary" },
@@ -651,17 +552,17 @@ export const templates: Template[] = [
         },
       },
       {
-        title: { tr: "Stratejik Yaklaşımımız", en: "Our Strategic Approach" },
+        title: { tr: "Stratejimiz", en: "Our Strategy" },
         body: {
           tr: "1. Analiz — Pazar trendlerini ve rakip verilerini içeren kapsamlı bir veri toplama süreciyle temel dinamikleri belirliyoruz.\n2. Planlama — Net hedefler, kilometre taşları ve kaynak tahsisi içeren stratejik bir yol haritası oluşturuyoruz.\n3. Uygulama — Stratejiyi hayata geçirir, ekiplerinizle yakın işbirliği içinde süreçleri entegre ederiz.\n4. Optimizasyon — Performansı sürekli izler, KPI'ları ölçer ve sürdürülebilir başarı için iyileştiririz.",
           en: "1. Analysis — We establish core dynamics through comprehensive data collection covering market trends and competitive intelligence.\n2. Planning — We build a strategic roadmap with clear goals, milestones, and resource allocation.\n3. Execution — We put the strategy into action, integrating processes in close collaboration with your teams.\n4. Optimization — We continuously track performance, measure KPIs, and refine for sustainable success.",
         },
       },
       {
-        title: { tr: "Ekibimiz", en: "Our Team" },
+        title: { tr: "Hakkımızda / Ekibimiz", en: "About Us / Our Team" },
         body: {
-          tr: "• [Kıdemli Strateji Direktörü] — Kurumsal dönüşüm ve pazar giriş stratejileri konusunda [X] yıllık deneyim; karmaşık problemleri uygulanabilir yol haritalarına dönüştürmede uzman.\n• [Veri & Analitik Lideri] — Veriye dayalı karar alma süreçlerini optimize ederek ölçülebilir büyüme fırsatları yaratır.\n• [Operasyonel Mükemmellik Uzmanı] — Süreç iyileştirme ve maliyet optimizasyonu konusunda derin deneyime sahiptir.",
-          en: "• [Senior Strategy Director] — [X] years of experience in corporate transformation and market-entry strategy; expert at turning complex problems into actionable roadmaps.\n• [Data & Analytics Lead] — Optimizes data-driven decision-making to create measurable growth opportunities.\n• [Operational Excellence Specialist] — Deep experience in process improvement and cost optimization.",
+          tr: "On yılı aşkın süredir üst yönetimden saha operasyonlarına kadar kurumsal dönüşüm projelerinde yönetim danışmanlığı hizmeti veriyoruz. Stratejik netlik, operasyonel çeviklik ve ölçülebilir sonuçlar üzerine kurulu metodolojimizle, karmaşık iş problemlerini uygulanabilir yol haritalarına dönüştürüyoruz.\n\n\"Zorlu bir pazar ortamında, net bir yol haritası ve disiplinli uygulamayla bize beklediğimizin çok üzerinde bir değer kattılar.\" — [Referans Adı], [Unvan], [Referans Firma]\n\nEkibimiz:\n• [Kıdemli Strateji Direktörü] — Kurumsal dönüşüm ve pazar giriş stratejileri konusunda [X] yıllık deneyim; karmaşık problemleri uygulanabilir yol haritalarına dönüştürmede uzman.\n• [Veri & Analitik Lideri] — Veriye dayalı karar alma süreçlerini optimize ederek ölçülebilir büyüme fırsatları yaratır.\n• [Operasyonel Mükemmellik Uzmanı] — Süreç iyileştirme ve maliyet optimizasyonu konusunda derin deneyime sahiptir.",
+          en: "For over a decade we've provided management consulting across corporate transformation projects — from the boardroom to frontline operations. Our methodology, built on strategic clarity, operational agility, and measurable results, turns complex business problems into actionable roadmaps.\n\n\"In a tough market, they delivered far more value than we expected — with a clear roadmap and disciplined execution.\" — [Reference Name], [Title], [Reference Company]\n\nOur team:\n• [Senior Strategy Director] — [X] years of experience in corporate transformation and market-entry strategy; expert at turning complex problems into actionable roadmaps.\n• [Data & Analytics Lead] — Optimizes data-driven decision-making to create measurable growth opportunities.\n• [Operational Excellence Specialist] — Deep experience in process improvement and cost optimization.",
         },
       },
       {

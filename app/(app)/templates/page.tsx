@@ -12,6 +12,8 @@ import { AiDraftDialog } from "@/components/app/ai-draft-dialog";
 import { usePlan } from "@/components/app/plan-provider";
 import { planAllows } from "@/lib/plan";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { BlockRenderer } from "@/components/app/blocks/block-renderer";
+import { legacyToBlocks } from "@/lib/proposal-blocks/convert-legacy";
 
 type RealTemplateRow = {
   id: string;
@@ -43,6 +45,29 @@ function TemplatesPageInner() {
   const useParam = searchParams.get("use");
   const [realRows, setRealRows] = useState<RealTemplateRow[]>([]);
   const [aiOpen, setAiOpen] = useState(false);
+  const [savingDefault, setSavingDefault] = useState(false);
+
+  // Serializes a draft example into the plain-text shape /api/settings/default-template
+  // stores (app/api/draft-proposal/route.ts reads it back as VARSAYILAN TEKLİF ŞABLONU).
+  async function saveAsDefault(tpl: Template) {
+    setSavingDefault(true);
+    try {
+      const content = [
+        tpl.introText ? t(tpl.introText) : null,
+        ...tpl.sections.map((sec) => `${t(sec.title)}\n${t(sec.body)}`),
+        tpl.contractText ? `${lang === "tr" ? "Sözleşme" : "Contract"}\n${t(tpl.contractText)}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+      await fetch("/api/settings/default-template", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      });
+    } finally {
+      setSavingDefault(false);
+    }
+  }
 
   async function loadReal() {
     try {
@@ -79,18 +104,21 @@ function TemplatesPageInner() {
   );
   const current = templates.find((tpl) => tpl.id === selected) ?? templates[0];
 
-  // Group templates by category (sector) — a sector with multiple named variants
-  // (ör. İnşaat — Sade / İnşaat — Kapsamlı) renders as ONE card with a variant switcher
-  // inside, instead of one full card per variant.
-  const groups = useMemo(() => {
+  // Two separate galleries: "Görsel Şablonlar" (design-only skeletons — the AI only
+  // ever takes their theme, never their text) and "Taslak Teklif Örnekleri" (real,
+  // usable starting content — kind: "draft"). A category with multiple cards inside
+  // one gallery (rare) renders as ONE card with a variant switcher.
+  function groupByCategory(list: Template[]) {
     const byCategory = new Map<string, Template[]>();
-    for (const tpl of templates) {
+    for (const tpl of list) {
       const key = tpl.category.tr;
       if (!byCategory.has(key)) byCategory.set(key, []);
       byCategory.get(key)!.push(tpl);
     }
     return Array.from(byCategory.values());
-  }, [templates]);
+  }
+  const visualGroups = useMemo(() => groupByCategory(templates.filter((tpl) => tpl.kind !== "draft")), [templates]);
+  const draftGroups = useMemo(() => groupByCategory(templates.filter((tpl) => tpl.kind === "draft")), [templates]);
   const canCreateTemplates = planAllows(plan, "templates_create");
   // Templates (visual/design starting points) are a Pro+ feature end to end — Lite
   // can't browse or use them either, not just create new ones. Lite customizes
@@ -163,96 +191,85 @@ function TemplatesPageInner() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-        {/* Template grid — one card per sector; multi-variant sectors get a Sade/Kapsamlı switcher inside */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          {groups.map((group) => {
-            // Which variant of this group is currently shown: whichever one is `selected`, else the first.
-            const active = group.find((tpl) => tpl.id === selected) ?? group[0];
-            const isSel = group.some((tpl) => tpl.id === selected);
-            return (
-              <button
-                key={active.category.tr}
-                onClick={() => setSelected(active.id)}
-                className={cn(
-                  "group rounded-2xl border bg-card p-4 text-left shadow-soft transition-all hover:shadow-pop",
-                  isSel ? "border-primary/40 ring-1 ring-primary/20" : "border-border",
-                )}
-              >
-                {/* preview */}
-                <div className="relative flex h-32 items-center justify-center overflow-hidden rounded-xl" style={{ background: `color-mix(in oklch, ${active.accent} 12%, white)` }}>
-                  <span className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full opacity-30 blur-xl" style={{ background: active.accent }} aria-hidden />
-                  <div className="w-28 rounded-lg border border-border bg-card p-2.5 shadow-pill">
-                    <div className="h-2 w-12 rounded-full" style={{ background: active.accent }} />
-                    <div className="mt-2 space-y-1">
-                      <div className="h-1.5 w-full rounded-full bg-muted" />
-                      <div className="h-1.5 w-3/4 rounded-full bg-muted" />
-                      <div className="h-1.5 w-5/6 rounded-full bg-muted" />
-                    </div>
-                    <div className="mt-2 flex items-center justify-between">
-                      <div className="h-2 w-8 rounded-full bg-muted" />
-                      <div className="h-2 w-6 rounded-full" style={{ background: active.accent }} />
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-3 flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold tracking-tight">{t(active.category)}</p>
-                    {group.length > 1 ? (
-                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                        {group.map((variant) =>
-                          variant.nickname ? (
-                            <span
-                              key={variant.id}
-                              role="button"
-                              tabIndex={0}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelected(variant.id);
-                              }}
-                              className={cn(
-                                "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors",
-                                variant.id === active.id
-                                  ? "bg-primary text-primary-foreground"
-                                  : "bg-muted text-muted-foreground hover:bg-muted/70",
-                              )}
-                            >
-                              {variant.nickname}
-                            </span>
-                          ) : (
-                            <span
-                              key={variant.id}
-                              role="button"
-                              tabIndex={0}
-                              aria-label={lang === "tr" ? "Varyant seç" : "Select variant"}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelected(variant.id);
-                              }}
-                              className={cn(
-                                "h-2 w-2 rounded-full transition-colors",
-                                variant.id === active.id ? "bg-primary" : "bg-muted hover:bg-muted-foreground/40",
-                              )}
-                            />
-                          ),
+        <div className="space-y-6">
+          {([
+            { heading: { tr: "Görsel Şablonlar", en: "Visual Templates" }, groups: visualGroups },
+            { heading: { tr: "Taslak Teklif Örnekleri", en: "Draft Proposal Examples" }, groups: draftGroups },
+          ] as const)
+            .filter((section) => section.groups.length > 0)
+            .map((section) => (
+              <div key={section.heading.tr}>
+                <h2 className="mb-3 text-[13px] font-semibold text-muted-foreground">{lang === "tr" ? section.heading.tr : section.heading.en}</h2>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {section.groups.map((group) => {
+                    // Which variant of this group is currently shown: whichever one is `selected`, else the first.
+                    const active = group.find((tpl) => tpl.id === selected) ?? group[0];
+                    const isSel = group.some((tpl) => tpl.id === selected);
+                    return (
+                      <button
+                        key={active.category.tr}
+                        onClick={() => setSelected(active.id)}
+                        className={cn(
+                          "group rounded-2xl border bg-card p-4 text-left shadow-soft transition-all hover:shadow-pop",
+                          isSel ? "border-primary/40 ring-1 ring-primary/20" : "border-border",
                         )}
-                      </div>
-                    ) : (
-                      active.nickname && <p className="text-[11px] text-muted-foreground">{active.nickname}</p>
-                    )}
-                  </div>
-                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
-                    {active.winRate}% {lang === "tr" ? "kazanç" : "win"}
-                  </span>
+                      >
+                        {/* preview */}
+                        <div className="relative flex h-32 items-center justify-center overflow-hidden rounded-xl" style={{ background: `color-mix(in oklch, ${active.accent} 12%, white)` }}>
+                          <span className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full opacity-30 blur-xl" style={{ background: active.accent }} aria-hidden />
+                          <div className="w-28 rounded-lg border border-border bg-card p-2.5 shadow-pill">
+                            <div className="h-2 w-12 rounded-full" style={{ background: active.accent }} />
+                            <div className="mt-2 space-y-1">
+                              <div className="h-1.5 w-full rounded-full bg-muted" />
+                              <div className="h-1.5 w-3/4 rounded-full bg-muted" />
+                              <div className="h-1.5 w-5/6 rounded-full bg-muted" />
+                            </div>
+                            <div className="mt-2 flex items-center justify-between">
+                              <div className="h-2 w-8 rounded-full bg-muted" />
+                              <div className="h-2 w-6 rounded-full" style={{ background: active.accent }} />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-3 flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold tracking-tight">{t(active.category)}</p>
+                            {group.length > 1 && (
+                              <div className="mt-1.5 flex flex-wrap items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                {group.map((variant) => (
+                                  <span
+                                    key={variant.id}
+                                    role="button"
+                                    tabIndex={0}
+                                    aria-label={lang === "tr" ? "Varyant seç" : "Select variant"}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelected(variant.id);
+                                    }}
+                                    className={cn(
+                                      "h-2 w-2 rounded-full transition-colors",
+                                      variant.id === active.id ? "bg-primary" : "bg-muted hover:bg-muted-foreground/40",
+                                    )}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
+                            {active.winRate}% {lang === "tr" ? "kazanç" : "win"}
+                          </span>
+                        </div>
+                        <div className="mt-2.5 flex items-center justify-between border-t border-border pt-2.5 text-[11.5px] text-muted-foreground">
+                          <span className="tnum">{active.uses} {lang === "tr" ? "kullanım" : "uses"}</span>
+                          <span className="inline-flex items-center gap-1 font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">
+                            {lang === "tr" ? "Kullan" : "Use"} <ArrowUpRight className="h-3 w-3" />
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
-                <div className="mt-2.5 flex items-center justify-between border-t border-border pt-2.5 text-[11.5px] text-muted-foreground">
-                  <span className="tnum">{active.uses} {lang === "tr" ? "kullanım" : "uses"}</span>
-                  <span className="inline-flex items-center gap-1 font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">
-                    {lang === "tr" ? "Kullan" : "Use"} <ArrowUpRight className="h-3 w-3" />
-                  </span>
-                </div>
-              </button>
-            );
-          })}
+              </div>
+            ))}
         </div>
 
         {/* Detail rail */}
@@ -266,9 +283,9 @@ function TemplatesPageInner() {
                 <p className="truncate font-display text-[15px] font-semibold tracking-tight">{t(current.name)}</p>
                 <p className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
                   {t(current.category)}
-                  {current.nickname && (
-                    <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
-                      {current.nickname}
+                  {current.kind === "draft" && (
+                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                      {lang === "tr" ? "Taslak" : "Draft"}
                     </span>
                   )}
                 </p>
@@ -284,24 +301,43 @@ function TemplatesPageInner() {
               </div>
             </div>
 
-            <div className="mt-5">
-              <p className="label-mono pb-2 text-muted-foreground">{lang === "tr" ? "Bölümler" : "Sections"}</p>
-              <div className="space-y-2">
-                {current.sections.map((sec, i) => (
-                  <div key={sec.title.en} className="rounded-lg border border-border bg-card px-2.5 py-2">
-                    <div className="flex items-center gap-2.5">
-                      <span className="tnum text-[10px] text-muted-foreground">{String(i + 1).padStart(2, "0")}</span>
-                      <span className="text-[13px] font-medium">{t(sec.title)}</span>
-                    </div>
-                    {sec.html ? (
-                      <TemplateHtmlBlock html={sec.html} />
-                    ) : (
-                      <p className="mt-1 pl-[26px] text-[12px] leading-relaxed text-muted-foreground">{t(sec.body)}</p>
-                    )}
-                  </div>
-                ))}
+            {current.kind === "draft" ? (
+              <div className="mt-5 space-y-3">
+                <BlockRenderer
+                  blocks={legacyToBlocks({
+                    sections: current.sections.map((sec) => ({ title: t(sec.title), body: t(sec.body) })),
+                    lineItems: current.lineItems,
+                    contractText: current.contractText ? t(current.contractText) : undefined,
+                  })}
+                  ctx={{
+                    title: t(current.name),
+                    client: lang === "tr" ? "Müşteri" : "Client",
+                    value: (current.lineItems ?? []).reduce((sum, li) => sum + li.qty * li.unit, 0),
+                    lineItems: (current.lineItems ?? []).map((li, i) => ({ id: String(i), name: t(li.name), unit: li.unit, qty: li.qty })),
+                    lang,
+                  }}
+                />
               </div>
-            </div>
+            ) : (
+              <div className="mt-5">
+                <p className="label-mono pb-2 text-muted-foreground">{lang === "tr" ? "Bölümler" : "Sections"}</p>
+                <div className="space-y-2">
+                  {current.sections.map((sec, i) => (
+                    <div key={sec.title.en} className="rounded-lg border border-border bg-card px-2.5 py-2">
+                      <div className="flex items-center gap-2.5">
+                        <span className="tnum text-[10px] text-muted-foreground">{String(i + 1).padStart(2, "0")}</span>
+                        <span className="text-[13px] font-medium">{t(sec.title)}</span>
+                      </div>
+                      {sec.html ? (
+                        <TemplateHtmlBlock html={sec.html} />
+                      ) : (
+                        <p className="mt-1 pl-[26px] text-[12px] leading-relaxed text-muted-foreground">{t(sec.body)}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <button
               onClick={draftFromCurrent}
@@ -310,6 +346,18 @@ function TemplatesPageInner() {
               <Sparkles className="h-4 w-4" />
               {lang === "tr" ? "Bu şablonla yaz" : "Draft from this template"}
             </button>
+
+            {current.kind === "draft" && (
+              <button
+                onClick={() => saveAsDefault(current)}
+                disabled={savingDefault}
+                className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border py-2.5 text-[13px] font-semibold transition-colors hover:bg-muted disabled:opacity-50"
+              >
+                {savingDefault
+                  ? lang === "tr" ? "Kaydediliyor…" : "Saving…"
+                  : lang === "tr" ? "Bu taslağı varsayılan yap" : "Make this the default"}
+              </button>
+            )}
           </div>
 
           <div className="rounded-2xl border border-border bg-muted/30 p-5 shadow-soft">
