@@ -34,7 +34,7 @@ type StepData = {
   fontKey: ProposalFontKey;
 };
 
-const COLOR_PRESETS = ["#5B3DF6", "#7C3AED", "#0EA5A4", "#F97316", "#DB2777", "#111827"];
+const COLOR_PRESETS = ["#2F80ED", "#5B3DF6", "#7C3AED", "#DB2777", "#FF7A59", "#F97316"];
 
 const SECTORS = [
   { key: "software", tr: "Yazılım / Teknoloji", en: "Software / Technology" },
@@ -670,7 +670,7 @@ export function OnboardingWizard({ initialName, userEmail }: { initialName: stri
                         aria-label={c}
                       />
                     ))}
-                    <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border-2 border-dashed border-border transition-transform hover:scale-105">
+                    <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border-2 border-border transition-transform hover:scale-105">
                       <input
                         type="color"
                         value={/^#[0-9a-fA-F]{6}$/.test(data.primaryColor) ? data.primaryColor : "#5B3DF6"}
@@ -678,7 +678,7 @@ export function OnboardingWizard({ initialName, userEmail }: { initialName: stri
                           setColorTouchedByUser(true);
                           patch({ primaryColor: e.target.value });
                         }}
-                        className="absolute -inset-1 h-[calc(100%+8px)] w-[calc(100%+8px)] cursor-pointer border-0 p-0"
+                        className="absolute -inset-2 h-[calc(100%+16px)] w-[calc(100%+16px)] cursor-pointer appearance-none border-0 bg-transparent p-0 [&::-moz-color-swatch]:border-0 [&::-webkit-color-swatch]:border-0 [&::-webkit-color-swatch-wrapper]:p-0"
                         aria-label={lang === "tr" ? "Renk seç" : "Pick color"}
                         title={lang === "tr" ? "Renk paletini aç" : "Open color board"}
                       />

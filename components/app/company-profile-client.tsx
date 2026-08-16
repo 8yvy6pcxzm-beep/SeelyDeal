@@ -423,7 +423,7 @@ export function CompanyProfileClient() {
                     setColorTouchedByUser(true);
                     setCompany({ ...company, primary_color: e.target.value });
                   }}
-                  className="absolute -inset-1 h-[calc(100%+8px)] w-[calc(100%+8px)] cursor-pointer border-0 p-0"
+                  className="absolute -inset-2 h-[calc(100%+16px)] w-[calc(100%+16px)] cursor-pointer appearance-none border-0 bg-transparent p-0 [&::-moz-color-swatch]:border-0 [&::-webkit-color-swatch]:border-0 [&::-webkit-color-swatch-wrapper]:p-0"
                   aria-label={lang === "tr" ? "Renk seç" : "Pick color"}
                 />
               </div>
