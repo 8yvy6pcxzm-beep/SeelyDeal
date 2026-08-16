@@ -15,11 +15,15 @@ export function Sidebar({
   userEmail,
   basePath = "",
   allowedHrefs,
+  aiUsed,
+  aiLimit,
 }: {
   userName: string | null;
   userEmail: string | null;
   basePath?: string;
   allowedHrefs?: string[];
+  aiUsed?: number | null;
+  aiLimit?: number | null;
 }) {
   const pathname = usePathname();
   const { lang } = useLang();
@@ -88,6 +92,34 @@ export function Sidebar({
           {lang === "tr" ? "Destek" : "Support"}
         </a>
       </div>
+
+      {/* AI credit meter */}
+      {aiLimit != null && (
+        <div className="px-3 pt-2">
+          <Link
+            href={basePath + "/settings"}
+            className="block rounded-lg border border-border bg-card px-3 py-2 transition-colors hover:border-primary/30"
+          >
+            <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              <span className="flex-1">{lang === "tr" ? "AI kredisi" : "AI credit"}</span>
+              <span className="font-semibold tabular-nums text-foreground">
+                {Math.min(aiUsed ?? 0, aiLimit)} / {aiLimit}
+              </span>
+            </div>
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-border">
+              <div
+                className={cn("h-full rounded-full", (aiUsed ?? 0) >= aiLimit * 0.8 && "bg-warning")}
+                style={
+                  (aiUsed ?? 0) >= aiLimit * 0.8
+                    ? { width: `${Math.min(100, ((aiUsed ?? 0) / aiLimit) * 100)}%` }
+                    : { width: `${Math.min(100, ((aiUsed ?? 0) / aiLimit) * 100)}%`, backgroundImage: "var(--grad-brand)" }
+                }
+              />
+            </div>
+          </Link>
+        </div>
+      )}
 
       {/* Pinned user card */}
       <div className="border-t border-sidebar-border p-3">

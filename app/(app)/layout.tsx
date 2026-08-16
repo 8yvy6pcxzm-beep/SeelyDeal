@@ -15,20 +15,24 @@ async function getCurrentUser(): Promise<{
   trialDaysLeft: number | null;
   trialExpired: boolean;
   onboardingPending: boolean;
+  aiUsed: number | null;
+  aiLimit: number | null;
 }> {
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user)
-    return { plan: "lite", name: null, email: null, trialDaysLeft: null, trialExpired: false, onboardingPending: false };
+    return { plan: "lite", name: null, email: null, trialDaysLeft: null, trialExpired: false, onboardingPending: false, aiUsed: null, aiLimit: null };
 
   const service = createServiceClient();
   const { data: profile } = await service.from("profiles").select("company_id").eq("id", auth.user.id).maybeSingle();
   if (!profile)
-    return { plan: "lite", name: null, email: auth.user.email ?? null, trialDaysLeft: null, trialExpired: false, onboardingPending: false };
+    return { plan: "lite", name: null, email: auth.user.email ?? null, trialDaysLeft: null, trialExpired: false, onboardingPending: false, aiUsed: null, aiLimit: null };
 
-  const [{ data: company }, { data: teamMember }] = await Promise.all([
-    service.from("companies").select("plan, created_at, onboarding_completed").eq("id", profile.company_id).maybeSingle(),
+  const month = new Date().toISOString().slice(0, 7);
+  const [{ data: company }, { data: teamMember }, { data: aiUsage }] = await Promise.all([
+    service.from("companies").select("plan, created_at, onboarding_completed, ai_monthly_limit").eq("id", profile.company_id).maybeSingle(),
     service.from("team_members").select("name").eq("company_id", profile.company_id).eq("email", auth.user.email).maybeSingle(),
+    service.from("ai_usage").select("count").eq("company_id", profile.company_id).eq("month", month).maybeSingle(),
   ]);
 
   const plan = (company?.plan as Plan) ?? "lite";
@@ -44,13 +48,15 @@ async function getCurrentUser(): Promise<{
     // Every plan (Lite/Pro/Custom) goes through the same form-based onboarding
     // wizard at /onboarding before it can see the dashboard.
     onboardingPending: company?.onboarding_completed === false,
+    aiUsed: aiUsage?.count ?? 0,
+    aiLimit: company?.ai_monthly_limit ?? null,
   };
 }
 
 export default async function AppLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const { plan, name, email, trialDaysLeft: daysLeft, trialExpired, onboardingPending } = await getCurrentUser();
+  const { plan, name, email, trialDaysLeft: daysLeft, trialExpired, onboardingPending, aiUsed, aiLimit } = await getCurrentUser();
 
   if (onboardingPending) {
     redirect("/onboarding");
@@ -64,7 +70,7 @@ export default async function AppLayout({
     <PlanProvider plan={plan} trialDaysLeft={daysLeft}>
       <AiDraftProvider>
         <div className="flex h-dvh overflow-hidden bg-background">
-          <Sidebar userName={name} userEmail={email} />
+          <Sidebar userName={name} userEmail={email} aiUsed={aiUsed} aiLimit={aiLimit} />
           <div className="relative flex flex-1 flex-col overflow-hidden">
             {/* faint aurora wash at the very top of the app */}
             <div

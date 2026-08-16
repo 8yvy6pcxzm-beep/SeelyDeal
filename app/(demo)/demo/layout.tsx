@@ -19,7 +19,7 @@ export default function DemoLayout({ children }: Readonly<{ children: React.Reac
     <PlanProvider plan="custom" trialDaysLeft={null}>
       <AiDraftProvider>
         <div className="flex h-dvh overflow-hidden bg-background">
-          <Sidebar userName="Demo" userEmail={null} basePath="/demo" allowedHrefs={DEMO_ALLOWED_HREFS} />
+          <Sidebar userName="Demo" userEmail={null} basePath="/demo" allowedHrefs={DEMO_ALLOWED_HREFS} aiUsed={7} aiLimit={10} />
           <div className="relative flex flex-1 flex-col overflow-hidden">
             <div
               className="pointer-events-none absolute inset-x-0 top-0 -z-0 h-64"
