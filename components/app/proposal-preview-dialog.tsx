@@ -7,6 +7,24 @@ import { StatusPill, ClientAvatar } from "@/components/app/proposal-bits";
 import { useLang } from "@/components/i18n/language-provider";
 import { formatUsd } from "@/lib/utils";
 import type { ProposalRow } from "@/lib/demo/data";
+import { legacyToBlocks } from "@/lib/proposal-blocks/convert-legacy";
+import { BlockRenderer } from "@/components/app/blocks/block-renderer";
+
+/** ProposalRow (the demo dashboard list row) is a preview-only shape —
+ *  `sections[].preview` is a short teaser, not the full body — but its
+ *  section `key`s already line up with block types, so this maps almost
+ *  directly onto the shared legacy→blocks converter instead of needing a
+ *  bespoke one. */
+function proposalRowToBlocks(proposal: ProposalRow, t: (l: { tr: string; en: string }) => string) {
+  const nonCoverSections = proposal.sections.filter((s) => s.key !== "cover");
+  const contractSection = nonCoverSections.find((s) => s.key === "terms" || s.key === "sign");
+  const richSections = nonCoverSections.filter((s) => s !== contractSection && s.key !== "pricing");
+  return legacyToBlocks({
+    sections: richSections.map((s) => ({ title: t(s.title), body: t(s.preview) })),
+    lineItems: proposal.lineItems,
+    contractText: contractSection ? t(contractSection.preview) : undefined,
+  });
+}
 
 /**
  * Read-only quick-look for a row in the /proposals table — separate from the
@@ -69,45 +87,16 @@ export function ProposalPreviewDialog({
             </p>
           </div>
 
-          {proposal.sections?.length > 0 && (
-            <div>
-              <p className="label-mono pb-2 text-muted-foreground">{lang === "tr" ? "Bölümler" : "Sections"}</p>
-              <div className="space-y-1.5">
-                {proposal.sections.map((sec, i) => (
-                  <div key={sec.key} className="rounded-lg border border-border bg-card p-2.5">
-                    <p className="flex items-center gap-2 text-[12.5px] font-semibold">
-                      <span className="tnum text-[10px] text-muted-foreground">{String(i + 1).padStart(2, "0")}</span>
-                      {t(sec.title)}
-                    </p>
-                    <p className="mt-0.5 pl-6 text-[12px] text-muted-foreground">{t(sec.preview)}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {proposal.lineItems?.length > 0 && (
-            <div>
-              <p className="label-mono pb-2 text-muted-foreground">{lang === "tr" ? "Kalemler" : "Line items"}</p>
-              <table className="w-full text-sm">
-                <tbody>
-                  {proposal.lineItems.map((li) => (
-                    <tr key={li.id} className="border-t border-border first:border-0">
-                      <td className="py-1.5">
-                        {t(li.name)} × {li.qty}
-                        {li.optional && (
-                          <span className="ml-1.5 text-[10px] text-muted-foreground">
-                            ({lang === "tr" ? "opsiyonel" : "optional"})
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-1.5 text-right tnum">{formatUsd(li.unit * li.qty)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <BlockRenderer
+            blocks={proposalRowToBlocks(proposal, t).filter((b) => b.type !== "HeroCover")}
+            ctx={{
+              title: t(proposal.title),
+              client: proposal.client,
+              value: proposal.value,
+              lineItems: proposal.lineItems.map((li) => ({ id: li.id, name: t(li.name), unit: li.unit, qty: li.qty, optional: li.optional })),
+              lang,
+            }}
+          />
 
           <div className="flex gap-2">
             {clientLinkHref && (
