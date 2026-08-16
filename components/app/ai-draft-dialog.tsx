@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Sparkles, X, Send, Loader2, Check, Link2, CreditCard, Paperclip, FileText, Mic, MicOff } from "lucide-react";
+import { Sparkles, X, Send, Loader2, Check, Link2, CreditCard, Paperclip, FileText, Mic, MicOff, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLang } from "@/components/i18n/language-provider";
@@ -1050,8 +1050,8 @@ export function AiDraftDialog({
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
                 {lang === "tr"
-                  ? "Örn: \"Acme için web sitesi tasarımı teklifi hazırla, Growth paketiyle.\""
-                  : "E.g. \"Draft a website design proposal for Acme, using the Growth package.\""}
+                  ? "Örn: \"ABC Lojistik için operasyonel dönüşüm danışmanlığı teklifi hazırla, 3 aylık proje, toplam 45.000$ civarı.\""
+                  : "E.g. \"Draft an operational transformation consulting proposal for ABC Logistics, 3-month project, around $45,000 total.\""}
               </p>
               {!showChecklist ? (
                 <button
@@ -1062,9 +1062,19 @@ export function AiDraftDialog({
                 </button>
               ) : (
                 <div className="rounded-xl border border-border bg-muted/30 p-3.5">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {lang === "tr" ? "Teklife hangi bölümler dahil olsun?" : "Which sections should the proposal include?"}
-                  </p>
+                  <div className="mb-2 flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setShowChecklist(false)}
+                      className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      aria-label={lang === "tr" ? "Geri" : "Back"}
+                    >
+                      <ArrowLeft className="h-3.5 w-3.5" />
+                    </button>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {lang === "tr" ? "Teklife hangi bölümler dahil olsun?" : "Which sections should the proposal include?"}
+                    </p>
+                  </div>
                   <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
                     {SECTION_OPTIONS.map((s) => (
                       <label key={s.key} className="flex items-center gap-2 text-sm">
@@ -1302,12 +1312,25 @@ export function AiDraftDialog({
               </div>
             )}
             {showWebsiteField ? (
-              <Input
-                value={websiteUrl}
-                onChange={(e) => setWebsiteUrl(e.target.value)}
-                placeholder={lang === "tr" ? "https://musteri-sitesi.com/iletisim" : "https://client-site.com/contact"}
-                className="text-sm"
-              />
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowWebsiteField(false);
+                    setWebsiteUrl("");
+                  }}
+                  className="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  aria-label={lang === "tr" ? "Geri" : "Back"}
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                </button>
+                <Input
+                  value={websiteUrl}
+                  onChange={(e) => setWebsiteUrl(e.target.value)}
+                  placeholder={lang === "tr" ? "https://musteri-sitesi.com/iletisim" : "https://client-site.com/contact"}
+                  className="text-sm"
+                />
+              </div>
             ) : (
               <button
                 onClick={() => setShowWebsiteField(true)}
