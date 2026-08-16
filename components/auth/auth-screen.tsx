@@ -71,10 +71,6 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
   }
 
   async function signInWithProvider(provider: "google" | "github") {
-    if (!isLogin && !consent) {
-      flagMissingConsent();
-      return;
-    }
     setError(null);
     setLoading(true);
     window.localStorage.setItem("seelydeal-last-auth-provider", provider);
@@ -259,6 +255,28 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
               </Button>
             </div>
           </div>
+
+          {!isLogin && (
+            <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
+              {lang === "tr" ? (
+                <>
+                  Google veya GitHub ile devam ederek{" "}
+                  <Link href="/privacy" target="_blank" className="underline underline-offset-2 hover:text-foreground">
+                    KVKK Aydınlatma Metni ve Gizlilik Politikası
+                  </Link>
+                  'nı kabul etmiş olursun.
+                </>
+              ) : (
+                <>
+                  By continuing with Google or GitHub, you agree to our{" "}
+                  <Link href="/privacy" target="_blank" className="underline underline-offset-2 hover:text-foreground">
+                    Privacy Policy
+                  </Link>
+                  .
+                </>
+              )}
+            </p>
+          )}
 
           {isLogin &&
             (ssoOpen ? (
