@@ -9,6 +9,7 @@ import { useLang } from "@/components/i18n/language-provider";
 import { usePlan } from "@/components/app/plan-provider";
 import { planAllows } from "@/lib/plan";
 import { cn } from "@/lib/utils";
+import { legacyToBlocks } from "@/lib/proposal-blocks/convert-legacy";
 
 type Msg = { role: "user" | "assistant"; content: string; attachmentNames?: string[]; hidden?: boolean };
 type Attachment = { name: string; mediaType: string; base64: string };
@@ -1236,6 +1237,39 @@ export function AiDraftDialog({
                   </span>
                 )}
               </div>
+              {(() => {
+                const blocks = legacyToBlocks({
+                  sections: draft.sections,
+                  lineItems: draft.lineItems,
+                  contractText: draft.contractText,
+                });
+                const blockLabel = (b: (typeof blocks)[number]) =>
+                  b.type === "HeroCover"
+                    ? lang === "tr" ? "Kapak" : "Cover"
+                    : b.type === "PricingTable"
+                      ? lang === "tr" ? "Fiyatlandırma" : "Pricing"
+                      : b.type === "ContractSignOff"
+                        ? lang === "tr" ? "Sözleşme / İmza" : "Contract / Sign"
+                        : b.label;
+                return (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {lang === "tr" ? `${blocks.length} blok eklendi` : `${blocks.length} blocks added`}
+                    </p>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {blocks.map((b, i) => (
+                        <span
+                          key={b.id}
+                          className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+                        >
+                          <span className="tnum text-[9px] text-muted-foreground/70">{String(i + 1).padStart(2, "0")}</span>
+                          {blockLabel(b)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
               {mode === "proposal" && showSaveTemplateField && (
                 <div className="flex items-center gap-1.5">
                   <Input
