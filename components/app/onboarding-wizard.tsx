@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Hanken_Grotesk, Playfair_Display } from "next/font/google";
 import { Check, FileText, Loader2, Sparkles, Upload } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,17 @@ import { extractDominantColor } from "@/lib/color";
 import { useLang } from "@/components/i18n/language-provider";
 import { cn } from "@/lib/utils";
 import { PROPOSAL_FONT_KEYS, PROPOSAL_FONT_LABELS, type ProposalFontKey } from "@/lib/proposal-fonts";
+
+// Same fonts used to render the actual proposal (see app/p/[id]/page.tsx) — loaded
+// here too so each option button previews in the real font it applies.
+const hankenGrotesk = Hanken_Grotesk({ subsets: ["latin"], weight: ["700", "800"] });
+const playfairDisplay = Playfair_Display({ subsets: ["latin"], weight: ["700", "800"] });
+
+function fontPreviewStyle(key: ProposalFontKey): CSSProperties | undefined {
+  if (key === "bold") return { fontFamily: hankenGrotesk.style.fontFamily, fontWeight: 700 };
+  if (key === "elegant") return { fontFamily: playfairDisplay.style.fontFamily, fontWeight: 700 };
+  return undefined;
+}
 
 type StepData = {
   name: string;
@@ -823,7 +835,7 @@ export function OnboardingWizard({ initialName, userEmail }: { initialName: stri
                             : "border-border text-foreground hover:bg-muted",
                         )}
                       >
-                        {t(PROPOSAL_FONT_LABELS[key])}
+                        <span style={fontPreviewStyle(key)}>{t(PROPOSAL_FONT_LABELS[key])}</span>
                       </button>
                     ))}
                   </div>
