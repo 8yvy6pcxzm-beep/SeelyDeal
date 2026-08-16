@@ -626,6 +626,62 @@ export const templates: Template[] = [
       en: "This proposal becomes a legally binding preliminary agreement once approved electronically by both parties, on the scope, schedule and price stated herein; scope changes require a written change order.",
     },
   },
+  {
+    id: "t9",
+    name: { tr: "İş Danışmanlığı Teklifi", en: "Business Consulting Proposal" },
+    category: { tr: "Danışmanlık", en: "Consulting" },
+    uses: 0,
+    winRate: 0,
+    accent: "var(--seg-4)",
+    variant: "sade",
+    introText: {
+      tr: "Sayın [Müşteri Yetkilisi],\n\nOrganizasyonunuzun hedeflerini yakından takip ediyor ve stratejik dönüşüm sürecinizde size değer katmak için bu teklifi sunmaktan onur duyuyoruz. Sektördeki tecrübemizle, kuruluşunuzun karşılaştığı temel zorlukları derinlemesine analiz ediyor ve sürdürülebilir büyüme için uygulanabilir, veriye dayalı çözümler öneriyoruz.\n\nAmacımız yalnızca bir danışmanlık raporu teslim etmek değil, hedeflerinize ulaşana kadar yanınızda kalan uzun vadeli bir iş ortaklığı kurmaktır. Aşağıda kapsamı, ekibimizi, takvimi ve yatırım planını bulacaksınız.\n\nSorularınız için her zaman buradayız. Saygılarımızla.",
+      en: "Dear [Client Contact],\n\nWe are honored to submit this proposal to support your organization's strategic transformation. Drawing on our experience in the sector, we've closely analyzed the core challenges your organization faces and propose sustainable, data-driven, actionable solutions.\n\nOur goal isn't just to deliver a consulting report — it's to build a long-term partnership that stays with you until you reach your goals. Below you'll find our scope, team, timeline, and investment plan.\n\nWe're here for any questions. Best regards.",
+    },
+    aboutText: {
+      tr: "On yılı aşkın süredir üst yönetimden saha operasyonlarına kadar kurumsal dönüşüm projelerinde yönetim danışmanlığı hizmeti veriyoruz. Stratejik netlik, operasyonel çeviklik ve ölçülebilir sonuçlar üzerine kurulu metodolojimizle, karmaşık iş problemlerini uygulanabilir yol haritalarına dönüştürüyoruz.\n\n\"Zorlu bir pazar ortamında, net bir yol haritası ve disiplinli uygulamayla bize beklediğimizin çok üzerinde bir değer kattılar.\" — [Referans Adı], [Unvan], [Referans Firma]",
+      en: "For over a decade we've provided management consulting across corporate transformation projects — from the boardroom to frontline operations. Our methodology, built on strategic clarity, operational agility, and measurable results, turns complex business problems into actionable roadmaps.\n\n\"In a tough market, they delivered far more value than we expected — with a clear roadmap and disciplined execution.\" — [Reference Name], [Title], [Reference Company]",
+    },
+    sections: [
+      {
+        title: { tr: "Yönetici Özeti", en: "Executive Summary" },
+        body: {
+          tr: "Mevcut durum analizimize göre, organizasyonunuz sektördeki dönüşüm hızına ayak uydurmakta belirli darboğazlar yaşıyor; ancak güçlü marka mirası ve müşteri sadakati, doğru adımlarla hızla avantaja çevrilebilir. Önerdiğimiz \"Stratejik Netlik\" yaklaşımı, üst yönetimden saha operasyonlarına uzanan entegre bir değişim yönetimi sürecidir.",
+          en: "Our current-state analysis shows your organization facing specific bottlenecks in keeping pace with sector-wide transformation — but strong brand equity and customer loyalty can be turned into an advantage quickly with the right steps. Our proposed \"Strategic Clarity\" approach is an integrated change-management process spanning from senior leadership to frontline operations.",
+        },
+      },
+      {
+        title: { tr: "Stratejik Yaklaşımımız", en: "Our Strategic Approach" },
+        body: {
+          tr: "1. Analiz — Pazar trendlerini ve rakip verilerini içeren kapsamlı bir veri toplama süreciyle temel dinamikleri belirliyoruz.\n2. Planlama — Net hedefler, kilometre taşları ve kaynak tahsisi içeren stratejik bir yol haritası oluşturuyoruz.\n3. Uygulama — Stratejiyi hayata geçirir, ekiplerinizle yakın işbirliği içinde süreçleri entegre ederiz.\n4. Optimizasyon — Performansı sürekli izler, KPI'ları ölçer ve sürdürülebilir başarı için iyileştiririz.",
+          en: "1. Analysis — We establish core dynamics through comprehensive data collection covering market trends and competitive intelligence.\n2. Planning — We build a strategic roadmap with clear goals, milestones, and resource allocation.\n3. Execution — We put the strategy into action, integrating processes in close collaboration with your teams.\n4. Optimization — We continuously track performance, measure KPIs, and refine for sustainable success.",
+        },
+      },
+      {
+        title: { tr: "Ekibimiz", en: "Our Team" },
+        body: {
+          tr: "• [Kıdemli Strateji Direktörü] — Kurumsal dönüşüm ve pazar giriş stratejileri konusunda [X] yıllık deneyim; karmaşık problemleri uygulanabilir yol haritalarına dönüştürmede uzman.\n• [Veri & Analitik Lideri] — Veriye dayalı karar alma süreçlerini optimize ederek ölçülebilir büyüme fırsatları yaratır.\n• [Operasyonel Mükemmellik Uzmanı] — Süreç iyileştirme ve maliyet optimizasyonu konusunda derin deneyime sahiptir.",
+          en: "• [Senior Strategy Director] — [X] years of experience in corporate transformation and market-entry strategy; expert at turning complex problems into actionable roadmaps.\n• [Data & Analytics Lead] — Optimizes data-driven decision-making to create measurable growth opportunities.\n• [Operational Excellence Specialist] — Deep experience in process improvement and cost optimization.",
+        },
+      },
+      {
+        title: { tr: "Teslim Edilecekler ve Zaman Çizelgesi", en: "Deliverables & Timeline" },
+        body: {
+          tr: "Aşama 1: Keşif ve Analiz (Hafta 1-2) — Kapsamlı veri analizi raporu, paydaş görüşme özetleri, başlangıç durum değerlendirmesi.\nAşama 2: Strateji Geliştirme (Hafta 3-5) — Stratejik yol haritası taslağı, hedef operasyon modeli önerisi, risk ve fırsat matrisi.\nAşama 3: Uygulama ve Devir (Hafta 6-8) — Pilot uygulama sonuç raporu, kullanıcı eğitim materyalleri, nihai devir-teslim belgesi.",
+          en: "Phase 1: Discovery & Analysis (Weeks 1-2) — Comprehensive data analysis report, stakeholder interview summaries, baseline assessment.\nPhase 2: Strategy Development (Weeks 3-5) — Draft strategic roadmap, target operating model proposal, risk & opportunity matrix.\nPhase 3: Implementation & Handover (Weeks 6-8) — Pilot results report, user training materials, final handover documentation.",
+        },
+      },
+    ],
+    lineItems: [
+      { name: { tr: "Pazar Analizi & Strateji Geliştirme", en: "Market Analysis & Strategy Development" }, qty: 1, unit: 15000 },
+      { name: { tr: "Operasyonel Dönüşüm Danışmanlığı (aylık)", en: "Operational Transformation Consulting (monthly)" }, qty: 3, unit: 12000 },
+      { name: { tr: "Teknoloji Altyapısı Değerlendirmesi", en: "Technology Infrastructure Assessment" }, qty: 1, unit: 8500 },
+    ],
+    contractText: {
+      tr: "İşbu sözleşme, Danışman tarafından Müşteri'ye sunulacak stratejik dönüşüm ve iş süreçleri optimizasyonu hizmetlerinin genel çerçevesini belirler.\n\nGizlilik ve Veri Güvenliği: Taraflar, işbu sözleşme kapsamında paylaştıkları tüm ticari, finansal ve teknik bilgileri gizli bilgi olarak kabul eder; yazılı onay olmaksızın üçüncü şahıslarla paylaşamaz.\n\nÜcretlendirme ve Ödeme Koşulları: Hizmet bedeli, kabul edilen fiyatlandırma teklifinde detaylandırıldığı üzere belirlenmiştir. Fatura kesim tarihinden itibaren ödeme vadesi 15 (on beş) iş günüdür.\n\nFesih Şartları: Taraflardan herhangi biri, 30 (otuz) gün önceden yazılı bildirimde bulunmak kaydıyla işbu sözleşmeyi tek taraflı olarak feshedebilir; fesih durumunda tamamlanan işlerin bedeli oransal olarak hesaplanarak ödenir.",
+      en: "This agreement sets out the general framework for the strategic transformation and business process optimization services the Consultant will provide to the Client.\n\nConfidentiality & Data Security: The parties treat all commercial, financial, and technical information shared under this agreement as confidential and will not disclose it to third parties without written consent.\n\nFees & Payment Terms: Fees are as detailed in the accepted pricing proposal. Payment is due within 15 business days of the invoice date.\n\nTermination: Either party may terminate this agreement unilaterally with 30 days' written notice; in the event of termination, fees for completed work are calculated on a pro-rata basis.",
+    },
+  },
 ];
 
 /* ── Recent activity feed ──────────────────────────────────────────────────── */

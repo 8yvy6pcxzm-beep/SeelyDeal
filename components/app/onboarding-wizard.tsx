@@ -8,6 +8,8 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/input";
 import { Logo } from "@/components/ui/logo";
+import { ColorSpectrumPicker } from "@/components/app/color-spectrum-picker";
+import { extractDominantColor } from "@/lib/color";
 import { useLang } from "@/components/i18n/language-provider";
 import { cn } from "@/lib/utils";
 import { PROPOSAL_FONT_KEYS, PROPOSAL_FONT_LABELS, type ProposalFontKey } from "@/lib/proposal-fonts";
@@ -84,6 +86,7 @@ export function OnboardingWizard({ initialName, userEmail }: { initialName: stri
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
+  const [colorTouchedByUser, setColorTouchedByUser] = useState(false);
 
   // Step 3 — example proposal upload → single analyze-example call, no chat.
   const [exampleFileName, setExampleFileName] = useState<string | null>(null);
@@ -136,6 +139,11 @@ export function OnboardingWizard({ initialName, userEmail }: { initialName: stri
       const base64 = result.split(",")[1] ?? "";
       patch({ logoBase64: base64, logoMediaType: file.type, logoPreview: result });
       setLogoUploading(false);
+      if (!colorTouchedByUser) {
+        extractDominantColor(result).then((hex) => {
+          if (hex) patch({ primaryColor: hex });
+        });
+      }
     };
     reader.onerror = () => {
       setError(lang === "tr" ? "Logo okunamadı." : "Couldn't read the logo file.");
@@ -604,35 +612,6 @@ export function OnboardingWizard({ initialName, userEmail }: { initialName: stri
 
                 <div>
                   <Label className="mb-2 block text-xs uppercase tracking-wide text-muted-foreground">
-                    {lang === "tr" ? "Marka rengi" : "Brand color"}
-                  </Label>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {COLOR_PRESETS.map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => patch({ primaryColor: c })}
-                        className={cn(
-                          "h-8 w-8 rounded-full border-2 transition-transform",
-                          data.primaryColor.toLowerCase() === c.toLowerCase()
-                            ? "scale-110 border-foreground"
-                            : "border-transparent hover:scale-105",
-                        )}
-                        style={{ backgroundColor: c }}
-                        aria-label={c}
-                      />
-                    ))}
-                    <input
-                      type="text"
-                      value={data.primaryColor}
-                      onChange={(e) => patch({ primaryColor: e.target.value })}
-                      className="h-8 w-24 rounded-lg border border-input bg-card px-2 text-xs font-mono uppercase text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label className="mb-2 block text-xs uppercase tracking-wide text-muted-foreground">
                     {lang === "tr" ? "Logo" : "Logo"}
                   </Label>
                   <div className="flex items-center gap-3">
@@ -659,6 +638,68 @@ export function OnboardingWizard({ initialName, userEmail }: { initialName: stri
                       {lang === "tr" ? "Logo yükle" : "Upload logo"}
                     </Button>
                   </div>
+                  {data.logoPreview && !colorTouchedByUser && (
+                    <p className="mt-2 text-[11.5px] text-muted-foreground">
+                      {lang === "tr"
+                        ? "Marka rengini logonu tanıyarak önerdik — aşağıdan değiştirebilirsin."
+                        : "We picked a brand color from your logo — you can change it below."}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <Label className="mb-2 block text-xs uppercase tracking-wide text-muted-foreground">
+                    {lang === "tr" ? "Marka rengi" : "Brand color"}
+                  </Label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {COLOR_PRESETS.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => {
+                          setColorTouchedByUser(true);
+                          patch({ primaryColor: c });
+                        }}
+                        className={cn(
+                          "h-8 w-8 rounded-full border-2 transition-transform",
+                          data.primaryColor.toLowerCase() === c.toLowerCase()
+                            ? "scale-110 border-foreground"
+                            : "border-transparent hover:scale-105",
+                        )}
+                        style={{ backgroundColor: c }}
+                        aria-label={c}
+                      />
+                    ))}
+                    <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border-2 border-dashed border-border transition-transform hover:scale-105">
+                      <input
+                        type="color"
+                        value={/^#[0-9a-fA-F]{6}$/.test(data.primaryColor) ? data.primaryColor : "#5B3DF6"}
+                        onChange={(e) => {
+                          setColorTouchedByUser(true);
+                          patch({ primaryColor: e.target.value });
+                        }}
+                        className="absolute -inset-1 h-[calc(100%+8px)] w-[calc(100%+8px)] cursor-pointer border-0 p-0"
+                        aria-label={lang === "tr" ? "Renk seç" : "Pick color"}
+                        title={lang === "tr" ? "Renk paletini aç" : "Open color board"}
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      value={data.primaryColor}
+                      onChange={(e) => {
+                        setColorTouchedByUser(true);
+                        patch({ primaryColor: e.target.value });
+                      }}
+                      className="h-8 w-24 rounded-lg border border-input bg-card px-2 text-xs font-mono uppercase text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    />
+                  </div>
+                  <ColorSpectrumPicker
+                    hex={/^#[0-9a-fA-F]{6}$/.test(data.primaryColor) ? data.primaryColor : "#5B3DF6"}
+                    onChange={(hex) => {
+                      setColorTouchedByUser(true);
+                      patch({ primaryColor: hex });
+                    }}
+                  />
                 </div>
               </div>
             )}

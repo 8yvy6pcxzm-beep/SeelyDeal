@@ -7,6 +7,7 @@ import { ApiKeySection } from "@/components/app/api-key-section";
 import { TeamRolesCard } from "@/components/app/team-roles-card";
 import { SsoCard } from "@/components/app/sso-card";
 import { DataPrivacyCard } from "@/components/app/data-privacy-card";
+import { TwoFactorCard } from "@/components/app/two-factor-card";
 import { usePlan } from "@/components/app/plan-provider";
 import { planAllows } from "@/lib/plan";
 
@@ -87,6 +88,20 @@ export function SettingsClient() {
       )}
 
       <DataPrivacyCard />
+
+      {/* Security */}
+      <div>
+        <h2 className="font-display text-lg font-semibold tracking-tight">
+          {lang === "tr" ? "Güvenlik" : "Security"}
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {lang === "tr"
+            ? "Hesabınıza girişi ekstra bir adımla koruyun."
+            : "Protect account sign-in with an extra step."}
+        </p>
+      </div>
+
+      <TwoFactorCard />
     </div>
   );
 }

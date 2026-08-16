@@ -21,7 +21,7 @@ type Draft = {
   introText?: string;
   aboutText?: string;
   clientContact?: ClientContact;
-  sections: { title: string; body: string }[];
+  sections: { title: string; body: string; videoUrl?: string }[];
   lineItems: { name: string; qty: number; unit: number; optional?: boolean; included?: boolean }[];
   billingOptions?: BillingOption[];
   nextSteps?: { title: string; body: string }[];
@@ -1123,6 +1123,19 @@ export function AiDraftDialog({
                 <div key={i}>
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{s.title}</p>
                   <p className="mt-1 text-sm">{s.body}</p>
+                  <Input
+                    value={s.videoUrl ?? ""}
+                    onChange={(e) => {
+                      const url = e.target.value;
+                      setDraft((d) => {
+                        if (!d) return d;
+                        const sections = d.sections.map((sec, j) => (j === i ? { ...sec, videoUrl: url } : sec));
+                        return { ...d, sections };
+                      });
+                    }}
+                    placeholder={lang === "tr" ? "Video linki ekle (YouTube, Vimeo, Loom)…" : "Add a video link (YouTube, Vimeo, Loom)…"}
+                    className="mt-1.5 h-8 text-xs"
+                  />
                 </div>
               ))}
               {draft.lineItems?.length > 0 && (

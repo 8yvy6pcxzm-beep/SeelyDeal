@@ -2,7 +2,7 @@
 
 import { use, useEffect, useRef, useState } from "react";
 import { Hanken_Grotesk, Playfair_Display } from "next/font/google";
-import { CheckCircle2, Loader2, PenLine, ExternalLink, Copy, Check, FileText, CalendarClock } from "lucide-react";
+import { CheckCircle2, Loader2, PenLine, ExternalLink, Copy, Check, FileText, CalendarClock, Info, ListChecks, CreditCard, ScrollText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { useLang } from "@/components/i18n/language-provider";
@@ -39,7 +39,7 @@ type PublicProposal = {
   title: string;
   status: string;
   value: number;
-  sections: { title: string; body: string; condition?: { lineItem?: string; billingKey?: string } }[];
+  sections: { title: string; body: string; videoUrl?: string; condition?: { lineItem?: string; billingKey?: string } }[];
   line_items: LineItem[];
   contract_text: string | null;
   signed_at: string | null;
@@ -71,6 +71,34 @@ type PublicProposal = {
 
 const TEAM_SECTION_RE = /ekib|ekip|team/i;
 
+/** Turns a YouTube/Vimeo/Loom watch/share URL into its embeddable iframe src. Returns
+ *  null for anything else so we never render an iframe pointed at an untrusted host. */
+function videoEmbedSrc(url: string): string | null {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, "");
+    if (host === "youtube.com" || host === "m.youtube.com") {
+      const id = u.pathname === "/watch" ? u.searchParams.get("v") : u.pathname.split("/").pop();
+      return id ? `https://www.youtube.com/embed/${id}` : null;
+    }
+    if (host === "youtu.be") {
+      const id = u.pathname.slice(1);
+      return id ? `https://www.youtube.com/embed/${id}` : null;
+    }
+    if (host === "vimeo.com") {
+      const id = u.pathname.split("/").filter(Boolean).pop();
+      return id ? `https://player.vimeo.com/video/${id}` : null;
+    }
+    if (host === "loom.com") {
+      const id = u.pathname.split("/").filter(Boolean).pop();
+      return id ? `https://www.loom.com/embed/${id}` : null;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function fmtDate(iso: string, lang: "tr" | "en") {
   const d = new Date(iso);
   return d.toLocaleDateString(lang === "tr" ? "tr-TR" : "en-US", { day: "2-digit", month: "2-digit", year: "numeric" });
@@ -101,6 +129,15 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
   const [requestingOtp, setRequestingOtp] = useState(false);
   const [viewId, setViewId] = useState<string | null>(null);
   const skipLiveSelection = useRef(true);
+  // Which "page" is currently shown — the proposal renders as a sidebar-navigated, one-page-
+  // at-a-time document (like a small site) instead of one long scroll.
+  const [activeNav, setActiveNav] = useState<string>("kapak");
+  const mainRef = useRef<HTMLDivElement | null>(null);
+
+  function goToNav(key: string) {
+    setActiveNav(key);
+    mainRef.current?.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+  }
 
   // Smart Proposal (Custom only): report the buyer's live toggle state so the seller can watch it in real time.
   useEffect(() => {
@@ -192,32 +229,7 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pagehide", flush);
     };
-  }, [viewId, id, proposal?.sections?.length]);
-
-  // Scroll-spy for the top nav: tracks which full-width section band is currently under the nav bar.
-  const [activeNav, setActiveNav] = useState<string>("kapak");
-  const navSectionRefs = useRef<Record<string, HTMLElement | null>>({});
-
-  useEffect(() => {
-    const els = Object.entries(navSectionRefs.current).filter(([, el]) => el) as [string, HTMLElement][];
-    if (els.length === 0) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries.filter((e) => e.isIntersecting);
-        if (visible.length === 0) return;
-        const top = visible.reduce((a, b) => (a.boundingClientRect.top < b.boundingClientRect.top ? a : b));
-        const key = els.find(([, el]) => el === top.target)?.[0];
-        if (key) setActiveNav(key);
-      },
-      { rootMargin: "-15% 0px -70% 0px", threshold: 0 },
-    );
-    els.forEach(([, el]) => observer.observe(el));
-    return () => observer.disconnect();
-  }, [proposal]);
-
-  function scrollToNav(key: string) {
-    navSectionRefs.current[key]?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
+  }, [viewId, id, proposal?.sections?.length, activeNav]);
 
   const requiresOtp = !!(proposal?.companies?.plan && proposal.companies.plan !== "lite");
 
@@ -339,27 +351,29 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
   const hasPricing = items.length > 0 || billingOptions.length > 0;
   const hasContract = !!proposal.contract_text || proposal.next_steps?.length > 0;
 
-  // The site-style top nav — only lists bands that actually exist in this proposal.
-  const navItems: { key: string; label: string }[] = [
-    { key: "kapak", label: lang === "tr" ? "Kapak" : "Cover" },
-    ...(hasSummary ? [{ key: "ozet", label: lang === "tr" ? "Özet" : "Summary" }] : []),
-    ...(hasScope ? [{ key: "kapsam", label: lang === "tr" ? "Kapsam" : "Scope" }] : []),
-    ...(hasPricing ? [{ key: "fiyat", label: lang === "tr" ? "Fiyatlandırma" : "Pricing" }] : []),
-    ...(hasContract ? [{ key: "sozlesme", label: lang === "tr" ? "Sözleşme" : "Contract" }] : []),
+  // The sidebar's pages — only lists bands that actually exist in this proposal. Each is its
+  // own full-screen "page", switched with `activeNav` instead of scrolled to.
+  const navItems: { key: string; label: string; icon: typeof FileText }[] = [
+    { key: "kapak", label: lang === "tr" ? "Kapak" : "Cover", icon: FileText },
+    ...(hasSummary ? [{ key: "ozet", label: lang === "tr" ? "Özet" : "Summary", icon: Info }] : []),
+    ...(hasScope ? [{ key: "kapsam", label: lang === "tr" ? "Kapsam" : "Scope", icon: ListChecks }] : []),
+    ...(hasPricing ? [{ key: "fiyat", label: lang === "tr" ? "Fiyatlandırma" : "Pricing", icon: CreditCard }] : []),
+    ...(hasContract ? [{ key: "sozlesme", label: lang === "tr" ? "Sözleşme" : "Contract", icon: ScrollText }] : []),
+    { key: "onayla", label: lang === "tr" ? "Onayla" : "Approve", icon: PenLine },
   ];
 
   return (
     <div
-      className="min-h-screen bg-background text-foreground"
+      className="flex min-h-screen bg-background text-foreground"
       style={
         theme?.font && displayFontFamily(theme.font)
           ? ({ "--font-display": displayFontFamily(theme.font) } as React.CSSProperties)
           : undefined
       }
     >
-      {/* Site-style top nav */}
-      <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-border bg-card/95 px-4 backdrop-blur sm:px-8">
-        <div className="flex min-w-0 items-center gap-2.5">
+      {/* Sidebar — each item is its own full page, switched via `activeNav` (no scrolling between them). */}
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-card md:flex">
+        <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-border px-4">
           {company?.logo_url ? (
             <span className="flex h-7 max-w-[120px] shrink-0 items-center overflow-hidden">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -372,43 +386,62 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
           )}
           {company?.name && <span className="truncate font-display text-sm font-bold">{company.name}</span>}
         </div>
-        <nav className="hidden items-center gap-6 md:flex">
+        <nav className="flex-1 space-y-0.5 p-3">
           {navItems.map((n) => (
             <button
               key={n.key}
-              onClick={() => scrollToNav(n.key)}
+              onClick={() => goToNav(n.key)}
               className={cn(
-                "border-b-2 pb-4 pt-4 text-xs font-medium transition-colors",
-                activeNav === n.key ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground",
+                "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-medium transition-colors",
+                activeNav === n.key ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
+              <n.icon className="h-3.5 w-3.5 shrink-0" />
               {n.label}
             </button>
           ))}
         </nav>
-        {signed ? (
-          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-success/10 px-3 py-1.5 text-xs font-semibold text-success">
-            <CheckCircle2 className="h-3.5 w-3.5" />
-            {lang === "tr" ? "İmzalandı" : "Signed"}
-          </span>
-        ) : (
-          <Button
-            size="sm"
-            onClick={() => scrollToNav("onayla")}
-            className="shrink-0"
-            style={accentColor ? { backgroundColor: accentColor, borderColor: accentColor } : undefined}
-          >
-            {lang === "tr" ? "Teklifi Onayla" : "Accept Proposal"}
-          </Button>
-        )}
-      </header>
+        <div className="shrink-0 border-t border-border p-3">
+          {signed ? (
+            <span className="flex items-center justify-center gap-1.5 rounded-full bg-success/10 px-3 py-1.5 text-xs font-semibold text-success">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              {lang === "tr" ? "İmzalandı" : "Signed"}
+            </span>
+          ) : (
+            <Button
+              size="sm"
+              onClick={() => goToNav("onayla")}
+              className="w-full"
+              style={accentColor ? { backgroundColor: accentColor, borderColor: accentColor } : undefined}
+            >
+              {lang === "tr" ? "Teklifi Onayla" : "Accept Proposal"}
+            </Button>
+          )}
+        </div>
+      </aside>
 
+      {/* Mobile top bar — same page list, as a horizontal scroller (no sidebar space on small screens). */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-50 flex h-14 items-center gap-1 overflow-x-auto border-b border-border bg-card/95 px-3 backdrop-blur md:hidden">
+          {navItems.map((n) => (
+            <button
+              key={n.key}
+              onClick={() => goToNav(n.key)}
+              className={cn(
+                "flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                activeNav === n.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted",
+              )}
+            >
+              <n.icon className="h-3 w-3 shrink-0" />
+              {n.label}
+            </button>
+          ))}
+        </header>
+
+        <main ref={mainRef} className="flex-1 overflow-y-auto">
       {/* Kapak / hero — Custom plan can replace the flat brand-color gradient with their own image. */}
+      {activeNav === "kapak" && (
       <section
-        id="kapak"
-        ref={(el) => {
-          navSectionRefs.current.kapak = el;
-        }}
         className="relative overflow-hidden px-4 py-20 text-white sm:px-8 sm:py-28"
         style={
           company?.plan === "custom" && company.cover_image_url
@@ -447,16 +480,11 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
           </div>
         </div>
       </section>
+      )}
 
       {/* Özet — cover letter, about, parties */}
-      {hasSummary && (
-        <section
-          id="ozet"
-          ref={(el) => {
-            navSectionRefs.current.ozet = el;
-          }}
-          className="border-t border-border px-4 py-16 sm:px-8 sm:py-20"
-        >
+      {activeNav === "ozet" && hasSummary && (
+        <section className="px-4 py-16 sm:px-8 sm:py-20">
           <div className="mx-auto max-w-3xl space-y-10">
             <h2 className="font-display text-2xl font-bold">{lang === "tr" ? "Özet" : "Summary"}</h2>
 
@@ -517,14 +545,8 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
       )}
 
       {/* Kapsam — hizmet kapsamı checklist */}
-      {hasScope && (
-        <section
-          id="kapsam"
-          ref={(el) => {
-            navSectionRefs.current.kapsam = el;
-          }}
-          className="border-t border-border bg-muted/20 px-4 py-16 sm:px-8 sm:py-20"
-        >
+      {activeNav === "kapsam" && hasScope && (
+        <section className="bg-muted/20 px-4 py-16 sm:px-8 sm:py-20">
           <div className="mx-auto max-w-3xl">
             <h2 className="font-display mb-8 text-2xl font-bold">{lang === "tr" ? "Hizmet Kapsamı" : "Scope of Service"}</h2>
             <div className="space-y-3">
@@ -557,6 +579,16 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
                         ))}
                       </div>
                     )}
+                    {s.videoUrl && videoEmbedSrc(s.videoUrl) && (
+                      <div className="mt-3 aspect-video w-full overflow-hidden rounded-lg border border-border">
+                        <iframe
+                          src={videoEmbedSrc(s.videoUrl)!}
+                          className="h-full w-full"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -566,14 +598,8 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
       )}
 
       {/* Fiyatlandırma */}
-      {hasPricing && (
-        <section
-          id="fiyat"
-          ref={(el) => {
-            navSectionRefs.current.fiyat = el;
-          }}
-          className="border-t border-border px-4 py-16 sm:px-8 sm:py-20"
-        >
+      {activeNav === "fiyat" && hasPricing && (
+        <section className="px-4 py-16 sm:px-8 sm:py-20">
           <div className="mx-auto max-w-3xl">
             <h2 className="font-display mb-8 text-2xl font-bold">{lang === "tr" ? "Paket ve Ücret" : "Package & Pricing"}</h2>
             <div className="overflow-hidden rounded-2xl border border-border">
@@ -646,14 +672,8 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
       )}
 
       {/* Sözleşme + sonraki adımlar */}
-      {hasContract && (
-        <section
-          id="sozlesme"
-          ref={(el) => {
-            navSectionRefs.current.sozlesme = el;
-          }}
-          className="border-t border-border bg-muted/20 px-4 py-16 sm:px-8 sm:py-20"
-        >
+      {activeNav === "sozlesme" && hasContract && (
+        <section className="bg-muted/20 px-4 py-16 sm:px-8 sm:py-20">
           <div className="mx-auto max-w-3xl space-y-10">
             <h2 className="font-display text-2xl font-bold">{lang === "tr" ? "Sözleşme" : "Contract"}</h2>
 
@@ -699,13 +719,8 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
       )}
 
       {/* Onayla — imza */}
-      <section
-        id="onayla"
-        ref={(el) => {
-          navSectionRefs.current.onayla = el;
-        }}
-        className="border-t border-border px-4 py-16 sm:px-8 sm:py-20"
-      >
+      {activeNav === "onayla" && (
+      <section className="px-4 py-16 sm:px-8 sm:py-20">
         <div className="mx-auto max-w-xl rounded-2xl border border-border bg-card p-6 shadow-pop sm:p-8">
           {signed ? (
             <div className="space-y-3">
@@ -811,13 +826,16 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
           {error && <p className="mt-2 text-center text-sm text-destructive">{error}</p>}
         </div>
       </section>
+      )}
 
-      <footer className="flex items-center justify-center gap-1.5 border-t border-border bg-muted/30 p-4 text-center text-xs text-muted-foreground">
-        <CalendarClock className="h-3.5 w-3.5 shrink-0" />
-        {lang === "tr"
-          ? `${appConfig.name} — ${company?.name} · Bu teklif ${fmtDate(proposal.created_at, lang)} tarihinden itibaren ${proposal.valid_days} gün geçerlidir (${fmtDate(validUntil.toISOString(), lang)}'e kadar).`
-          : `${appConfig.name} — ${company?.name} · This proposal is valid for ${proposal.valid_days} days from ${fmtDate(proposal.created_at, lang)} (until ${fmtDate(validUntil.toISOString(), lang)}).`}
-      </footer>
+          <footer className="flex items-center justify-center gap-1.5 border-t border-border bg-muted/30 p-4 text-center text-xs text-muted-foreground">
+            <CalendarClock className="h-3.5 w-3.5 shrink-0" />
+            {lang === "tr"
+              ? `${appConfig.name} — ${company?.name} · Bu teklif ${fmtDate(proposal.created_at, lang)} tarihinden itibaren ${proposal.valid_days} gün geçerlidir (${fmtDate(validUntil.toISOString(), lang)}'e kadar).`
+              : `${appConfig.name} — ${company?.name} · This proposal is valid for ${proposal.valid_days} days from ${fmtDate(proposal.created_at, lang)} (until ${fmtDate(validUntil.toISOString(), lang)}).`}
+          </footer>
+        </main>
+      </div>
     </div>
   );
 }
