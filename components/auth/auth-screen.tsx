@@ -227,7 +227,7 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
               )}
               <Button
                 variant="outline"
-                disabled={loading || (!isLogin && !consent)}
+                disabled={loading}
                 onClick={() => signInWithProvider("google")}
                 className={`w-full gap-2 ${lastUsed === "google" ? "border-primary/40 ring-2 ring-primary/25" : ""}`}
               >
@@ -242,7 +242,7 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
               )}
               <Button
                 variant="outline"
-                disabled={loading || (!isLogin && !consent)}
+                disabled={loading}
                 onClick={() => signInWithProvider("github")}
                 className={`w-full gap-2 ${lastUsed === "github" ? "border-primary/40 ring-2 ring-primary/25" : ""}`}
               >
@@ -325,7 +325,7 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
                 </span>
               </label>
             )}
-            <Button type="submit" disabled={loading || (!isLogin && !consent)} className="w-full gap-2">
+            <Button type="submit" disabled={loading} className="w-full gap-2">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {isLogin ? ui.signIn : ui.getStarted}
               {!loading && <ArrowRight className="h-4 w-4" />}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, FileText, Loader2, Sparkles, Upload } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -388,7 +389,9 @@ export function OnboardingWizard({ initialName, userEmail }: { initialName: stri
         <span className="pointer-events-none absolute -right-16 -top-20 h-80 w-80 rounded-full bg-white/15 blur-3xl" />
         <span className="pointer-events-none absolute -bottom-16 -left-10 h-64 w-64 rounded-full bg-black/15 blur-3xl" />
 
-        <Logo onDark />
+        <Link href="/" className="relative inline-flex">
+          <Logo onDark />
+        </Link>
 
         <div className="relative max-w-md">
           <p className="text-xs uppercase tracking-[0.22em] text-white/70">
@@ -426,9 +429,9 @@ export function OnboardingWizard({ initialName, userEmail }: { initialName: stri
       {/* Right — form */}
       <section className="flex flex-col items-center justify-center px-6 py-10">
         <div className="w-full max-w-md">
-          <div className="mb-5 inline-flex lg:hidden">
+          <Link href="/" className="mb-5 inline-flex lg:hidden">
             <Logo />
-          </div>
+          </Link>
           <div className="mb-6 flex items-center gap-2">
             <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-primary">
               {lang === "tr" ? `Adım ${step} / ${TOTAL_STEPS}` : `Step ${step} of ${TOTAL_STEPS}`}
