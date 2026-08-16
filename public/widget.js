@@ -29,7 +29,7 @@
     "@keyframes fabpulse{0%,100%{opacity:.5;transform:scale(.9)}50%{opacity:1;transform:scale(1.4)}}" +
     /* "we're online" ring — a visible pulsing green border around the bubble, distinct from
        the softer glow above, so the widget reads as actively staffed even before it's opened. */
-    ".fabring{position:fixed;bottom:22px;right:22px;width:48px;height:48px;border-radius:50%;" +
+    ".fabring{position:fixed;bottom:18px;right:18px;width:56px;height:56px;border-radius:50%;" +
     "border:2px solid #a9e23d;animation:fabring 1.8s ease-in-out infinite;z-index:2147482998;pointer-events:none;}" +
     "@keyframes fabring{0%,100%{opacity:.9;box-shadow:0 0 0 0 rgba(169,226,61,.5)}50%{opacity:.35;box-shadow:0 0 0 5px rgba(169,226,61,0)}}" +
     ".panel{position:fixed;bottom:96px;right:22px;width:360px;max-width:calc(100vw - 32px);height:520px;" +
