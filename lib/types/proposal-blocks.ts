@@ -15,6 +15,10 @@ export type ProposalBlock =
       icon?: "team" | "timeline" | "strategy";
       videoUrl?: string;
       condition?: { lineItem?: string; billingKey?: string };
+      /** Original index in the source `sections[]` array — only meaningful on the
+       *  public proposal page, where it's needed for the per-section view-time
+       *  IntersectionObserver (`data-section-index`). Other consumers ignore it. */
+      sectionIndex?: number;
     }
   | { id: string; type: "PricingTable" }
   | { id: string; type: "ContractSignOff"; contractText?: string };

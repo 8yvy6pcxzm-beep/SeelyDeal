@@ -24,6 +24,7 @@ export function legacyToBlocks(p: LegacyProposalLike): ProposalBlock[] {
       label: sec.title,
       body: sec.body,
       icon: TEAM_SECTION_RE.test(sec.title) ? "team" : undefined,
+      sectionIndex: i,
     });
   });
 

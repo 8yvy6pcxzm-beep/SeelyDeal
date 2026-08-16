@@ -9,6 +9,8 @@ import { useLang } from "@/components/i18n/language-provider";
 import { cn, formatUsd } from "@/lib/utils";
 import appConfig from "@/app.config";
 import { isProposalFontKey, type ProposalFontKey } from "@/lib/proposal-fonts";
+import { BlockRenderer } from "@/components/app/blocks/block-renderer";
+import type { ProposalBlock } from "@/lib/types/proposal-blocks";
 
 // Loaded for proposals whose theme (from a template, or the company's own default —
 // see lib/proposal-fonts.ts) declares a non-default font — applied via inline style
@@ -72,34 +74,6 @@ type PublicProposal = {
 };
 
 const TEAM_SECTION_RE = /ekib|ekip|team/i;
-
-/** Turns a YouTube/Vimeo/Loom watch/share URL into its embeddable iframe src. Returns
- *  null for anything else so we never render an iframe pointed at an untrusted host. */
-function videoEmbedSrc(url: string): string | null {
-  try {
-    const u = new URL(url);
-    const host = u.hostname.replace(/^www\./, "");
-    if (host === "youtube.com" || host === "m.youtube.com") {
-      const id = u.pathname === "/watch" ? u.searchParams.get("v") : u.pathname.split("/").pop();
-      return id ? `https://www.youtube.com/embed/${id}` : null;
-    }
-    if (host === "youtu.be") {
-      const id = u.pathname.slice(1);
-      return id ? `https://www.youtube.com/embed/${id}` : null;
-    }
-    if (host === "vimeo.com") {
-      const id = u.pathname.split("/").filter(Boolean).pop();
-      return id ? `https://player.vimeo.com/video/${id}` : null;
-    }
-    if (host === "loom.com") {
-      const id = u.pathname.split("/").filter(Boolean).pop();
-      return id ? `https://www.loom.com/embed/${id}` : null;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
 
 function fmtDate(iso: string, lang: "tr" | "en") {
   const d = new Date(iso);
@@ -593,48 +567,31 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
           <div className="mx-auto max-w-3xl">
             <h2 className="font-display mb-8 text-2xl font-bold">{lang === "tr" ? "Hizmet Kapsamı" : "Scope of Service"}</h2>
             <div className="space-y-3">
-              {visibleSections.map((s) => (
-                <div
-                  key={s.index}
-                  ref={(el) => {
-                    sectionRefs.current[s.index] = el;
-                  }}
-                  data-section-index={s.index}
-                  className="flex items-start gap-2.5 rounded-xl border border-border bg-card p-4"
-                >
-                  <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
-                    <Check className="h-3 w-3" strokeWidth={3} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold">{s.title || sectionLabel(s.index + 1)}</p>
-                    <p className="mt-0.5 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{s.body}</p>
-                    {TEAM_SECTION_RE.test(s.title) && proposal.team.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-3">
-                        {proposal.team.map((m) => (
-                          <div key={m.name} className="flex items-center gap-2 rounded-full border border-border bg-card py-1 pl-1 pr-3 shadow-pill">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={m.photo_url!} alt={m.name} className="h-7 w-7 rounded-full object-cover" />
-                            <span className="text-xs">
-                              <span className="font-semibold">{m.name}</span>
-                              {m.title && <span className="text-muted-foreground"> · {m.title}</span>}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {s.videoUrl && videoEmbedSrc(s.videoUrl) && (
-                      <div className="mt-3 aspect-video w-full overflow-hidden rounded-lg border border-border">
-                        <iframe
-                          src={videoEmbedSrc(s.videoUrl)!}
-                          className="h-full w-full"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
+              <BlockRenderer
+                blocks={visibleSections.map(
+                  (s): ProposalBlock => ({
+                    id: `section-${s.index}`,
+                    type: "RichSection",
+                    label: s.title || sectionLabel(s.index + 1),
+                    body: s.body,
+                    icon: TEAM_SECTION_RE.test(s.title) ? "team" : undefined,
+                    videoUrl: s.videoUrl,
+                    sectionIndex: s.index,
+                  }),
+                )}
+                ctx={{
+                  title: proposal.title,
+                  client: client.company || proposal.clients?.name || "",
+                  value: proposal.value,
+                  lineItems: items.map((li, i) => ({ id: String(i), name: li.name, unit: li.unit, qty: li.qty, optional: li.optional })),
+                  lang,
+                  sectionVariant: "checklist",
+                  team: proposal.team,
+                  getSectionRef: (index) => (el) => {
+                    sectionRefs.current[index] = el;
+                  },
+                }}
+              />
             </div>
           </div>
         </section>
