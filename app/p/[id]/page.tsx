@@ -67,6 +67,8 @@ type PublicProposal = {
   /** Optional per-proposal theme carried from a template (e.g. the construction template) —
    *  only overrides colors/font for this one proposal, never the app-wide defaults. */
   theme_json: { primaryColor: string; accentColor: string; font?: string } | null;
+  /** "pages" (default) = sidebar, one section at a time. "scroll" = classic single scrolling page. */
+  view_mode: "pages" | "scroll" | null;
 };
 
 const TEAM_SECTION_RE = /ekib|ekip|team/i;
@@ -129,15 +131,43 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
   const [requestingOtp, setRequestingOtp] = useState(false);
   const [viewId, setViewId] = useState<string | null>(null);
   const skipLiveSelection = useRef(true);
-  // Which "page" is currently shown — the proposal renders as a sidebar-navigated, one-page-
-  // at-a-time document (like a small site) instead of one long scroll.
+  // Which "page" is currently shown when view_mode is "pages" — the proposal renders as a
+  // sidebar-navigated, one-page-at-a-time document (like a small site) instead of one long
+  // scroll. When view_mode is "scroll" all sections render stacked and this just tracks which
+  // one is under the viewport, for the sidebar's active-item highlight (scroll-spy).
   const [activeNav, setActiveNav] = useState<string>("kapak");
   const mainRef = useRef<HTMLDivElement | null>(null);
+  const sectionElRefs = useRef<Record<string, HTMLElement | null>>({});
+  const viewMode: "pages" | "scroll" = proposal?.view_mode === "scroll" ? "scroll" : "pages";
 
   function goToNav(key: string) {
+    if (viewMode === "scroll") {
+      sectionElRefs.current[key]?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
     setActiveNav(key);
     mainRef.current?.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
   }
+
+  // Scroll-spy: in "scroll" mode, tracks which section band is currently under the top of
+  // the scrollable main area, so the sidebar can highlight it (mirrors the old top-nav behavior).
+  useEffect(() => {
+    if (viewMode !== "scroll" || !mainRef.current) return;
+    const els = Object.entries(sectionElRefs.current).filter(([, el]) => el) as [string, HTMLElement][];
+    if (els.length === 0) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting);
+        if (visible.length === 0) return;
+        const top = visible.reduce((a, b) => (a.boundingClientRect.top < b.boundingClientRect.top ? a : b));
+        const key = els.find(([, el]) => el === top.target)?.[0];
+        if (key) setActiveNav(key);
+      },
+      { root: mainRef.current, rootMargin: "-15% 0px -70% 0px", threshold: 0 },
+    );
+    els.forEach(([, el]) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [viewMode, proposal]);
 
   // Smart Proposal (Custom only): report the buyer's live toggle state so the seller can watch it in real time.
   useEffect(() => {
@@ -440,8 +470,11 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
 
         <main ref={mainRef} className="flex-1 overflow-y-auto">
       {/* Kapak / hero — Custom plan can replace the flat brand-color gradient with their own image. */}
-      {activeNav === "kapak" && (
+      {(viewMode === "scroll" || activeNav === "kapak") && (
       <section
+        ref={(el) => {
+          sectionElRefs.current.kapak = el;
+        }}
         className="relative overflow-hidden px-4 py-20 text-white sm:px-8 sm:py-28"
         style={
           company?.plan === "custom" && company.cover_image_url
@@ -483,8 +516,13 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
       )}
 
       {/* Özet — cover letter, about, parties */}
-      {activeNav === "ozet" && hasSummary && (
-        <section className="px-4 py-16 sm:px-8 sm:py-20">
+      {(viewMode === "scroll" || activeNav === "ozet") && hasSummary && (
+        <section
+          ref={(el) => {
+            sectionElRefs.current.ozet = el;
+          }}
+          className="px-4 py-16 sm:px-8 sm:py-20"
+        >
           <div className="mx-auto max-w-3xl space-y-10">
             <h2 className="font-display text-2xl font-bold">{lang === "tr" ? "Özet" : "Summary"}</h2>
 
@@ -545,8 +583,13 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
       )}
 
       {/* Kapsam — hizmet kapsamı checklist */}
-      {activeNav === "kapsam" && hasScope && (
-        <section className="bg-muted/20 px-4 py-16 sm:px-8 sm:py-20">
+      {(viewMode === "scroll" || activeNav === "kapsam") && hasScope && (
+        <section
+          ref={(el) => {
+            sectionElRefs.current.kapsam = el;
+          }}
+          className="bg-muted/20 px-4 py-16 sm:px-8 sm:py-20"
+        >
           <div className="mx-auto max-w-3xl">
             <h2 className="font-display mb-8 text-2xl font-bold">{lang === "tr" ? "Hizmet Kapsamı" : "Scope of Service"}</h2>
             <div className="space-y-3">
@@ -598,8 +641,13 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
       )}
 
       {/* Fiyatlandırma */}
-      {activeNav === "fiyat" && hasPricing && (
-        <section className="px-4 py-16 sm:px-8 sm:py-20">
+      {(viewMode === "scroll" || activeNav === "fiyat") && hasPricing && (
+        <section
+          ref={(el) => {
+            sectionElRefs.current.fiyat = el;
+          }}
+          className="px-4 py-16 sm:px-8 sm:py-20"
+        >
           <div className="mx-auto max-w-3xl">
             <h2 className="font-display mb-8 text-2xl font-bold">{lang === "tr" ? "Paket ve Ücret" : "Package & Pricing"}</h2>
             <div className="overflow-hidden rounded-2xl border border-border">
@@ -672,8 +720,13 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
       )}
 
       {/* Sözleşme + sonraki adımlar */}
-      {activeNav === "sozlesme" && hasContract && (
-        <section className="bg-muted/20 px-4 py-16 sm:px-8 sm:py-20">
+      {(viewMode === "scroll" || activeNav === "sozlesme") && hasContract && (
+        <section
+          ref={(el) => {
+            sectionElRefs.current.sozlesme = el;
+          }}
+          className="bg-muted/20 px-4 py-16 sm:px-8 sm:py-20"
+        >
           <div className="mx-auto max-w-3xl space-y-10">
             <h2 className="font-display text-2xl font-bold">{lang === "tr" ? "Sözleşme" : "Contract"}</h2>
 
@@ -719,8 +772,13 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
       )}
 
       {/* Onayla — imza */}
-      {activeNav === "onayla" && (
-      <section className="px-4 py-16 sm:px-8 sm:py-20">
+      {(viewMode === "scroll" || activeNav === "onayla") && (
+      <section
+        ref={(el) => {
+          sectionElRefs.current.onayla = el;
+        }}
+        className="px-4 py-16 sm:px-8 sm:py-20"
+      >
         <div className="mx-auto max-w-xl rounded-2xl border border-border bg-card p-6 shadow-pop sm:p-8">
           {signed ? (
             <div className="space-y-3">

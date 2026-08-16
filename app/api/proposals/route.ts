@@ -4,7 +4,7 @@ import { getAuthedUser } from "@/lib/supabase/auth-user";
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const { title, client, value, sections, lineItems, contractText, paymentLink, billingOptions, introText, aboutText, clientContact, nextSteps, validDays, themeJson, templateId, format } = body;
+  const { title, client, value, sections, lineItems, contractText, paymentLink, billingOptions, introText, aboutText, clientContact, nextSteps, validDays, themeJson, templateId, format, viewMode } = body;
 
   const user = await getAuthedUser(req);
   if (!user) return NextResponse.json({ error: "Giriş yapmalısın." }, { status: 401 });
@@ -57,6 +57,7 @@ export async function POST(req: Request) {
       created_by: user.id,
       template_id: templateId || null,
       format: format === "pdf" || format === "html" ? format : null,
+      view_mode: viewMode === "scroll" ? "scroll" : "pages",
     })
     .select("id")
     .single();

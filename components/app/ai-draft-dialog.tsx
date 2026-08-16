@@ -30,6 +30,9 @@ type Draft = {
   confirmed?: boolean;
   /** Per-template visual theme (e.g. from the construction template) — passed through untouched. */
   themeJson?: { primaryColor: string; accentColor: string; font?: string };
+  /** How the recipient views this proposal — "pages" (sidebar, one section at a time, like a
+   *  small site) or "scroll" (one long page, classic top nav). Defaults to "pages". */
+  viewMode?: "pages" | "scroll";
 };
 
 /** Renders "**bold**" markdown segments as real <strong> text, and splits numbered/bulleted
@@ -679,7 +682,11 @@ export function AiDraftDialog({
       if (data.draft) {
         // The server only stamps themeJson on the turn it resolves the template — carry
         // it forward on later turns instead of losing it.
-        const nextDraft = { ...data.draft, themeJson: data.draft.themeJson ?? draft?.themeJson };
+        const nextDraft = {
+          ...data.draft,
+          themeJson: data.draft.themeJson ?? draft?.themeJson,
+          viewMode: data.draft.viewMode ?? draft?.viewMode ?? "pages",
+        };
         setDraft(nextDraft);
         // The model only sets this after the user explicitly confirmed the final
         // proposal in chat — save it immediately instead of waiting for a manual click.
@@ -1129,6 +1136,32 @@ export function AiDraftDialog({
             <div className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
               <h4 className="font-display text-lg font-semibold">{draft.title}</h4>
               {mode !== "template" && <p className="text-sm text-muted-foreground">{draft.client}</p>}
+              {mode !== "template" && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {lang === "tr" ? "Görünüm" : "View"}
+                  </p>
+                  <div className="mt-1.5 inline-flex rounded-lg border border-border bg-card p-0.5 text-xs">
+                    {(["pages", "scroll"] as const).map((mode2) => (
+                      <button
+                        key={mode2}
+                        type="button"
+                        onClick={() => setDraft((d) => (d ? { ...d, viewMode: mode2 } : d))}
+                        className={cn(
+                          "rounded-md px-2.5 py-1 font-medium transition-colors",
+                          (draft.viewMode ?? "pages") === mode2
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {mode2 === "pages"
+                          ? lang === "tr" ? "Sayfa geçişli" : "Paginated"
+                          : lang === "tr" ? "Tek sayfa (kaydırmalı)" : "Single scroll"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               {draft.sections?.map((s, i) => (
                 <div key={i}>
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{s.title}</p>

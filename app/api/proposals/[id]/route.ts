@@ -62,6 +62,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
   if (body.templateId !== undefined) patch.template_id = body.templateId || null;
   if (body.format === "pdf" || body.format === "html") patch.format = body.format;
+  if (body.viewMode === "pages" || body.viewMode === "scroll") patch.view_mode = body.viewMode;
   if (body.client) {
     const { data: existing } = await service
       .from("clients")
