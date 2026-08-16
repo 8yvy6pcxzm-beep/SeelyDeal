@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2 } from "lucide-react";
@@ -23,8 +23,17 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [lastUsed, setLastUsed] = useState<"google" | "github" | null>(null);
   const [consent, setConsent] = useState(false);
+  const [consentHighlight, setConsentHighlight] = useState(false);
+  const consentRef = useRef<HTMLLabelElement>(null);
 
   const isLogin = mode === "login";
+
+  function flagMissingConsent() {
+    setError(lang === "tr" ? "Devam etmek için aşağıdaki KVKK metnini onaylaman gerekiyor." : "You need to accept the privacy policy below to continue.");
+    consentRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setConsentHighlight(true);
+    window.setTimeout(() => setConsentHighlight(false), 1600);
+  }
 
   useEffect(() => {
     const stored = window.localStorage.getItem("seelydeal-last-auth-provider");
@@ -63,7 +72,7 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
 
   async function signInWithProvider(provider: "google" | "github") {
     if (!isLogin && !consent) {
-      setError(lang === "tr" ? "Devam etmek için KVKK metnini onaylaman gerekiyor." : "You need to accept the privacy policy to continue.");
+      flagMissingConsent();
       return;
     }
     setError(null);
@@ -124,7 +133,7 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
     }
 
     if (!consent) {
-      setError(lang === "tr" ? "Devam etmek için KVKK metnini onaylaman gerekiyor." : "You need to accept the privacy policy to continue.");
+      flagMissingConsent();
       setLoading(false);
       return;
     }
@@ -298,7 +307,12 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
             {error && <p className="text-sm text-destructive">{error}</p>}
             {notice && <p className="text-sm text-success">{notice}</p>}
             {!isLogin && (
-              <label className="flex items-start gap-2 text-xs text-muted-foreground">
+              <label
+                ref={consentRef}
+                className={`flex items-start gap-2 rounded-lg text-xs text-muted-foreground transition-all ${
+                  consentHighlight ? "-mx-2 -my-1 animate-[shake_0.4s_ease-in-out] bg-destructive/10 px-2 py-1 ring-2 ring-destructive/60" : ""
+                }`}
+              >
                 <input
                   type="checkbox"
                   checked={consent}
