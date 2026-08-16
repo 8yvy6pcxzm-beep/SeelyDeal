@@ -49,6 +49,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     patch.value = Number.isFinite(numericValue) ? numericValue : 0;
   }
   if (body.sections !== undefined) patch.sections = Array.isArray(body.sections) ? body.sections : [];
+  // Typed blocks (see lib/types/proposal-blocks.ts) — e.g. Legal blocks copied
+  // from the Content Library. Always written to *this* proposal's `blocks`
+  // column only; never touches `company_documents` or `templates`.
+  if (body.blocks !== undefined) patch.blocks = Array.isArray(body.blocks) ? body.blocks : [];
   if (body.contractText !== undefined) patch.contract_text = body.contractText || null;
   if (body.introText !== undefined) patch.intro_text = body.introText || null;
   if (body.aboutText !== undefined) patch.about_text = body.aboutText || null;

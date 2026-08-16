@@ -10,6 +10,9 @@ import { usePlan } from "@/components/app/plan-provider";
 import { planAllows } from "@/lib/plan";
 import { cn } from "@/lib/utils";
 import { legacyToBlocks } from "@/lib/proposal-blocks/convert-legacy";
+import { BlockRenderer } from "@/components/app/blocks/block-renderer";
+import type { ProposalBlock } from "@/lib/types/proposal-blocks";
+import { templates as demoTemplates } from "@/lib/demo/data";
 
 type Msg = { role: "user" | "assistant"; content: string; attachmentNames?: string[]; hidden?: boolean };
 type Attachment = { name: string; mediaType: string; base64: string };
@@ -29,6 +32,12 @@ type Draft = {
   validDays?: number;
   contractText?: string;
   confirmed?: boolean;
+  /** Typed blocks (see lib/types/proposal-blocks.ts) — currently only ever populated
+   *  with "Legal" blocks the AI pulled from the Content Library (see
+   *  add_legal_block_to_proposal in app/api/draft-proposal/route.ts). Editing one here
+   *  only ever mutates this in-memory draft; saving PATCHes it into THIS proposal's
+   *  `blocks` column, never back into `company_documents`. */
+  blocks?: ProposalBlock[];
   /** Per-template visual theme (e.g. from the construction template) — passed through untouched. */
   themeJson?: { primaryColor: string; accentColor: string; font?: string };
   /** How the recipient views this proposal — "pages" (sidebar, one section at a time, like a
@@ -233,6 +242,15 @@ export function AiDraftDialog({
     { key: "pricing", tr: "Paket ve Ücret", en: "Package & pricing" },
     { key: "terms", tr: "Sözleşme Şartları", en: "Contract terms" },
     { key: "next", tr: "Sonraki Adımlar", en: "Next steps" },
+  ];
+  // Sector chips (empty-state, before the first message) — clicking one just sets
+  // activeTemplateId for the NEXT request; it doesn't send anything by itself, and
+  // doesn't touch the user's saved default template (/api/settings/default-template).
+  const SECTOR_CHIPS: { emoji: string; tr: string; en: string; templateId?: string }[] = [
+    { emoji: "🔨", tr: "Tadilat", en: "Renovation", templateId: demoTemplates.find((t) => t.sector === "construction")?.id },
+    { emoji: "💻", tr: "Yazılım", en: "Software", templateId: demoTemplates.find((t) => t.sector === "software")?.id },
+    { emoji: "💼", tr: "Danışmanlık", en: "Consulting", templateId: demoTemplates.find((t) => t.sector === "consulting")?.id },
+    { emoji: "📄", tr: "Varsayılan", en: "Default", templateId: undefined },
   ];
   const [showChecklist, setShowChecklist] = useState(false);
   const [checkedSections, setCheckedSections] = useState<Record<string, boolean>>(() =>
@@ -1125,6 +1143,28 @@ export function AiDraftDialog({
         <div className="flex-1 space-y-3 overflow-y-auto p-5">
           {messages.length === 0 && !onboardingPending && (
             <div className="space-y-3">
+              {mode === "proposal" && !initialTemplateId && !resumeProposalId && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {lang === "tr" ? "Sektör:" : "Sector:"}
+                  </span>
+                  {SECTOR_CHIPS.map((chip) => (
+                    <button
+                      key={chip.tr}
+                      type="button"
+                      onClick={() => setActiveTemplateId(chip.templateId)}
+                      className={cn(
+                        "shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                        activeTemplateId === chip.templateId
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border bg-muted/40 text-muted-foreground hover:bg-muted",
+                      )}
+                    >
+                      {chip.emoji} {lang === "tr" ? chip.tr : chip.en}
+                    </button>
+                  ))}
+                </div>
+              )}
               <p className="text-sm text-muted-foreground">
                 {lang === "tr"
                   ? "Örn: \"ABC Lojistik için operasyonel dönüşüm danışmanlığı teklifi hazırla, 3 aylık proje, toplam 45.000$ civarı.\""
@@ -1238,11 +1278,17 @@ export function AiDraftDialog({
                 )}
               </div>
               {(() => {
-                const blocks = legacyToBlocks({
-                  sections: draft.sections,
-                  lineItems: draft.lineItems,
-                  contractText: draft.contractText,
-                });
+                // Prefer draft.blocks when it's already been populated (e.g. by the
+                // add_legal_block_to_proposal tool — see app/api/draft-proposal/route.ts) so
+                // Legal blocks show up here too; legacyToBlocks alone has no idea they exist.
+                const blocks =
+                  draft.blocks && draft.blocks.length > 0
+                    ? draft.blocks
+                    : legacyToBlocks({
+                        sections: draft.sections,
+                        lineItems: draft.lineItems,
+                        contractText: draft.contractText,
+                      });
                 const blockLabel = (b: (typeof blocks)[number]) =>
                   b.type === "HeroCover"
                     ? lang === "tr" ? "Kapak" : "Cover"
@@ -1250,7 +1296,9 @@ export function AiDraftDialog({
                       ? lang === "tr" ? "Fiyatlandırma" : "Pricing"
                       : b.type === "ContractSignOff"
                         ? lang === "tr" ? "Sözleşme / İmza" : "Contract / Sign"
-                        : b.label;
+                        : b.type === "Legal"
+                          ? b.title
+                          : b.label;
                 return (
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1270,6 +1318,29 @@ export function AiDraftDialog({
                   </div>
                 );
               })()}
+              {draft.blocks && draft.blocks.some((b) => b.type === "Legal") && (
+                <BlockRenderer
+                  blocks={draft.blocks.filter((b) => b.type === "Legal")}
+                  ctx={{
+                    title: draft.title,
+                    client: draft.client,
+                    value: draft.value,
+                    lineItems: [],
+                    lang,
+                    editable: true,
+                    onLegalBlockChange: (blockId, patch) =>
+                      setDraft((prev) => {
+                        if (!prev?.blocks) return prev;
+                        return {
+                          ...prev,
+                          blocks: prev.blocks.map((b) =>
+                            b.id === blockId && b.type === "Legal" ? { ...b, ...patch, settings: { requireSignature: patch.requireSignature } } : b,
+                          ),
+                        };
+                      }),
+                  }}
+                />
+              )}
               {mode === "proposal" && showSaveTemplateField && (
                 <div className="flex items-center gap-1.5">
                   <Input

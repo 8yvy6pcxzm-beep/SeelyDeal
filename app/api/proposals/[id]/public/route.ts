@@ -9,12 +9,21 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const { data: proposal } = await service
     .from("proposals")
     .select(
-      "id, company_id, title, status, value, sections, line_items, contract_text, signed_at, signed_by_name, billing_options, selected_billing, intro_text, about_text, client_contact, next_steps, valid_days, created_at, theme_json, view_mode, clients(name), companies(name, logo_url, cover_image_url, primary_color, email, address, phone, plan)",
+      "id, company_id, title, status, value, sections, line_items, blocks, contract_text, signed_at, signed_by_name, billing_options, selected_billing, intro_text, about_text, client_contact, next_steps, valid_days, created_at, theme_json, view_mode, clients(name), companies(name, logo_url, cover_image_url, primary_color, email, address, phone, plan)",
     )
     .eq("id", id)
     .maybeSingle();
 
   if (!proposal) return NextResponse.json({ error: "Teklif bulunamadı." }, { status: 404 });
+
+  // Block-level signatures (Legal/ContractSignOff) — the public page uses this to
+  // show already-signed blocks as signed on reload, independent of the overall
+  // proposal accept/sign state.
+  const { data: blockSignatures } = await service
+    .from("block_signatures")
+    .select("block_id, signer_name, signed_at")
+    .eq("proposal_id", id);
+  (proposal as unknown as { blockSignatures: typeof blockSignatures }).blockSignatures = blockSignatures ?? [];
 
   // Real team photos, pulled live from the company's roster — not something the AI writes into the
   // section body, so it can't hallucinate a wrong image. Only shown for members who have a photo.

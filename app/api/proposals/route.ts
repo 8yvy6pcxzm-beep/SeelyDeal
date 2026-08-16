@@ -89,6 +89,16 @@ export async function GET(req: Request) {
     ? await service.from("proposal_views").select("proposal_id, viewed_at").in("proposal_id", ids)
     : { data: [] as { proposal_id: string; viewed_at: string }[] };
 
+  // Block-level signature audit trail (Legal/ContractSignOff blocks signed independently
+  // of the whole-proposal accept/sign) — see supabase/migrations/20260817000000_add_block_signatures.sql.
+  const { data: blockSignatures } = ids.length
+    ? await service
+        .from("block_signatures")
+        .select("proposal_id, block_id, block_type, signer_name, signer_email, otp_verified, ip, signed_at")
+        .in("proposal_id", ids)
+        .order("signed_at", { ascending: false })
+    : { data: [] as { proposal_id: string; block_id: string; block_type: string; signer_name: string; signer_email: string | null; otp_verified: boolean; ip: string | null; signed_at: string }[] };
+
   const dayKeys = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setUTCDate(d.getUTCDate() - (6 - i));
@@ -116,6 +126,7 @@ export async function GET(req: Request) {
       last_viewed_at: lastViewedAt,
       live_now: liveNow,
       live_selection: liveSelectionFresh ? p.live_selection : null,
+      block_signatures: (blockSignatures ?? []).filter((s: { proposal_id: string }) => s.proposal_id === p.id),
     };
   });
 

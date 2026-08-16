@@ -11,6 +11,8 @@ import appConfig from "@/app.config";
 import { isProposalFontKey, type ProposalFontKey } from "@/lib/proposal-fonts";
 import { BlockRenderer } from "@/components/app/blocks/block-renderer";
 import type { ProposalBlock } from "@/lib/types/proposal-blocks";
+import type { BlockSignState } from "@/components/app/blocks/block-sign-form";
+import { legacyToBlocks } from "@/lib/proposal-blocks/convert-legacy";
 
 // Loaded for proposals whose theme (from a template, or the company's own default —
 // see lib/proposal-fonts.ts) declares a non-default font — applied via inline style
@@ -43,6 +45,8 @@ type PublicProposal = {
   value: number;
   sections: { title: string; body: string; videoUrl?: string; condition?: { lineItem?: string; billingKey?: string } }[];
   line_items: LineItem[];
+  blocks: ProposalBlock[];
+  blockSignatures: { block_id: string; signer_name: string; signed_at: string }[];
   contract_text: string | null;
   signed_at: string | null;
   signed_by_name: string | null;
@@ -80,12 +84,6 @@ function fmtDate(iso: string, lang: "tr" | "en") {
   return d.toLocaleDateString(lang === "tr" ? "tr-TR" : "en-US", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
-// Splits contract text into numbered clauses when the seller/AI wrote it as "1. ... 2. ..."; falls back to one block.
-function splitClauses(text: string): string[] {
-  const matches = text.split(/\n?(?=\d+\.\s)/).map((s) => s.trim()).filter(Boolean);
-  return matches.length > 1 ? matches : [text];
-}
-
 export default function PublicProposalPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { lang } = useLang();
@@ -103,6 +101,9 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [requestingOtp, setRequestingOtp] = useState(false);
+  const [blockSignatures, setBlockSignatures] = useState<Record<string, { signerName: string; signedAt: string }>>({});
+  const [signingBlockId, setSigningBlockId] = useState<string | null>(null);
+  const [blockError, setBlockError] = useState<{ blockId: string; message: string } | null>(null);
   const [viewId, setViewId] = useState<string | null>(null);
   const skipLiveSelection = useRef(true);
   // Which "page" is currently shown when view_mode is "pages" — the proposal renders as a
@@ -169,6 +170,14 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
           setBillingKey(data.proposal?.selected_billing ?? options[0]?.key ?? null);
           setItems((data.proposal?.line_items ?? []).map((li: LineItem) => ({ ...li, included: li.optional ? !!li.included : true })));
           setSignerEmail(data.proposal?.client_contact?.email ?? "");
+          setBlockSignatures(
+            Object.fromEntries(
+              (data.proposal?.blockSignatures ?? []).map((s: { block_id: string; signer_name: string; signed_at: string }) => [
+                s.block_id,
+                { signerName: s.signer_name, signedAt: s.signed_at },
+              ]),
+            ),
+          );
         }
       })
       .catch(() => setError(lang === "tr" ? "Teklif yüklenemedi." : "Couldn't load the proposal."))
@@ -303,6 +312,60 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
     }
   }
 
+  // Signs a single Legal/ContractSignOff block, independent of the whole-proposal
+  // "Accept & Sign" above — the audit trail lives in `block_signatures`, keyed by block id.
+  async function signBlock(blockId: string, blockType: "Legal" | "ContractSignOff") {
+    if (!signerName.trim()) {
+      setBlockError({ blockId, message: lang === "tr" ? "İmzalamak için adını yazman gerekiyor." : "Type your name to sign." });
+      return;
+    }
+    if (requiresOtp && !otpCode.trim()) {
+      setBlockError({ blockId, message: lang === "tr" ? "Doğrulama kodunu gir." : "Enter the verification code." });
+      return;
+    }
+    setSigningBlockId(blockId);
+    setBlockError(null);
+    try {
+      const res = await fetch(`/api/proposals/${id}/blocks/${blockId}/sign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ blockType, signerName: signerName.trim(), signerEmail: signerEmail.trim(), otpCode: otpCode.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setBlockError({ blockId, message: data.error || (lang === "tr" ? "İmzalama başarısız oldu." : "Signing failed.") });
+        return;
+      }
+      setBlockSignatures((m) => ({
+        ...m,
+        [blockId]: { signerName: data.signature.signer_name, signedAt: data.signature.signed_at },
+      }));
+    } catch {
+      setBlockError({ blockId, message: lang === "tr" ? "Bağlantı hatası." : "Connection error." });
+    } finally {
+      setSigningBlockId(null);
+    }
+  }
+
+  function getBlockSignState(blockId: string, blockType: "Legal" | "ContractSignOff"): BlockSignState {
+    return {
+      signature: blockSignatures[blockId] ?? null,
+      signerName,
+      onSignerNameChange: setSignerName,
+      requiresOtp,
+      otpEmail: signerEmail,
+      onOtpEmailChange: setSignerEmail,
+      otpSent,
+      requestingOtp,
+      onRequestOtp: requestOtp,
+      otpCode,
+      onOtpCodeChange: setOtpCode,
+      signing: signingBlockId === blockId,
+      onSign: () => signBlock(blockId, blockType),
+      error: blockError?.blockId === blockId ? blockError.message : null,
+    };
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -353,7 +416,18 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
   const hasSummary = !!(proposal.intro_text || proposal.about_text || company || client.contactName || client.company);
   const hasScope = visibleSections.length > 0;
   const hasPricing = items.length > 0 || billingOptions.length > 0;
-  const hasContract = !!proposal.contract_text || proposal.next_steps?.length > 0;
+
+  // Legal/ContractSignOff blocks — from `blocks[]` when the proposal was authored
+  // with the block editor, or derived from the legacy contract_text column otherwise
+  // (see lib/proposal-blocks/convert-legacy.ts). Rendered via BlockRenderer below so
+  // each one carries its own independent sign form + audit trail (block_signatures).
+  const signableBlocks = (proposal.blocks?.length ? proposal.blocks : legacyToBlocks({ contractText: proposal.contract_text ?? undefined })).filter(
+    (b): b is Extract<ProposalBlock, { type: "Legal" | "ContractSignOff" }> => b.type === "Legal" || b.type === "ContractSignOff",
+  );
+  const pendingRequiredSignatures = signableBlocks.filter(
+    (b) => b.type === "Legal" && b.settings.requireSignature && !blockSignatures[b.id],
+  ).length;
+  const hasContract = signableBlocks.length > 0 || proposal.next_steps?.length > 0;
 
   // The sidebar's pages — only lists bands that actually exist in this proposal. Each is its
   // own full-screen "page", switched with `activeNav` instead of scrolled to.
@@ -687,17 +761,23 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
           <div className="mx-auto max-w-3xl space-y-10">
             <h2 className="font-display text-2xl font-bold">{lang === "tr" ? "Sözleşme" : "Contract"}</h2>
 
-            {proposal.contract_text && (
+            {signableBlocks.length > 0 && (
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">
                   {lang === "tr" ? "Sözleşme Koşulları" : "Contract Terms"}
                 </p>
                 <div className="space-y-2">
-                  {splitClauses(proposal.contract_text).map((clause, i) => (
-                    <p key={i} className="whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
-                      {clause}
-                    </p>
-                  ))}
+                  <BlockRenderer
+                    blocks={signableBlocks}
+                    ctx={{
+                      title: proposal.title,
+                      client: client.company || proposal.clients?.name || "",
+                      value: proposal.value,
+                      lineItems: items.map((li, i) => ({ id: String(i), name: li.name, unit: li.unit, qty: li.qty, optional: li.optional })),
+                      lang,
+                      getBlockSignState: signed ? undefined : getBlockSignState,
+                    }}
+                  />
                 </div>
               </div>
             )}
@@ -820,9 +900,16 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
                   )}
                 </div>
               )}
+              {pendingRequiredSignatures > 0 && (
+                <p className="mb-3 text-xs text-muted-foreground">
+                  {lang === "tr"
+                    ? `Onaylamadan önce yukarıdaki ${pendingRequiredSignatures} sözleşme maddesini imzalaman gerekiyor.`
+                    : `Sign the ${pendingRequiredSignatures} contract clause${pendingRequiredSignatures > 1 ? "s" : ""} above before you can accept.`}
+                </p>
+              )}
               <Button
                 onClick={sign}
-                disabled={signing || (requiresOtp && !otpSent)}
+                disabled={signing || (requiresOtp && !otpSent) || pendingRequiredSignatures > 0}
                 className="w-full gap-2"
                 size="lg"
                 style={accentColor ? { backgroundColor: accentColor, borderColor: accentColor } : undefined}

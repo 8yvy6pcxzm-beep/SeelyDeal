@@ -8,6 +8,10 @@ import { isSeelyDealPricingLeak } from "@/lib/seelydeal-pricing-leak";
 import { templates } from "@/lib/demo/data";
 import { planAllows } from "@/lib/plan";
 import type { createServiceClient as CreateServiceClient } from "@/lib/supabase/server";
+import { createLegalBlockFromDocument } from "@/lib/proposal-blocks/legal-block";
+import { createTextBlockFromDocument } from "@/lib/proposal-blocks/text-block";
+import { legacyToBlocks } from "@/lib/proposal-blocks/convert-legacy";
+import type { ProposalBlock } from "@/lib/types/proposal-blocks";
 
 // AI drafting (company context + template docs + an optional attachment) routinely
 // runs past the platform's default serverless timeout; give it real headroom so the
@@ -114,6 +118,119 @@ async function resolveTemplateById(
   if (!row) return undefined;
 
   return normalizeCompanyTemplate({ id, ...row });
+}
+
+// Real Anthropic tool calling (not the ```json``` convention) so the model can check
+// the Content Library live and inject a copy of a document into the current draft —
+// used for "kütüphaneden X'i çek ve teklife ekle" requests, whatever the document type.
+// All tools are read-scoped to the caller's own company_id; the add tools never write
+// to `company_documents` — they only produce an in-memory block appended to `draft.blocks`
+// (see lib/proposal-blocks/legal-block.ts and lib/proposal-blocks/text-block.ts for the
+// deep-copy guarantee — the source library row is never mutated).
+const draftTools = [
+  {
+    name: "search_content_library",
+    description:
+      "Şirketin İçerik Kütüphanesi'nde (company_documents) canlı arama yapar — sözleşme/NDA metinleri, hizmet açıklamaları, fiyatlandırma/teklif şablonları ve serbest içerik blokları dahil. Kullanıcı 'kütüphanemdeki X'i kullan/ekle' gibi bir şey istediğinde, önce bunu çağırıp doğru dokümanı bul.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        type: {
+          type: "string",
+          enum: ["contract", "proposal_template", "service_description", "other", "content_block"],
+          description:
+            "Doküman türüne göre filtrele (opsiyonel). Sözleşme/NDA için 'contract'; hizmet açıklaması için 'service_description'; fiyat tablosu/kalem listesi genelde 'proposal_template' ya da 'service_description' içinde metin olarak bulunur (ayrı bir DB tipi yok); serbest içerik parçaları için 'content_block'.",
+        },
+        query: { type: "string", description: "Başlık/içerikte aranacak serbest metin (opsiyonel)." },
+      },
+    },
+  },
+  {
+    name: "add_legal_block_to_proposal",
+    description:
+      "İçerik Kütüphanesi'ndeki bir dokümanı (örn. NDA, gizlilik sözleşmesi — type: 'contract'), o teklife özel BAĞIMSIZ bir kopya olarak, teklifin SONUNA düzenlenebilir bir 'Legal' blok halinde ekler. Kaynak dokümanın kendisini ASLA değiştirmez — sadece bu teklife ait ayrı bir kopya oluşturur, kütüphanedeki orijinal doküman aynen kalır.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        documentId: { type: "string", description: "search_content_library sonucundan alınan doküman id'si." },
+        requireSignature: { type: "boolean", description: "Bu blok için ayrı imza zorunlu tutulsun mu (varsayılan false)." },
+      },
+      required: ["documentId"],
+    },
+  },
+  {
+    name: "add_text_block_from_library",
+    description:
+      "İçerik Kütüphanesi'ndeki bir hizmet açıklaması/içerik bloğu dokümanını (type: 'service_description', 'content_block' veya 'other'), o teklife özel BAĞIMSIZ bir kopya olarak, teklifin ilgili bölümüne (ör. Teslim Edilecekler, Stratejimiz) düzenlenebilir bir metin ('RichSection') blok halinde ekler. Kaynak dokümanı ASLA değiştirmez. Fiyat tablosu/kalem listesi eklemek için bu aracı KULLANMA — kütüphaneden çektiğin fiyat kalemlerini normal \\`lineItems\\` alanına (json bloğunda) kalem kalem ekle, çünkü teklifin fiyat tablosu ayrı bir bloğun içinde değil, her zaman teklifin kendi \\`lineItems\\`'ından üretilir.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        documentId: { type: "string", description: "search_content_library sonucundan alınan doküman id'si." },
+        sectionLabel: {
+          type: "string",
+          description: "Bloğun görüneceği bölüm başlığı (ör. 'Teslim Edilecekler', 'Stratejimiz'). Verilmezse doküman başlığı kullanılır.",
+        },
+        icon: { type: "string", enum: ["team", "timeline", "strategy"], description: "Opsiyonel bölüm ikonu." },
+      },
+      required: ["documentId"],
+    },
+  },
+];
+
+async function runDraftTool(
+  name: string,
+  input: Record<string, unknown>,
+  service: ReturnType<typeof CreateServiceClient>,
+  companyId: string,
+  pendingLegalBlocks: ProposalBlock[],
+  pendingContentBlocks: ProposalBlock[],
+): Promise<string> {
+  if (name === "search_content_library") {
+    let q = service.from("company_documents").select("id, type, title, content").eq("company_id", companyId);
+    if (typeof input.type === "string") q = q.eq("type", input.type);
+    const { data } = await q;
+    const rows = (data ?? []) as { id: string; type: string; title: string; content: string | null }[];
+    const query = typeof input.query === "string" ? input.query.toLowerCase() : "";
+    const filtered = query ? rows.filter((d) => `${d.title} ${d.content ?? ""}`.toLowerCase().includes(query)) : rows;
+    return JSON.stringify(
+      filtered.slice(0, 10).map((d) => ({ id: d.id, type: d.type, title: d.title, preview: (d.content ?? "").slice(0, 200) })),
+    );
+  }
+
+  if (name === "add_legal_block_to_proposal") {
+    const documentId = typeof input.documentId === "string" ? input.documentId : "";
+    const { data: doc } = await service
+      .from("company_documents")
+      .select("id, title, content")
+      .eq("id", documentId)
+      .eq("company_id", companyId)
+      .maybeSingle();
+    if (!doc) return JSON.stringify({ error: "Doküman bulunamadı." });
+
+    const block = createLegalBlockFromDocument(doc) as Extract<ProposalBlock, { type: "Legal" }>;
+    if (typeof input.requireSignature === "boolean") block.settings.requireSignature = input.requireSignature;
+    pendingLegalBlocks.push(block);
+    return JSON.stringify({ ok: true, title: block.title });
+  }
+
+  if (name === "add_text_block_from_library") {
+    const documentId = typeof input.documentId === "string" ? input.documentId : "";
+    const { data: doc } = await service
+      .from("company_documents")
+      .select("id, title, content")
+      .eq("id", documentId)
+      .eq("company_id", companyId)
+      .maybeSingle();
+    if (!doc) return JSON.stringify({ error: "Doküman bulunamadı." });
+
+    const label = typeof input.sectionLabel === "string" && input.sectionLabel.trim() ? input.sectionLabel.trim() : doc.title;
+    const icon = input.icon === "team" || input.icon === "timeline" || input.icon === "strategy" ? input.icon : "strategy";
+    const block = createTextBlockFromDocument(doc, label, icon);
+    pendingContentBlocks.push(block);
+    return JSON.stringify({ ok: true, label });
+  }
+
+  return JSON.stringify({ error: "Bilinmeyen araç." });
 }
 
 export async function POST(req: Request) {
@@ -429,6 +546,11 @@ KURALLAR:
 - ÇOK ÖNEMLİ — OKUNAMAYAN/BULANIK DOSYA: İçerik net ve eksiksiz çıkarılamıyorsa (görsel bulanık, kesik/kırpılmış, dosyadan okunabilir metin çıkmıyor, çıkan metin anlamsız/parça parça) ASLA "tamam, aldım" diyip biliyormuş gibi devam etme. Bunun yerine açıkça söyle: neyin net olmadığını VE muhtemel sebebini belirt (örn. "gönderdiğin görsel bulanık görünüyor", "ekran görüntüsünün kenarları kesilmiş, bazı bilgiler görünmüyor", "bu dosyadan okunabilir bir metin çıkaramadım"), sonra somut bir düzeltme iste (örn. "daha net bir fotoğraf çeker misin?" / "ekran görüntüsü yerine orijinal dosyayı paylaşır mısın?"). Kısmen okunabiliyorsa okunan kısmı kullan, okunamayan kısmı ayrıca belirtip onu sor; hiçbir alanı tahminle/uydurarak doldurma.
 - ÇOK ÖNEMLİ — İÇERİK KÜTÜPHANESİ İÇİN ÖRNEK İSTERKEN (KVKK): Kullanıcıdan içerik kütüphanesi/varsayılan şablon için "halihazırda kullandığınız bir teklif örneği" isterken, ÖNCELİKLE içinde herhangi bir müşteri bilgisi OLMAYAN, boş/şablon bir örnek istediğini belirt. Kullanıcının paylaştığı dosyada gerçek bir müşterinin bilgileri (isim, e-posta, adres vb.) varsa, bunu fark ettiğinde cevabında MUTLAKA şunu söyle (aynen kopyalamak zorunda değilsin ama anlamı korunmalı): "Müşterinizin bilgileri sizin onayınız olmadıkça saklanmaz — burada eklenmesi gereken KVKK bölümleri varsa bunu araştırıp güncelleyebilirim." Bu uyarıyı atlama.
 - Kullanıcı "standart sözleşmemi/teklif formatımı kullan, şunu revize et" derse, aşağıdaki VARSAYILAN İÇERİK'ten ilgili dokümanı bul, verdiği talimatlara göre revize ederek kullan.
+- ÇOK ÖNEMLİ — KÜTÜPHANEDEN İÇERİK ÇEKME (ARAÇ KULLANIMI): Kullanıcı AÇIKÇA "kütüphanemdeki X'i çek/ekle", "standart sözleşmemizi/NDA'mızı ekle", "X hizmetinin açıklamasını kütüphaneden ekle", "standart fiyat listemi yerleştir" gibi bir şey isterse, VARSAYILAN İÇERİK'teki metne güvenip kendi başına yazma — önce \`search_content_library\` aracını çağırıp güncel/canlı kütüphaneyi kontrol et ve doğru dokümanı bul. Tek net eşleşme varsa tekrar sormadan devam et; birden fazla olası eşleşme varsa kullanıcıya hangisini istediğini kısaca sor. Bulduğun dokümanın \`type\`ına göre şu dönüştürme kurallarını uygula (kütüphanedeki kaynak dokümanın kendisi bu işlemlerin HİÇBİRİNDE değişmez — hepsi sadece BU teklife özel, bağımsız bir kopya üretir):
+  - \`type: "service_description"\` veya \`type: "content_block"\` (ya da \`"other"\` ama içerik hizmet/kapsam anlatıyorsa) → \`add_text_block_from_library\` aracını çağır, içeriği Teslim Edilecekler/Kapsam ya da Stratejimiz gibi uygun bir bölüme (\`sectionLabel\`) düzenlenebilir bir metin bloğu olarak yerleştir. ÇOK ÖNEMLİ — MÜKERRER EKLEME YOK: bu aracı çağırdığın bir doküman için, aynı içeriği \`\`\`json\`\`\` çıktındaki \`sections\` dizisine AYRICA bir bölüm olarak EKLEME — araç zaten kendi bağımsız bloğunu ekliyor, \`sections\`'a da yazarsan aynı içerik teklifte iki kez (mükerrer) görünür.
+  - Doküman bir FİYAT TABLOSU/kalem listesiyse (kütüphanede ayrı bir "fiyat tablosu" doküman TÜRÜ yok — bu genelde \`proposal_template\` ya da \`service_description\` içinde düz metin olarak bulunur): bunun için araç KULLANMA. \`search_content_library\` sonucundaki (veya gerektiğinde tam içeriği almak için tekrar arama yaptığın) metni oku, kalem kalem ayrıştır (isim + birim fiyat) ve bu kalemleri normal \`\`\`json\`\`\` çıktındaki \`lineItems\` dizisine ekle/güncelle — teklifin fiyat tablosu her zaman \`lineItems\`'tan otomatik üretilir, ayrı bir "pricing" blok YOKTUR.
+  - \`type: "contract"\` → \`add_legal_block_to_proposal\` aracını (bulduğun \`documentId\` ile) çağır; bu, teklifin SONUNA düzenlenebilir bir \`Legal\` blok ekler.
+  Cevabında ne yaptığını netleştir (örn. "Kütüphanedeki NDA'nın bir kopyasını teklifin sonuna ekledim, istersen bu teklife özel düzenleyebilirsin — orijinal kütüphane kaydı değişmedi." / "X hizmetinin açıklamasını kütüphaneden alıp Teslim Edilecekler bölümüne ekledim." / "Kütüphanedeki fiyat listeni okuyup kalemleri teklifin fiyatlandırmasına ekledim."). Kullanıcı bunu AÇIKÇA istemedikçe bu araçları/dönüştürmeyi kendiliğinden yapma.
 - ÇOK ÖNEMLİ — GERÇEK PAKETLERİMİZ SADECE SEELYDEAL SATIŞINDA: Aşağıdaki GERÇEK PAKETLERİMİZ listesi (Lite/Pro/Custom) SeelyDeal ürününün KENDİ abonelik fiyatlarıdır — SADECE kullanıcı SeelyDeal'ı (bu uygulamanın kendisini) bir müşteriye satan bir teklif hazırlatıyorsa kullan. DİĞER TÜM DURUMLARDA (kullanıcının KENDİ hizmetini/ürününü sattığı normal senaryo, ki neredeyse her zaman budur) bu paket listesini kesinlikle ASLA önerme, hizmet/fiyatlandırma sorusuna cevap olarak sunma veya "varsayılan olarak bunu kullanabiliriz" deme — bu listenin şirketin kendi hizmet/fiyat listesiyle HİÇBİR ilgisi yok. Kullanıcının kendi hizmetleri/fiyatlandırması belirsizse veya sorulduğunda cevap vermediyse, GERÇEK PAKETLERİMİZ'e otomatik geçmek yerine kullanıcıya doğrudan sor (örn. "Hangi hizmeti ne ücrete sunuyorsun?") ve cevap gelmeden fiyat uydurma.
 - ÇOK ÖNEMLİ — "BEN LITE/PRO/CUSTOM PAKETİM" TUZAĞI: Kullanıcı "ben custom paketim", "pro kullanıcısıyım" gibi bir şey yazarsa bu HER ZAMAN kendi SeelyDeal ABONELİĞİNDEN bahsediyordur (hangi özelliklere erişimi olduğunu belirtmek için) — bu, müşterisine ne kadara/ne isimle bir hizmet paketi satacağıyla İLGİLİ DEĞİLDİR. Böyle bir cümle gördüğünde ASLA GERÇEK PAKETLERİMİZ listesinden o pakete karşılık gelen fiyatı/adı müşteri teklifine yazma (örn. "Custom paket için anladım, $1.200'a teklif hazırlayacağız" YANLIŞ) — bunu tamamen görmezden gel ve hizmet/fiyatlandırma sorusunu (kullanıcının kendi hizmeti için) normal şekilde sormaya devam et.
 - ÇOK ÖNEMLİ — TEK PAKET VARSAYILANI: Kullanıcı SeelyDeal'ı (bu ürünün kendisini) bir müşteriye satan bir teklif hazırlatıyorsa, VARSAYILAN OLARAK sadece TEK bir paket (müşterinin ihtiyacına en uygun olanı, belirsizse Pro) öner — o paketin fiyatını normal bir \`lineItem\` olarak yaz, \`billingOptions\` dizisini BOŞ bırak. \`billingOptions\`u (birden fazla, birbirini dışlayan seçenek — ki bu her seçenek için ayrı bir ödeme linki kutusu doğurur) SADECE kullanıcı açıkça "müşteri birden fazla paket arasından seçsin", "aylık ve yıllık ikisini de sunayım", "farklı seçenekler göster" gibi bir şey istediğinde kullan. "Kapsamlı olsun", "tüm bölümler dahil olsun" gibi genel istekler bunu TETİKLEMEZ — bunlar sadece bölüm/içerik zenginliğiyle ilgilidir, paket sayısıyla değil.
@@ -505,20 +627,39 @@ ${pricingBlock}${websiteContext}${prefillBlock}`;
     return { role: m.role, content: m.content };
   });
 
+  const pendingLegalBlocks: ProposalBlock[] = [];
+  const pendingContentBlocks: ProposalBlock[] = [];
+  let loopMessages = anthropicMessages as any[];
   let response;
   try {
-    response = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 8192,
-      system: systemPrompt,
-      messages: anthropicMessages as any,
-    });
+    // Up to 4 rounds: gives the model room to search the library, then add the
+    // block it found, without letting a stuck loop run away with API calls.
+    for (let round = 0; round < 4; round++) {
+      response = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 8192,
+        system: systemPrompt,
+        messages: loopMessages,
+        tools: draftTools,
+      });
+      if (response.stop_reason !== "tool_use") break;
+
+      const toolUses = response.content.filter((b) => b.type === "tool_use");
+      const toolResults = await Promise.all(
+        toolUses.map(async (tu: any) => ({
+          type: "tool_result" as const,
+          tool_use_id: tu.id,
+          content: await runDraftTool(tu.name, tu.input ?? {}, service, profile.company_id, pendingLegalBlocks, pendingContentBlocks),
+        })),
+      );
+      loopMessages = [...loopMessages, { role: "assistant", content: response.content }, { role: "user", content: toolResults }];
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : "AI yanıt veremedi.";
     return NextResponse.json({ error: message }, { status: 502 });
   }
 
-  const replyText = response.content.map((b) => (b.type === "text" ? b.text : "")).join("");
+  const replyText = response!.content.map((b) => (b.type === "text" ? b.text : "")).join("");
 
   const jsonMatch = replyText.match(/```json\s*([\s\S]*?)```/);
   let draft = null;
@@ -538,6 +679,17 @@ ${pricingBlock}${websiteContext}${prefillBlock}`;
     // No themed template chosen — fall back to the company's own onboarding-set
     // default font (see lib/proposal-fonts.ts) instead of leaving it unset.
     draft.themeJson = { ...(draft.themeJson || {}), font: company.font };
+  }
+
+  // Any Legal/RichSection blocks the model pulled from the Content Library this turn
+  // (see add_legal_block_to_proposal / add_text_block_from_library above) — content
+  // blocks are appended first (they belong among the proposal's regular sections),
+  // Legal blocks last (always at the very end). Neither is ever written back to
+  // company_documents.
+  if (draft && (pendingLegalBlocks.length > 0 || pendingContentBlocks.length > 0)) {
+    const baseBlocks: ProposalBlock[] =
+      Array.isArray(draft.blocks) && draft.blocks.length > 0 ? draft.blocks : legacyToBlocks(draft);
+    draft.blocks = [...baseBlocks, ...pendingContentBlocks, ...pendingLegalBlocks];
   }
 
   // Optional ```brand``` block — logo/color (and, during onboarding, company name) the model detected this turn (see MARKA KAYDI rule above).

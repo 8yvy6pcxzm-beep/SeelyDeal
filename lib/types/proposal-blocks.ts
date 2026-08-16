@@ -21,4 +21,14 @@ export type ProposalBlock =
       sectionIndex?: number;
     }
   | { id: string; type: "PricingTable" }
-  | { id: string; type: "ContractSignOff"; contractText?: string };
+  | { id: string; type: "ContractSignOff"; contractText?: string }
+  | {
+      id: string;
+      type: "Legal";
+      title: string;
+      content: string;
+      settings: { requireSignature: boolean };
+      /** id of the source `company_documents` row this block was copied from,
+       *  kept only for display ("Kaynak: ...") — never used to write back to it. */
+      sourceDocumentId?: string;
+    };

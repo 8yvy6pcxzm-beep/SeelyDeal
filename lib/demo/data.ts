@@ -404,6 +404,10 @@ export interface Template {
    *  contractText are genuine content the user can load into the editor and
    *  revise via lib/proposal-blocks/convert-legacy.ts + <BlockRenderer>. */
   kind?: "draft";
+  /** Sector tag for "draft" templates — drives the sector chips in the AI chat
+   *  modal (components/app/ai-draft-dialog.tsx) and lets Seely reference the
+   *  right sector-specific defaults (see draft-proposal/route.ts). */
+  sector?: "construction" | "software" | "events" | "consulting" | "general";
   /** Legacy chat-nickname matching (app/api/draft-proposal/route.ts) — no demo
    *  template sets this anymore, kept only so that file's type still compiles. */
   nickname?: string;
@@ -430,6 +434,7 @@ export const templates: Template[] = [
     winRate: 0,
     accent: "var(--seg-1)",
     kind: "draft",
+    sector: "construction",
     theme: { primaryColor: "#00173c", accentColor: "#a04100", font: "Hanken Grotesk" },
     introText: {
       tr: "Sayın Ahmet Yılmaz,\n\nVizyoner hedeflerinizi yakından takip ediyor ve Ticari Kompleks Cephe Yenileme Projesi'nde sizlere değer katmak için bu kapsamlı teklifi sunmaktan onur duyuyoruz. Projenin çevresel sürdürülebilirlik ve modern mimari estetik gereksinimlerini derinden anlıyoruz.\n\nAmacımız sadece bir cephe yenileme işlemi gerçekleştirmek değil, aynı zamanda binanın enerji verimliliğini artırarak uzun vadeli operasyonel maliyetlerinizi optimize etmektir. Yenilikçi malzeme seçimlerimiz ve detaylı iş planımızla, projenin günlük faaliyetlerinizi aksatmadan, belirlenen bütçe ve takvim sınırları içerisinde tamamlanmasını taahhüt ediyoruz.\n\nİşbirliğimizin her iki tarafa da uzun vadeli değer katacağına inancımız tamdır. Saygılarımızla.",
@@ -488,6 +493,7 @@ export const templates: Template[] = [
     winRate: 0,
     accent: "var(--seg-2)",
     kind: "draft",
+    sector: "general",
     introText: {
       tr: "Sayın [Müşteri Yetkilisi],\n\n[Müşteri firma]nın hedeflerini yakından takip ediyor ve [proje/iş adı]nda sizlere değer katmak için bu kapsamlı teklifi sunmaktan onur duyuyoruz.\n\nAmacımız, işi zamanında ve bütçe dahilinde teslim ederken uzun vadeli değer yaratmaktır.\n\nİşbirliğimizin her iki tarafa da uzun vadeli değer katacağına inancımız tamdır. Saygılarımızla.",
       en: "Dear [Client Contact],\n\nWe are honored to submit this comprehensive proposal for [project/work name] to help you reach your goals.\n\nOur aim is to deliver on time and on budget while creating lasting value.\n\nWe believe this partnership will create lasting value for both sides. Best regards.",
@@ -543,6 +549,7 @@ export const templates: Template[] = [
     winRate: 0,
     accent: "var(--seg-4)",
     kind: "draft",
+    sector: "consulting",
     sections: [
       {
         title: { tr: "Yönetici Özeti", en: "Executive Summary" },
@@ -581,6 +588,100 @@ export const templates: Template[] = [
     contractText: {
       tr: "İşbu sözleşme, Danışman tarafından Müşteri'ye sunulacak stratejik dönüşüm ve iş süreçleri optimizasyonu hizmetlerinin genel çerçevesini belirler.\n\nGizlilik ve Veri Güvenliği: Taraflar, işbu sözleşme kapsamında paylaştıkları tüm ticari, finansal ve teknik bilgileri gizli bilgi olarak kabul eder; yazılı onay olmaksızın üçüncü şahıslarla paylaşamaz.\n\nÜcretlendirme ve Ödeme Koşulları: Hizmet bedeli, kabul edilen fiyatlandırma teklifinde detaylandırıldığı üzere belirlenmiştir. Fatura kesim tarihinden itibaren ödeme vadesi 15 (on beş) iş günüdür.\n\nFesih Şartları: Taraflardan herhangi biri, 30 (otuz) gün önceden yazılı bildirimde bulunmak kaydıyla işbu sözleşmeyi tek taraflı olarak feshedebilir; fesih durumunda tamamlanan işlerin bedeli oransal olarak hesaplanarak ödenir.",
       en: "This agreement sets out the general framework for the strategic transformation and business process optimization services the Consultant will provide to the Client.\n\nConfidentiality & Data Security: The parties treat all commercial, financial, and technical information shared under this agreement as confidential and will not disclose it to third parties without written consent.\n\nFees & Payment Terms: Fees are as detailed in the accepted pricing proposal. Payment is due within 15 business days of the invoice date.\n\nTermination: Either party may terminate this agreement unilaterally with 30 days' written notice; in the event of termination, fees for completed work are calculated on a pro-rata basis.",
+    },
+  },
+  {
+    id: "t10",
+    name: { tr: "Yazılım / Tasarım Projesi", en: "Software / Design Project" },
+    category: { tr: "Yazılım", en: "Software" },
+    uses: 0,
+    winRate: 0,
+    accent: "var(--seg-3)",
+    kind: "draft",
+    sector: "software",
+    introText: {
+      tr: "Sayın [Müşteri Yetkilisi],\n\n[Ürün/proje adı] için ekibinizle konuştuğumuz ihtiyaçlar doğrultusunda bu teklifi hazırlamaktan memnuniyet duyuyoruz. Amacımız, kullanıcı deneyimini önceliklendiren, sürdürülebilir ve ölçeklenebilir bir ürün ortaya çıkarmak.\n\nAşağıda projenin fazlarını, teslimlerini ve fiyatlandırmasını bulabilirsiniz.",
+      en: "Dear [Client Contact],\n\nBased on what we discussed with your team about [product/project name], we're glad to share this proposal. Our goal is a sustainable, scalable product that puts user experience first.\n\nBelow you'll find the project phases, deliverables, and pricing.",
+    },
+    aboutText: {
+      tr: "Ürün tasarımı ve yazılım geliştirme alanında uçtan uca ekiplerle çalışıyor, keşiften canlıya almaya kadar tüm süreci yönetiyoruz.\n\n\"Teslim tarihlerine sadık kaldılar ve kod kalitesi beklediğimizin üzerindeydi.\" — [Referans Adı], [Unvan], [Referans Firma]",
+      en: "We work end-to-end on product design and software delivery, owning the process from discovery through to launch.\n\n\"They hit every deadline and the code quality exceeded our expectations.\" — [Reference Name], [Title], [Reference Company]",
+    },
+    sections: [
+      {
+        title: { tr: "Teslim Edilecekler", en: "Deliverables" },
+        body: {
+          tr: "• Keşif & analiz: kullanıcı görüşmeleri, gereksinim dokümanı.\n• UI/UX tasarım: Figma üzerinden wireframe ve yüksek çözünürlüklü tasarım teslimi, paylaşılabilir link.\n• Geliştirme: sprint bazlı ilerleme, her sprint sonunda staging ortamında demo.\n• Test & QA: fonksiyonel test raporu, hata (bug) kapatma.\n• Canlıya alma: production deploy, kaynak kod repo erişiminin devri.\n• Bakım & destek: canlıya almadan sonra [X] ay dahil destek periyodu.",
+          en: "• Discovery & analysis: user interviews, requirements document.\n• UI/UX design: wireframes and high-fidelity design delivered via a shareable Figma link.\n• Development: sprint-based progress, staging demo at the end of each sprint.\n• Test & QA: functional test report, bug closure.\n• Launch: production deploy, source code repo access handover.\n• Maintenance & support: [X] months of included support after launch.",
+        },
+      },
+      {
+        title: { tr: "Kapsam Dışında", en: "Excluded from Scope" },
+        body: {
+          tr: "• Üçüncü parti lisans/servis ücretleri (barındırma, API vb.) müşteriye aittir.\n• Kapsam dışı yeni özellik talepleri ayrı teklif konusudur.",
+          en: "• Third-party license/service fees (hosting, APIs, etc.) are the client's responsibility.\n• New feature requests outside scope require a separate quote.",
+        },
+      },
+      {
+        title: { tr: "Süreç", en: "Process" },
+        body: {
+          tr: "Sprint bazlı çalışıyoruz; her sprint sonunda staging ortamında canlı demo ve geri bildirim turu yapılır.",
+          en: "We work in sprints; each sprint ends with a live staging demo and a feedback round.",
+        },
+      },
+    ],
+    lineItems: [
+      { name: { tr: "Keşif & UI/UX Tasarım", en: "Discovery & UI/UX Design" }, qty: 1, unit: 25000 },
+      { name: { tr: "Geliştirme (sprint)", en: "Development (sprint)" }, qty: 4, unit: 18000 },
+      { name: { tr: "Test & QA", en: "Test & QA" }, qty: 1, unit: 6000 },
+      { name: { tr: "Bakım & Destek (aylık)", en: "Maintenance & Support (monthly)" }, qty: 3, unit: 4000 },
+    ],
+    contractText: {
+      tr: "Fikri Mülkiyet: Bedelin tamamı ödendikten sonra, teslim edilen kod ve tasarım varlıklarının mülkiyeti Müşteri'ye devredilir; bu tarihe kadar mülkiyet Yüklenici'de kalır.\n\nRevizyon Hakkı: Teklif kapsamına 2 (iki) revizyon turu dahildir; ek revizyonlar ayrıca ücretlendirilir.\n\nGizlilik: Taraflar, proje kapsamında paylaşılan tüm teknik ve ticari bilgileri gizli tutar.\n\nKapsam Değişikliği: Kapsam dışı yeni talepler yazılı ek teklif ile ücretlendirilir.",
+      en: "Intellectual Property: Ownership of delivered code and design assets transfers to the Client upon full payment; until then it remains with the Contractor.\n\nRevisions: 2 rounds of revisions are included; additional revisions are billed separately.\n\nConfidentiality: Both parties keep all technical and commercial information shared during the project confidential.\n\nChange Requests: New requests outside scope are quoted and billed separately.",
+    },
+  },
+  {
+    id: "t11",
+    name: { tr: "Etkinlik / Fotoğrafçılık", en: "Events / Photography" },
+    category: { tr: "Etkinlik", en: "Events" },
+    uses: 0,
+    winRate: 0,
+    accent: "var(--seg-1)",
+    kind: "draft",
+    sector: "events",
+    introText: {
+      tr: "Sayın [Müşteri Yetkilisi],\n\n[Etkinlik adı] için sizlere özel hazırladığımız bu teklifte, çekim planından teslim sürecine kadar tüm detayları bulabilirsiniz. Anınızı en iyi şekilde ölümsüzleştirmek için buradayız.",
+      en: "Dear [Client Contact],\n\nHere is our proposal for [event name], covering everything from the shoot plan to delivery. We're here to capture your moment at its best.",
+    },
+    aboutText: {
+      tr: "Etkinlik ve portre fotoğrafçılığında [X] yıllık deneyimimizle, doğal ve zamansız kareler üretiyoruz.\n\n\"Çekim günü çok profesyoneldiler, teslimler de söz verdikleri tarihte elimize ulaştı.\" — [Referans Adı]",
+      en: "With [X] years in event and portrait photography, we deliver natural, timeless shots.\n\n\"They were fully professional on the day, and delivery arrived exactly when promised.\" — [Reference Name]",
+    },
+    sections: [
+      {
+        title: { tr: "Teslim Edilecekler", en: "Deliverables" },
+        body: {
+          tr: "• Çekim öncesi planlama görüşmesi ve mekan/konsept netleştirme.\n• Çekim günü: [X] saat süre, [Y] kişilik ekip.\n• Ham (düzenlenmemiş) görüntülerin teslimi: çekimden itibaren [X] gün içinde.\n• Düzenlenmiş/retouch edilmiş görsellerin teslimi: [X] adet, dijital galeri linki üzerinden.\n• Baskı seçenekleri: talep halinde ek ücretle albüm/baskı hizmeti.\n• Ek çekim/uzatma: saatlik ek ücretlendirme ile mümkündür.",
+          en: "• Pre-shoot planning call and venue/concept confirmation.\n• Shoot day: [X] hours, a team of [Y].\n• Raw (unedited) image delivery: within [X] days of the shoot.\n• Edited/retouched image delivery: [X] photos, via a digital gallery link.\n• Print options: album/print service available for an extra fee on request.\n• Extra coverage: available at an hourly add-on rate.",
+        },
+      },
+      {
+        title: { tr: "Süreç", en: "Process" },
+        body: {
+          tr: "Planlama görüşmesi → çekim günü → ham teslim → düzenleme → nihai galeri teslimi.",
+          en: "Planning call → shoot day → raw delivery → editing → final gallery delivery.",
+        },
+      },
+    ],
+    lineItems: [
+      { name: { tr: "Çekim (yarım gün)", en: "Shoot (half day)" }, qty: 1, unit: 12000 },
+      { name: { tr: "Düzenleme / Retouch (adet)", en: "Editing / Retouch (per photo)" }, qty: 50, unit: 80 },
+      { name: { tr: "Dijital Galeri Teslimi", en: "Digital Gallery Delivery" }, qty: 1, unit: 1000 },
+    ],
+    contractText: {
+      tr: "Kullanım/Lisans Hakları: Teslim edilen görsellerin ticari kullanım hakkı, aksi yazılı olarak belirtilmedikçe yalnızca Müşteri'ye tanınır; Yüklenici, portföy/tanıtım amaçlı kullanım hakkını saklı tutar.\n\nİptal/Erteleme: Çekim tarihinden [X] gün öncesine kadar yapılan iptal/erteleme taleplerinde kapora iadesi yapılmaz.\n\nMücbir Sebep: Hava koşulları veya öngörülemeyen mücbir sebepler nedeniyle çekim ertelenirse, yeni tarih karşılıklı mutabakatla belirlenir.\n\nTeslim Süresi: Belirtilen teslim süresine uyulmaması halinde, gecikilen her hafta için sözleşme bedelinin %[X]'i oranında telafi uygulanır.",
+      en: "Usage/License Rights: Commercial usage rights to delivered images are granted solely to the Client unless stated otherwise in writing; the Contractor retains portfolio/promotional usage rights.\n\nCancellation/Rescheduling: Deposits are non-refundable for cancellations/reschedules made within [X] days of the shoot date.\n\nForce Majeure: If the shoot is postponed due to weather or unforeseeable force majeure, a new date is set by mutual agreement.\n\nDelivery Timeline: If the stated delivery timeline is missed, a [X]% compensation of the contract fee applies per week of delay.",
     },
   },
 ];
