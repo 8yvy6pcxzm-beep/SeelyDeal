@@ -31,6 +31,10 @@ type ResolvedTemplate = {
   contractText?: string;
   theme?: { primaryColor: string; accentColor: string; font?: string };
   nickname?: string;
+  /** "demo" = one of our built-in sector templates (generic placeholder text, visual-only —
+   *  never copy its wording). "company" = the company's own saved template (via "Taslak
+   *  olarak kaydet" or /api/templates) — its content IS the point, reuse it directly. */
+  source: "demo" | "company";
 };
 
 /** Finds the named demo template a chat is asking for, if any. Nicknames are opt-in
@@ -57,7 +61,38 @@ function normalizeDemoTemplate(t: (typeof templates)[number]): ResolvedTemplate 
     contractText: t.contractText?.tr,
     theme: t.theme,
     nickname: t.nickname,
+    source: "demo",
   };
+}
+
+type CompanyTemplateRow = {
+  id: string;
+  name: string;
+  sections: unknown;
+  line_items: unknown;
+  contract_text: string | null;
+  intro_text: string | null;
+  about_text: string | null;
+};
+
+function normalizeCompanyTemplate(row: CompanyTemplateRow): ResolvedTemplate {
+  return {
+    name: row.name,
+    introText: row.intro_text ?? undefined,
+    aboutText: row.about_text ?? undefined,
+    sections: (row.sections ?? []) as { title: string; body: string }[],
+    lineItems: (row.line_items ?? []) as { name: string; qty: number; unit: number }[],
+    contractText: row.contract_text ?? undefined,
+    source: "company",
+  };
+}
+
+/** Finds a company's own saved template by its full name mentioned in free-form chat
+ *  (e.g. "geçen ay kaydettiğim Ajans Taslağımı kullan") — unlike demo templates, these
+ *  don't have curated nicknames, so this matches on the literal saved name instead. */
+function matchCompanyTemplateByName(chatText: string, companyTemplates: CompanyTemplateRow[]): ResolvedTemplate | undefined {
+  const hit = companyTemplates.find((t) => t.name && chatText.includes(t.name.toLowerCase()));
+  return hit ? normalizeCompanyTemplate(hit) : undefined;
 }
 
 /** Resolves a template by id from either the built-in demo set or the company's own
@@ -78,14 +113,7 @@ async function resolveTemplateById(
     .maybeSingle();
   if (!row) return undefined;
 
-  return {
-    name: row.name,
-    introText: row.intro_text ?? undefined,
-    aboutText: row.about_text ?? undefined,
-    sections: (row.sections ?? []) as { title: string; body: string }[],
-    lineItems: (row.line_items ?? []) as { name: string; qty: number; unit: number }[],
-    contractText: row.contract_text ?? undefined,
-  };
+  return normalizeCompanyTemplate({ id, ...row });
 }
 
 export async function POST(req: Request) {
@@ -125,21 +153,28 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Şirket profilin bulunamadı." }, { status: 404 });
   }
 
-  const [{ data: company }, { data: team }, { data: docs }, { data: userDefault }, { data: recentOwnProposals }] = await Promise.all([
-    service.from("companies").select("*").eq("id", profile.company_id).single(),
-    service.from("team_members").select("name, title").eq("company_id", profile.company_id),
-    service.from("company_documents").select("type, title, content, is_default_template").eq("company_id", profile.company_id),
-    service.from("user_defaults").select("*").eq("profile_id", user.id).maybeSingle(),
-    // Last 2 proposals THIS person drafted (not just anyone in the company) — used to
-    // notice "keeps picking the same template+format" and offer to save it as default.
-    service
-      .from("proposals")
-      .select("template_id, format")
-      .eq("company_id", profile.company_id)
-      .eq("created_by", user.id)
-      .order("created_at", { ascending: false })
-      .limit(2),
-  ]);
+  const [{ data: company }, { data: team }, { data: docs }, { data: userDefault }, { data: recentOwnProposals }, { data: companyTemplates }] =
+    await Promise.all([
+      service.from("companies").select("*").eq("id", profile.company_id).single(),
+      service.from("team_members").select("name, title").eq("company_id", profile.company_id),
+      service.from("company_documents").select("type, title, content, is_default_template").eq("company_id", profile.company_id),
+      service.from("user_defaults").select("*").eq("profile_id", user.id).maybeSingle(),
+      // Last 2 proposals THIS person drafted (not just anyone in the company) — used to
+      // notice "keeps picking the same template+format" and offer to save it as default.
+      service
+        .from("proposals")
+        .select("template_id, format")
+        .eq("company_id", profile.company_id)
+        .eq("created_by", user.id)
+        .order("created_at", { ascending: false })
+        .limit(2),
+      // The company's own saved templates (see /api/templates) — used both to resolve a
+      // template mentioned by name in free-form chat and to list them in the system prompt.
+      service
+        .from("templates")
+        .select("id, name, sections, line_items, contract_text, intro_text, about_text")
+        .eq("company_id", profile.company_id),
+    ]);
 
   // Enforce the plan's monthly AI draft limit (customer-facing) and a much more
   // generous message-count ceiling (cost backstop — chatting is "free" against the
@@ -191,7 +226,7 @@ export async function POST(req: Request) {
       ? undefined
       : templateId
         ? await resolveTemplateById(templateId, profile.company_id, service)
-        : matchNamedTemplate(fullChatText);
+        : matchNamedTemplate(fullChatText) ?? matchCompanyTemplateByName(fullChatText, companyTemplates ?? []);
   const resolvedBlock = resolved
     ? `"${resolved.name}"${resolved.nickname ? ` (kod adı "${resolved.nickname}")` : ""}:
 Ön Yazı: ${resolved.introText}
@@ -361,8 +396,14 @@ Sözleşme: ${resolved.contractText}`
       ? `\nİÇERİK KÜTÜPHANESİ HÂLÂ BOŞ: Bu şirketin içerik kütüphanesinde henüz kendi teklif örneği/eki yok. Bu teklife başlamadan ÖNCE, ayrı bir ilk mesajda kısaca sor: "Halihazırda kullandığınız bir teklif örneğiniz var mı, yoksa sıfırdan mı ilerleyelim?" — içinde müşteri bilgisi OLMAYAN, boş/şablon bir örnek istediğini de belirt (KVKK kuralına bak). Kullanıcı bir örnek paylaşırsa, içeriğini kullanarak normal akışa devam et VE cevabının sonuna \`\`\`brand\`\`\` bloğuna \`"defaultTemplateContent"\` alanını ekleyerek içerik kütüphanesine kaydet (aşağıdaki VARSAYILAN TEKLİF ŞABLONU kuralındaki gibi). Kullanıcı "sıfırdan başlayalım", "örneğim yok", "geç" gibi bir şey derse ISRAR ETME, bu teklif için hiç sorma ve normal müşteri/hizmet sorularına geç — ama bunu SADECE bu turda uygulama, kütüphane hâlâ boş olduğu için gelecek tekliflerde tekrar sorulacak (bu senin kontrolünde değil, otomatik).\n`
       : "";
 
+  const savedTemplateNames = ((companyTemplates ?? []) as CompanyTemplateRow[]).map((t) => t.name).filter(Boolean);
+  const savedTemplatesBlock =
+    savedTemplateNames.length > 0
+      ? `\nKAYITLI TASLAKLAR: Bu şirketin kendi kaydettiği taslakları var: ${savedTemplateNames.map((n: string) => `"${n}"`).join(", ")}. Kullanıcı sohbette bunlardan birinin adını (ya da yakın bir söylenişini) anıp "bunu kullan" derse, o taslağı temel al — ayrıca teklife uygun görürsen bu taslakları doğal bir şekilde önerebilirsin (örn. "geçen kaydettiğin X taslağını mı kullanalım?").\n`
+      : "";
+
   const systemPrompt = `Senin adın Seely. ${company?.name ?? "bu işletme"} için çalışan bir AI teklif yazım asistanısın. Kullanıcı (işletme sahibi/çalışanı) seninle doğal, konuşma diliyle iletişim kurar ve senden müşterileri için teklif hazırlamanı ister.
-${missingProfileBlock}${libraryOnboardingBlock}
+${missingProfileBlock}${libraryOnboardingBlock}${savedTemplatesBlock}
 KURALLAR:
 - ÇOK ÖNEMLİ — KİMLİK: Kendini tanıtırken/selamlarken HER ZAMAN "Ben Seely" de. "${company?.name ?? "Şirket"} için teklif asistanıyım" gibi kendini şirketin adıyla tanımlayan bir cümle KURMA — sen Seely'sin, şirket senin çalıştığın yer, adın değil. Şirket adını sadece bağlamsal olarak (örn. "senin için", "ekibin adına") geçirebilirsin, kendi kimliğin olarak asla kullanma.
 - ÇOK ÖNEMLİ — SOHBETİ UZATMA: Gereksiz yere ekstra soru sorup sohbeti uzatma — her mesajın bir maliyeti var. Bir bilgiyi zaten biliyorsan tekrar sorma, kullanıcı net cevap verdiyse aynı konuyu farklı şekilde tekrar teyit ettirme, "başka bir şey var mı" gibi doldurma soruları sorma. Sadece teklif için gerçekten gerekli olanı sor, cevabı alınca hemen bir sonraki adıma geç. Kullanıcı konuyla ilgisiz sohbete (hava durumu, gündelik muhabbet vb.) çekmeye çalışırsa sen de o sohbete girme — kısaca karşılık ver ve nazikçe teklif konusuna geri dön, sohbeti uzatma.
@@ -416,9 +457,9 @@ KURALLAR:
   - \`clientContact\`: Müşteri hakkında bildiğin bilgiler {"company": "...", "contactName": "...", "title": "...", "address": "...", "phone": "...", "email": "...", "website": "..."} — kullanıcı vermediği alanları boş bırak, UYDURMA.
   - \`nextSteps\`: Teklif kabul edildikten sonraki süreç, 3-5 adımlık {"title": "...", "body": "..."} dizisi (örn. Ödeme, Kurulum, Eğitim, Kullanıma başlama).
   - \`validDays\`: Teklifin kaç gün geçerli olduğu (belirtilmediyse 15).
-- Yeterli bilgi toplandığında, cevabının SONUNA \`\`\`json ... \`\`\` bloğu ekle. Bu blok şu şekilde olmalı:
+- Cevabının SONUNA \`\`\`json ... \`\`\` bloğu ekle. Bu blok şu şekilde olmalı:
 {"title": "...", "client": "...", "value": <sayı, USD>, "introText": "...", "aboutText": "...", "clientContact": {"company": "...", "contactName": "...", "title": "...", "address": "...", "phone": "...", "email": "...", "website": "..."}, "sections": [{"title": "...", "body": "..."${isCustom ? `, "condition": {"lineItem": "...", "billingKey": "..."} (opsiyonel, SADECE biri doldurulur, sadece kullanıcı koşullu içerik istediyse ekle)` : ""}}], "lineItems": [{"name": "...", "qty": <sayı>, "unit": <sayı, USD>, "optional": <true/false, opsiyonel>, "included": <true/false, opsiyonel>}], "billingOptions": [{"key": "...", "label": {"tr": "...", "en": "..."}, "price": <sayı, USD>}] (opsiyonel, sadece birden fazla ödeme sıklığı seçeneği varsa doldur, yoksa boş dizi bırak), "nextSteps": [{"title": "...", "body": "..."}], "validDays": <sayı>, "contractText": "..." (varsa revize sözleşme, yoksa boş bırak), "confirmed": <true/false>}
-- Bu json bloğunu SADECE teklif gerçekten tamamlandığında ekle; hâlâ soru soruyorsan ekleme.
+- ÇOK ÖNEMLİ — CANLI ÖNİZLEME (HER TURDA JSON ÜRET): Bu json bloğunu SADECE teklif tamamlandığında değil, İLK CEVABINDAN İTİBAREN HER TURDA ekle — kullanıcı için sağdaki önizleme panelini canlı tutuyor. Henüz netleşmemiş alanları placeholder ile doldur (ör. \`title\`: "[Teklif Başlığı]", henüz hiç bölüm konuşulmadıysa \`sections\`: [], henüz fiyat yoksa \`lineItems\`: []) — ASLA bilgi uydurma, sadece placeholder kullan. Netleştikçe (her turda) bu alanları gerçek verilerle güncelle. ÇOK ÖNEMLİ: json bloğunun varlığı teklifin BİTTİĞİ anlamına GELMEZ — bu ayrı bir şey. Ara turlarda \`confirmed\` HER ZAMAN \`false\` olsun ve normal netleştirme sorularını sormaya (SORU SIRASI kuralına uyarak) aynen devam et; json bloğu sadece arka planda paneli güncellemek için, cevap metnindeki soru akışını DEĞİŞTİRMEZ. \`confirmed: true\` SADECE aşağıdaki SON ONAY kuralındaki gerçek onay turunda gönderilir.
 - ÇOK ÖNEMLİ — SON ONAY VE OTOMATİK KAYIT: Teklif ilk kez tamamlandığında (henüz kullanıcı onaylamadıysa), json bloğunu döndürürken cevap metninde TEK BİR kısa onay sorusu sor: "Bu haliyle onaylıyor musun? Onaylarsan hemen teklife ekliyorum." — \`confirmed\` alanını bu ilk turda \`false\` yap. Kullanıcı buna "evet", "onaylıyorum", "tamam", "bu şekilde tamam", "olsun" gibi net bir onayla cevap verirse (yeni bir değişiklik istemiyorsa), aynı teklifi (değişiklik yapmadan) json bloğuyla TEKRAR döndür ama bu sefer \`confirmed: true\` yap ve cevap metninde SADECE kısa bir teyit cümlesi kullan (örn. "Harika, kaydediyorum."), tekrar soru sorma. \`confirmed: true\` gönderdiğinde uygulama teklifi OTOMATİK olarak kaydeder, kullanıcının ayrıca bir butona basmasına gerek kalmaz. Kullanıcı zaten "başka soru sorma" dediyse veya teklifi tarif ederken "bu şekilde tamamdır/kaydet/onaylıyorum" gibi kendisi zaten net bir onay vermişse, ayrı bir onay sorusu sormadan DOĞRUDAN \`confirmed: true\` ile kaydet — gereksiz yere iki kez sorma.
 
 HAZIRLAYAN (bizim şirketimiz): ${companyBlock}
@@ -440,9 +481,11 @@ ${corruptedDocsNote}
     currentDraft
       ? ""
       : resolved
-        ? defaultTemplate
-          ? `ÖZEL ŞABLON — "${resolved.name}"${resolved.nickname ? ` (kod adı "${resolved.nickname}")` : ""}: kullanıcı bu teklif için bu şablonu seçti. ÇOK ÖNEMLİ — ŞABLONLAR SADECE GÖRSELDİR: bu şablondan SADECE${resolved.theme ? " görsel temasını (renk/font, otomatik uygulanacak)" : " hiçbir şey"} al — bölüm sırasını, başlıklarını, metnini ASLA bu şablondan alma/kopyalama. İçerik (bölümler, sıralama, metin, ücretler) için Şirketin kendi standart teklif formatını ("${defaultTemplate.title}", DOKÜMAN KÜTÜPHANESİ'nde) ve kullanıcının sohbette/dosyada verdiği bilgiyi kullan — kullanıcının verdiği içerik SIRASI ve YAPISI olduğu gibi korunur, şablon bunu değiştirmez. Kullanıcı henüz müşteri/proje bilgisi vermediyse, json döndürmeden önce doğal bir sohbet diliyle eksikleri sor.\n\n`
-          : `ÖZEL ŞABLON — "${resolved.name}"${resolved.nickname ? ` (kod adı "${resolved.nickname}")` : ""}: kullanıcı bu teklif için bu şablonu seçti. ÇOK ÖNEMLİ — ŞABLONLAR SADECE GÖRSELDİR: bu şablondan SADECE${resolved.theme ? " görsel temasını (renk/font, otomatik uygulanacak)" : " hiçbir şey"} al — bölüm sırasını, başlıklarını veya metnini bu şablondan ASLA kopyalama/uyarlama. İçerik için VARSAYILAN TEKLİF ŞABLONU'nu (aşağıda) ve kullanıcının sohbette/dosyada verdiği bilgiyi kullan; kullanıcı kendi içeriğini (metin, sıralama) verdiyse onu OLDUĞU GİBİ koru, sadece seçilen şablonun görsel iskeletine yerleştir. Kullanıcı henüz müşteri/proje bilgisi vermediyse, json döndürmeden önce doğal bir sohbet diliyle eksikleri sor.\n\n`
+        ? resolved.source === "company"
+          ? `KAYITLI TASLAK — "${resolved.name}": kullanıcı kendi kaydettiği bu taslağı seçti/andı. ÇOK ÖNEMLİ: bu şablondan SADECE görsel temasını değil, İÇERİĞİNİ DE kullan — aşağıdaki bölüm başlıkları/metinleri, ön yazı, hakkımızda ve sözleşme metni bu taslaktan alınan GERÇEK içeriktir, placeholder değildir; bunları BAZ AL ve sadece bu teklife özgü ayrıntıları (müşteri adı, fiyat, tarih gibi) kullanıcıdan alıp uyarla. Bölüm sırası ve yapısı da bu taslaktakiyle aynı kalsın, kullanıcı açıkça farklı bir şey istemedikçe değiştirme.\n${resolvedBlock}\n\n`
+          : defaultTemplate
+            ? `ÖZEL ŞABLON — "${resolved.name}"${resolved.nickname ? ` (kod adı "${resolved.nickname}")` : ""}: kullanıcı bu teklif için bu şablonu seçti. ÇOK ÖNEMLİ — ŞABLONLAR SADECE GÖRSELDİR: bu şablondan SADECE${resolved.theme ? " görsel temasını (renk/font, otomatik uygulanacak)" : " hiçbir şey"} al — bölüm sırasını, başlıklarını, metnini ASLA bu şablondan alma/kopyalama. İçerik (bölümler, sıralama, metin, ücretler) için Şirketin kendi standart teklif formatını ("${defaultTemplate.title}", DOKÜMAN KÜTÜPHANESİ'nde) ve kullanıcının sohbette/dosyada verdiği bilgiyi kullan — kullanıcının verdiği içerik SIRASI ve YAPISI olduğu gibi korunur, şablon bunu değiştirmez. Kullanıcı henüz müşteri/proje bilgisi vermediyse, json döndürmeden önce doğal bir sohbet diliyle eksikleri sor.\n\n`
+            : `ÖZEL ŞABLON — "${resolved.name}"${resolved.nickname ? ` (kod adı "${resolved.nickname}")` : ""}: kullanıcı bu teklif için bu şablonu seçti. ÇOK ÖNEMLİ — ŞABLONLAR SADECE GÖRSELDİR: bu şablondan SADECE${resolved.theme ? " görsel temasını (renk/font, otomatik uygulanacak)" : " hiçbir şey"} al — bölüm sırasını, başlıklarını veya metnini bu şablondan ASLA kopyalama/uyarlama. İçerik için VARSAYILAN TEKLİF ŞABLONU'nu (aşağıda) ve kullanıcının sohbette/dosyada verdiği bilgiyi kullan; kullanıcı kendi içeriğini (metin, sıralama) verdiyse onu OLDUĞU GİBİ koru, sadece seçilen şablonun görsel iskeletine yerleştir. Kullanıcı henüz müşteri/proje bilgisi vermediyse, json döndürmeden önce doğal bir sohbet diliyle eksikleri sor.\n\n`
         : `VARSAYILAN TEKLİF ŞABLONU:\n${defaultTemplate ? `"${defaultTemplate.title}":\n${defaultTemplate.content}` : defaultSections ? sectionCatalog : `${sectionCatalog}\n\nBu şirket için henüz bir VARSAYILAN BÖLÜM TERCİHİ ayarlanmamış — yukarıdaki BÖLÜM SEÇİM SORUSU kuralını uygula (taslak üretmeden önce hangi opsiyonel bölümleri istediğini sor).`}\n\n`
   }${defaultSectionsBlock}${personalDefaultBlock}${formatBlockRule}GERÇEK PAKETLERİMİZ:
 ${pricingBlock}${websiteContext}${prefillBlock}`;

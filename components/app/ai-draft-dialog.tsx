@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Sparkles, X, Send, Loader2, Check, Link2, CreditCard, Paperclip, FileText, Mic, MicOff, ArrowLeft } from "lucide-react";
+import { Sparkles, X, Send, Loader2, Check, Link2, CreditCard, Paperclip, FileText, Mic, MicOff, ArrowLeft, BookmarkPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLang } from "@/components/i18n/language-provider";
@@ -179,6 +179,12 @@ export function AiDraftDialog({
   // proposal instead of creating a new one — the dialog stays open and chattable
   // after the first save so the user can keep refining it, on every plan.
   const [savedProposalId, setSavedProposalId] = useState<string | null>(null);
+  const [showSaveTemplateField, setShowSaveTemplateField] = useState(false);
+  const [templateSaveName, setTemplateSaveName] = useState("");
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [templateSaved, setTemplateSaved] = useState(false);
+  const [savedSectionIndexes, setSavedSectionIndexes] = useState<Record<number, boolean>>({});
+  const [savingSectionIndex, setSavingSectionIndex] = useState<number | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [attachError, setAttachError] = useState<string | null>(null);
   // Fetched fresh each time the dialog opens — whether this company still needs
@@ -953,6 +959,65 @@ export function AiDraftDialog({
     }
   }
 
+  /** Saves the current draft (in normal "proposal" mode) as a reusable template too — a
+   *  secondary action alongside actually adding it to /proposals. Reuses the same
+   *  /api/templates endpoint the dedicated template-building mode already posts to. */
+  async function saveAsTemplate() {
+    if (!draft) return;
+    setSavingTemplate(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: templateSaveName.trim() || draft.title,
+          sections: draft.sections,
+          lineItems: draft.lineItems,
+          contractText: draft.contractText,
+          introText: draft.introText,
+          aboutText: draft.aboutText,
+          nextSteps: draft.nextSteps,
+          billingOptions: draft.billingOptions,
+          validDays: draft.validDays,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(data?.error || (lang === "tr" ? "Taslak olarak kaydedilemedi." : "Couldn't save as a template."));
+        return;
+      }
+      setTemplateSaved(true);
+      setShowSaveTemplateField(false);
+    } catch {
+      setError(lang === "tr" ? "Bağlantı hatası." : "Connection error.");
+    } finally {
+      setSavingTemplate(false);
+    }
+  }
+
+  /** Saves a single section's title/body as a reusable content block in the company's
+   *  library (İçerik Kütüphanesi → "Hazır İçerikler") via /api/company-documents. */
+  async function saveSectionToLibrary(index: number, title: string, body: string) {
+    setSavingSectionIndex(index);
+    try {
+      const res = await fetch("/api/company-documents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, content: body }),
+      });
+      if (res.ok) setSavedSectionIndexes((s) => ({ ...s, [index]: true }));
+      else {
+        const data = await res.json().catch(() => null);
+        setError(data?.error || (lang === "tr" ? "Kütüphaneye eklenemedi." : "Couldn't add to the library."));
+      }
+    } catch {
+      setError(lang === "tr" ? "Bağlantı hatası." : "Connection error.");
+    } finally {
+      setSavingSectionIndex(null);
+    }
+  }
+
   function reset() {
     setMessages([]);
     setDraft(null);
@@ -966,6 +1031,10 @@ export function AiDraftDialog({
     setAttachments([]);
     setAttachError(null);
     setShowCloseConfirm(false);
+    setShowSaveTemplateField(false);
+    setTemplateSaveName("");
+    setTemplateSaved(false);
+    setSavedSectionIndexes({});
   }
 
   /** Closing mid-chat with an unsaved draft (never explicitly confirmed/saved) would
@@ -1132,9 +1201,62 @@ export function AiDraftDialog({
             </div>
           )}
 
+          {sending && !draft && (
+            <div className="animate-pulse space-y-2 rounded-xl border border-border bg-muted/30 p-4">
+              <div className="h-4 w-2/5 rounded bg-muted" />
+              <div className="h-3 w-4/5 rounded bg-muted" />
+              <div className="h-3 w-3/5 rounded bg-muted" />
+              <p className="pt-1 text-xs text-muted-foreground">
+                {lang === "tr" ? "Taslak hazırlanıyor…" : "Preparing the draft…"}
+              </p>
+            </div>
+          )}
+
           {draft && (
             <div className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
-              <h4 className="font-display text-lg font-semibold">{draft.title}</h4>
+              <div className="flex items-start justify-between gap-2">
+                <h4 className="font-display text-lg font-semibold">{draft.title}</h4>
+                {mode === "proposal" && !showSaveTemplateField && !templateSaved && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTemplateSaveName(draft.title);
+                      setShowSaveTemplateField(true);
+                    }}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border bg-card px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    <BookmarkPlus className="h-3.5 w-3.5" />
+                    {lang === "tr" ? "Taslak olarak kaydet" : "Save as template"}
+                  </button>
+                )}
+                {mode === "proposal" && templateSaved && (
+                  <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-success">
+                    <Check className="h-3.5 w-3.5" />
+                    {lang === "tr" ? "Taslak olarak kaydedildi" : "Saved as a template"}
+                  </span>
+                )}
+              </div>
+              {mode === "proposal" && showSaveTemplateField && (
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    value={templateSaveName}
+                    onChange={(e) => setTemplateSaveName(e.target.value)}
+                    placeholder={lang === "tr" ? "Taslak adı" : "Template name"}
+                    className="h-8 flex-1 text-xs"
+                  />
+                  <Button size="sm" className="h-8 gap-1 px-2.5 text-xs" onClick={saveAsTemplate} disabled={savingTemplate}>
+                    {savingTemplate ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                    {lang === "tr" ? "Onayla" : "Confirm"}
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => setShowSaveTemplateField(false)}
+                    className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
               {mode !== "template" && <p className="text-sm text-muted-foreground">{draft.client}</p>}
               {mode !== "template" && (
                 <div>
@@ -1164,7 +1286,27 @@ export function AiDraftDialog({
               )}
               {draft.sections?.map((s, i) => (
                 <div key={i}>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{s.title}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{s.title}</p>
+                    <button
+                      type="button"
+                      onClick={() => saveSectionToLibrary(i, s.title, s.body)}
+                      disabled={savingSectionIndex === i || savedSectionIndexes[i]}
+                      title={lang === "tr" ? "Kütüphaneme ekle" : "Add to my library"}
+                      className={cn(
+                        "shrink-0 rounded-md p-1 transition-colors",
+                        savedSectionIndexes[i] ? "text-success" : "text-muted-foreground hover:text-primary",
+                      )}
+                    >
+                      {savingSectionIndex === i ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : savedSectionIndexes[i] ? (
+                        <Check className="h-3.5 w-3.5" />
+                      ) : (
+                        <BookmarkPlus className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  </div>
                   <p className="mt-1 text-sm">{s.body}</p>
                   <Input
                     value={s.videoUrl ?? ""}

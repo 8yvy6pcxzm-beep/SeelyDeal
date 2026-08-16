@@ -166,8 +166,8 @@ export function ContentLibraryClient() {
             <CardTitle>{lang === "tr" ? "Hazır İçerikler" : "Ready-made content"}</CardTitle>
             <p className="text-sm text-muted-foreground">
               {lang === "tr"
-                ? "SeelyDeal'ın önerdiği teklif içerikleri — \"sen hazırla\" dediğinde AI bunlardan yararlanır."
-                : "SeelyDeal's suggested proposal content — the AI draws from these when you ask it to write the content itself."}
+                ? "Tekliflerinden kaydettiğin bloklar — \"sen hazırla\" dediğinde AI bunlardan yararlanır."
+                : "Blocks you've saved from your proposals — the AI draws from these when you ask it to write the content itself."}
             </p>
           </CardHeader>
           <CardContent>
