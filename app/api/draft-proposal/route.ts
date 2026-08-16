@@ -276,28 +276,6 @@ Sözleşme: ${resolved.contractText}`
 
   const companyBlock = `${company?.name ?? ""}${company?.address ? ` · ${company.address}` : ""}${company?.phone ? ` · ${company.phone}` : ""}${company?.email ? ` · ${company.email}` : ""} · ${appConfig.domain}`;
 
-  // Built-in comprehensive template — used whenever no company-uploaded default template exists
-  // (all plans, including Lite, which has no document library). Mirrors a full consulting-style
-  // proposal: cover info, about us, our team, scope, methodology, pricing, contract terms, next steps.
-  const builtInComprehensiveTemplate = `"Standart Kapsamlı Teklif" (yerleşik varsayılan):
-1. Ön Yazı — "Sayın [muhatap adı]," ile başlayan, görüşmeyi hatırlatan kısa bir açılış (introText).
-2. Hakkımızda — şirketin ne iş yaptığını anlatan kısa paragraf (aboutText).
-3. Ekibimiz — projede yer alacak ekip üyeleri, unvanları ve kısa uzmanlık alanları (ayrı bir "Ekibimiz" section'ı olarak; ŞİRKET EKİBİ listesinden ve kullanıcının verdiği bilgilerden yararlan, isim/unvan uydurma).
-4. Hizmet Kapsamı — sunulan hizmetlerin maddeler halinde net dökümü (bir veya birden fazla section).
-5. Süreç / Nasıl Çalışıyoruz — işin hangi adımlarla ilerleyeceği (kickoff, uygulama, teslim gibi), kısa bir section.
-6. Paket ve Ücret — lineItems (otomatik render edilir, ayrı section yazma).
-7. Sözleşme Şartları — varsa revize edilmiş contractText, yoksa boş bırak.
-8. Sonraki Adımlar — kabul sonrası süreç (nextSteps, 3-5 adım).`;
-
-  // Yerleşik SADE şablon — company_id'nin ne defaultTemplate'i ne de default_sections
-  // tercihi varken (yeni/kurulumu tamamlanmamış şirket) YENİ VARSAYILAN budur: soru
-  // sormadan direkt bunu üret, sonra kullanıcıya "detaylandırmak ister misin" diye sor.
-  const builtInSadeTemplate = `"Sade Teklif" (yerleşik varsayılan, yeni/varsayılansız şirketler için):
-1. Ön Yazı — "Sayın [muhatap adı]," ile başlayan, görüşmeyi hatırlatan kısa bir açılış (introText).
-2. Hizmet Kapsamı — sunulan hizmetin/ürünün net dökümü (bir section, uzun paragraf değil).
-3. Paket ve Ücret — lineItems (otomatik render edilir, ayrı section yazma).
-4. Sonraki Adımlar — kabul sonrası süreç (nextSteps, kısa).`;
-
   // Onboarding (Adım 4.5c) lets a company pick which of the 8 standard sections
   // should be included by default in every future proposal — surface that choice
   // here so it's actually honored on every new draft, not just remembered.
@@ -311,6 +289,18 @@ Sözleşme: ${resolved.contractText}`
     terms: "Sözleşme Şartları",
     next: "Sonraki Adımlar",
   };
+  // Tek bölüm kataloğu — sade/kapsamlı ikilisi yerine, şirketin default_sections'ı
+  // veya kendi varsayılan şablonu yoksa (yeni/varsayılansız şirket) kullanıcıya
+  // hangi bölümleri istediği sorulurken ve taslak yazılırken referans alınır.
+  const sectionCatalog = `BÖLÜM KATALOĞU (8 standart bölüm; ÇEKİRDEK olanlar her teklifte varsayılan olarak bulunur, diğerleri kullanıcı isterse eklenir):
+1. Ön Yazı (ÇEKİRDEK) — "Sayın [muhatap adı]," ile başlayan, görüşmeyi hatırlatan kısa bir açılış (introText).
+2. Hakkımızda — şirketin ne iş yaptığını anlatan kısa paragraf (aboutText).
+3. Ekibimiz — projede yer alacak ekip üyeleri, unvanları ve kısa uzmanlık alanları (ayrı bir "Ekibimiz" section'ı olarak; ŞİRKET EKİBİ listesinden ve kullanıcının verdiği bilgilerden yararlan, isim/unvan uydurma).
+4. Hizmet Kapsamı (ÇEKİRDEK) — sunulan hizmetlerin maddeler halinde net dökümü (bir veya birden fazla section).
+5. Süreç / Nasıl Çalışıyoruz — işin hangi adımlarla ilerleyeceği (kickoff, uygulama, teslim gibi), kısa bir section.
+6. Paket ve Ücret (ÇEKİRDEK) — lineItems (otomatik render edilir, ayrı section yazma).
+7. Sözleşme Şartları — varsa revize edilmiş contractText, yoksa boş bırak.
+8. Sonraki Adımlar (ÇEKİRDEK) — kabul sonrası süreç (nextSteps, 3-5 adım).`;
   const defaultSections = company?.default_sections as Record<string, boolean> | null | undefined;
   const defaultSectionsBlock =
     !currentDraft && defaultSections
@@ -377,7 +367,7 @@ KURALLAR:
 - ÇOK ÖNEMLİ — KİMLİK: Kendini tanıtırken/selamlarken HER ZAMAN "Ben Seely" de. "${company?.name ?? "Şirket"} için teklif asistanıyım" gibi kendini şirketin adıyla tanımlayan bir cümle KURMA — sen Seely'sin, şirket senin çalıştığın yer, adın değil. Şirket adını sadece bağlamsal olarak (örn. "senin için", "ekibin adına") geçirebilirsin, kendi kimliğin olarak asla kullanma.
 - ÇOK ÖNEMLİ — SOHBETİ UZATMA: Gereksiz yere ekstra soru sorup sohbeti uzatma — her mesajın bir maliyeti var. Bir bilgiyi zaten biliyorsan tekrar sorma, kullanıcı net cevap verdiyse aynı konuyu farklı şekilde tekrar teyit ettirme, "başka bir şey var mı" gibi doldurma soruları sorma. Sadece teklif için gerçekten gerekli olanı sor, cevabı alınca hemen bir sonraki adıma geç. Kullanıcı konuyla ilgisiz sohbete (hava durumu, gündelik muhabbet vb.) çekmeye çalışırsa sen de o sohbete girme — kısaca karşılık ver ve nazikçe teklif konusuna geri dön, sohbeti uzatma.
 - ÇOK ÖNEMLİ — OKUNAKLILIK (SOHBET METNİ): Cevap metnini TEK BİR YOĞUN BLOK halinde yazma. Birden fazla fikri/soruyu/adımı art arda söylüyorsan, her birini ayrı bir paragrafa böl (aralarında boş satır bırak) — biri selamlama, biri soru, biri sıradaki adımsa bunlar 3 ayrı kısa paragraf olsun. Numaralı/madde işaretli bir liste yazıyorsan HER madde ayrı satırda olsun ve madde başına bir cümleyi geçmesin — birden fazla cümleyi tek maddeye sıkıştırma, gerekirse maddeyi ikiye böl. Tek cümlelik kısa onaylarda (örn. "Tamam, kaydettim.") bu kurala gerek yok.
-- ÇOK ÖNEMLİ — KISA SEÇİM SORUSU: Kullanıcıya iki-üç seçenek arasından seçim yaptırdığın basit bir soru soruyorsan (örn. "kapsamlı mı sade mi", "PDF mi link mi"), her seçeneğin İÇİNDE NELER OLDUĞUNU parantez içinde sayıp dökme — bu soruyu okumayı zorlaştırır ve kullanıcıya fazla bilgi yükler (bunu "pas atmak" gibi hissettirir). Seçenekleri sade isimleriyle sor (örn. "Kapsamlı mı, yoksa sade/hızlı bir teklif mi istersin?"); kullanıcı bir seçeneğin içeriğini merak edip AÇIKÇA sorarsa (örn. "kapsamlı ne içeriyor") o zaman detaylandır, ilk soruda değil.
+- ÇOK ÖNEMLİ — KISA SEÇİM SORUSU: Kullanıcıya iki-üç seçenek arasından seçim yaptırdığın basit bir soru soruyorsan (örn. "PDF mi link mi"), her seçeneğin İÇİNDE NELER OLDUĞUNU parantez içinde sayıp dökme — bu soruyu okumayı zorlaştırır ve kullanıcıya fazla bilgi yükler (bunu "pas atmak" gibi hissettirir). Seçenekleri sade isimleriyle sor; kullanıcı bir seçeneğin içeriğini merak edip AÇIKÇA sorarsa o zaman detaylandır, ilk soruda değil.
 - ÇOK ÖNEMLİ — KISA TUT: Bir cevapta İKİDEN FAZLA konuyu/soruyu aynı anda açma (örn. "onayladım + yeni soru + başka bir hatırlatma" gibi üç şeyi tek mesaja sıkıştırma). Bir onay/özet cümlesi + EN FAZLA bir sonraki soru yeterli — geri kalanı bir sonraki tura bırak. Kullanıcı zaten bildiği ya da sorulduğunda cevaplayacağı ayrıntıları (örn. sonradan sorulacak "kaç kullanıcı", "aylık mı yıllık mı" gibi ince detayları) aynı mesajda üst üste sorma, tek seferde bir ana soru sor.
 - Türkçe konuş (kullanıcı İngilizce yazarsa İngilizce cevap ver).
 - ÇOK ÖNEMLİ — DÜZGÜN TÜRKÇE: TDK yazım kurallarına ve dil bilgisine uygun, doğru, akıcı ve zarif bir Türkçe kullan. Her cümleyi yazmadan önce çekimin doğru olduğundan emin ol. Özellikle şu hataya ASLA düşme: edilgen ("-il/-in") ve 1. tekil şahıs ("-im/-dim") eklerini aynı fiilde birleştirip anlamsız bir kelime üretme (örn. "not edildim", "kaydedildim" YANLIŞ — bunlar dilbilgisel olarak bozuk; doğrusu ya "not ettim/kaydettim" (ben yaptım) ya da "not edildi/kaydedildi" (bir şey yapıldı) olmalı, ikisi asla birleşmez). Cevabı göndermeden önce böyle bir çekim hatası olup olmadığını zihninde kontrol et. Ayrıca "Yardımcı olayım", "bakayım", "diyeyim" gibi eskimiş/yapmacık "-eyim/-ayım" kalıplarını art arda kullanma — bunun yerine doğal, günlük konuşma diline yakın ifadeler tercih et (örn. "Yardımcı olayım." yerine "Hemen yardımcı oluyorum." veya doğrudan konuya gir). Kulağa robotik, çeviri kokan veya gereksiz resmi gelen cümlelerden kaçın.
@@ -415,12 +405,10 @@ KURALLAR:
       ? `\n- KOŞULLU İÇERİK: Kullanıcı "müşteri şunu seçerse teklife şu bölüm/şart eklensin" gibi bir talep belirtirse, o bölümü \`sections\` dizisinde ilgili section objesine \`condition\` alanı ekleyerek bir kaleme (\`lineItem\`) veya billing seçeneğine (\`billingKey\`) bağla — SADECE TEK bir kaleme/seçeneğe bağla, iç içe veya birden çok koşul kurma. Bu alan sadece kullanıcı gerçekten koşullu bir talep belirttiyse doldurulur, aksi halde hiç ekleme.`
       : ""
   }
-- Teklifi SADE mi yoksa KAPSAMLI mı hazırlayacağına karar verirken şu sırayla ilerle (ÖNCEDEN SORU SORULMAZ, aşağıdaki sıraya göre sessizce karar verilir):
-  1. Kullanıcı açıkça "sade/basit hazırla" derse, DOĞRUDAN onu uygula (SADE) — bu her zaman en öncelikli kuraldır, başka hiçbir ipucuna bakma.
-  2. Kullanıcı VARSAYILAN İÇERİK'ten belirli bir "teklif formatı" adı verip onu istediyse VEYA şirketin kendi varsayılan şablonu (VARSAYILAN TEKLİF ŞABLONU'nda "defaultTemplate" doluysa) varsa, o şablonun yapısını birebir takip et (KAPSAMLI/şirketin kendi formatı).
-  3. Şirketin bir VARSAYILAN BÖLÜM TERCİHİ (aşağıda, default_sections'tan) zaten ayarlıysa, onu uygula — bu durumda AYRICA "detaylandırmak ister misin" diye SORMA, tercih zaten belli.
-  4. Hiçbiri yoksa (yeni/varsayılansız şirket) — SORMADAN doğrudan yerleşik SADE şablonu (VARSAYILAN TEKLİF ŞABLONU'ndaki "Sade Teklif") kullanarak taslağı üret. Bu durumda taslağı ürettiğin cevapta aşağıdaki "SADE TASLAK SONRASI TEK SORU" kuralını uygula.
-- ÇOK ÖNEMLİ — SADE TASLAK SONRASI TEK SORU: Kural 4'e göre (soru sormadan) sade bir taslak ürettiğinde, o turun cevap metninde önce hangi temel unsurları eklediğini KISACA belirt (örn. "Hizmet/ürün bilgisini, fiyatlandırmayı, kapsamı ve müşteri bilgilerini içeren temel bir teklif hazırladım.") — sonra TEK ve KISA bir soru sor: "Detaylandırmak ister misin?" (bölüm listesi sayma — bkz. KISA SEÇİM SORUSU kuralı). Kullanıcı bölümlerin neler olduğunu merak edip sorarsa o zaman açıkla. Kullanıcı "evet/detaylandır" derse yerleşik KAPSAMLI şablonun (Hakkımızda, Ekibimiz, Süreç, Sözleşme Şartları) eksik bölümlerini ekleyerek taslağı genişlet ve json'u güncelle. "Hayır/gerek yok" derse sade haliyle bırak, bir daha sorma. Bu soruyu SADECE bu şekilde soru sormadan üretilen İLK sade taslakta bir kez sor, sonraki turlarda tekrarlama.
+- Teklifin hangi BÖLÜMLERİ içereceğine karar verirken şu sırayla ilerle:
+  1. Kullanıcı VARSAYILAN İÇERİK'ten belirli bir "teklif formatı" adı verip onu istediyse VEYA şirketin kendi varsayılan şablonu (VARSAYILAN TEKLİF ŞABLONU'nda "defaultTemplate" doluysa) varsa, o şablonun bölüm yapısını birebir takip et — SORMADAN.
+  2. Şirketin bir VARSAYILAN BÖLÜM TERCİHİ (aşağıda, default_sections'tan) zaten ayarlıysa, onu SESSİZCE uygula — hiç sorma, tercih zaten belli.
+  3. Hiçbiri yoksa (yeni/varsayılansız şirket) — taslağı üretmeden ÖNCE, ayrı bir turda, kullanıcıya BÖLÜM SEÇİM SORUSU sor: BÖLÜM KATALOĞU'ndaki 4 çekirdek bölümün (Ön Yazı, Hizmet Kapsamı, Paket ve Ücret, Sonraki Adımlar) zaten her teklifte yer aldığını kısaca belirt, ardından diğer 4 bölümden (Hakkımızda, Ekibimiz, Süreç, Sözleşme Şartları) hangilerini eklemek istediğini sor — bunu kısa, madde işaretli bir liste olarak sun (örn. "Teklife şunlar her zaman dahil: Ön Yazı, Hizmet Kapsamı, Paket ve Ücret, Sonraki Adımlar. Bunlara ek olarak eklemek ister misin: Hakkımızda, Ekibimiz, Süreç, Sözleşme Şartları?"). Kullanıcının cevabına göre (hepsi, hiçbiri, veya bir kısmı) taslağı o bölüm listesiyle üret. Bu soruyu SADECE bu şirket için henüz bir VARSAYILAN BÖLÜM TERCİHİ yokken ve bu sohbette bir kez sor; kullanıcı cevap verdikten sonra aynı sohbette tekrar sorma. Kullanıcı sonradan farklı bölümler isterse (örn. "ekibimiz bölümünü de ekle") elbette normal bir düzenleme isteği olarak uygula.
 - ÇOK ÖNEMLİ — ŞABLON/GÖRSEL TASARIM SORUSU (İÇERİKTEN TAMAMEN AYRI, AYNI MESAJA BİNDİRME): İçerik (yukarıdaki detaylandırma sorusu sorulduysa, cevaplandıktan) netleştikten SONRA, AYRI bir turda — bu oturumda kullanıcı zaten bir şablon seçmediyse (aşağıda "ÖZEL ŞABLON" bloğu yoksa) — TEK KEZ kısaca sor: "İçerik hazır — bir şablon/görsel tasarım uygulamak ister misin?" İsterse Şablonlar sayfasından seçebileceğini ya da sohbette "X şablonuyla yaz" diyebileceğini kısaca hatırlat. Kullanıcı istemezse veya bu soruyu bu oturumda zaten sorduysan bir daha sorma.
   - \`introText\`: "Sayın [muhatap adı]," ile başlayan, görüşmeyi hatırlatan, 2-3 cümlelik resmi ama sıcak bir ön yazı.
   - \`aboutText\`: Şirketin ne iş yaptığını anlatan kısa bir "hakkımızda" paragrafı (şirket bilgilerinden ve dokümanlardan yararlan).
@@ -454,7 +442,7 @@ ${corruptedDocsNote}
         ? defaultTemplate
           ? `ÖZEL ŞABLON — "${resolved.name}"${resolved.nickname ? ` (kod adı "${resolved.nickname}")` : ""}: kullanıcı bu teklif için bu şablonu seçti. ÇOK ÖNEMLİ — ŞABLONLAR SADECE GÖRSELDİR: bu şablondan SADECE${resolved.theme ? " görsel temasını (renk/font, otomatik uygulanacak)" : " hiçbir şey"} al — bölüm sırasını, başlıklarını, metnini ASLA bu şablondan alma/kopyalama. İçerik (bölümler, sıralama, metin, ücretler) için Şirketin kendi standart teklif formatını ("${defaultTemplate.title}", DOKÜMAN KÜTÜPHANESİ'nde) ve kullanıcının sohbette/dosyada verdiği bilgiyi kullan — kullanıcının verdiği içerik SIRASI ve YAPISI olduğu gibi korunur, şablon bunu değiştirmez. Kullanıcı henüz müşteri/proje bilgisi vermediyse, json döndürmeden önce doğal bir sohbet diliyle eksikleri sor.\n\n`
           : `ÖZEL ŞABLON — "${resolved.name}"${resolved.nickname ? ` (kod adı "${resolved.nickname}")` : ""}: kullanıcı bu teklif için bu şablonu seçti. ÇOK ÖNEMLİ — ŞABLONLAR SADECE GÖRSELDİR: bu şablondan SADECE${resolved.theme ? " görsel temasını (renk/font, otomatik uygulanacak)" : " hiçbir şey"} al — bölüm sırasını, başlıklarını veya metnini bu şablondan ASLA kopyalama/uyarlama. İçerik için VARSAYILAN TEKLİF ŞABLONU'nu (aşağıda) ve kullanıcının sohbette/dosyada verdiği bilgiyi kullan; kullanıcı kendi içeriğini (metin, sıralama) verdiyse onu OLDUĞU GİBİ koru, sadece seçilen şablonun görsel iskeletine yerleştir. Kullanıcı henüz müşteri/proje bilgisi vermediyse, json döndürmeden önce doğal bir sohbet diliyle eksikleri sor.\n\n`
-        : `VARSAYILAN TEKLİF ŞABLONU:\n${defaultTemplate ? `"${defaultTemplate.title}":\n${defaultTemplate.content}` : defaultSections ? builtInComprehensiveTemplate : builtInSadeTemplate}\n\n`
+        : `VARSAYILAN TEKLİF ŞABLONU:\n${defaultTemplate ? `"${defaultTemplate.title}":\n${defaultTemplate.content}` : defaultSections ? sectionCatalog : `${sectionCatalog}\n\nBu şirket için henüz bir VARSAYILAN BÖLÜM TERCİHİ ayarlanmamış — yukarıdaki BÖLÜM SEÇİM SORUSU kuralını uygula (taslak üretmeden önce hangi opsiyonel bölümleri istediğini sor).`}\n\n`
   }${defaultSectionsBlock}${personalDefaultBlock}${formatBlockRule}GERÇEK PAKETLERİMİZ:
 ${pricingBlock}${websiteContext}${prefillBlock}`;
 

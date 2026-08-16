@@ -215,16 +215,12 @@ function TemplatesPageInner() {
                                 : "bg-muted text-muted-foreground hover:bg-muted/70",
                             )}
                           >
-                            {variant.nickname ? variant.nickname : lang === "tr" ? "Sade" : "Simple"}
+                            {variant.nickname ?? `${lang === "tr" ? "Seçenek" : "Option"} ${group.indexOf(variant) + 1}`}
                           </span>
                         ))}
                       </div>
                     ) : (
-                      active.variant && (
-                        <p className="text-[11px] text-muted-foreground">
-                          {active.nickname ? active.nickname : active.variant === "kapsamli" ? (lang === "tr" ? "Kapsamlı" : "Comprehensive") : lang === "tr" ? "Sade" : "Simple"}
-                        </p>
-                      )
+                      active.nickname && <p className="text-[11px] text-muted-foreground">{active.nickname}</p>
                     )}
                   </div>
                   <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
@@ -253,9 +249,9 @@ function TemplatesPageInner() {
                 <p className="truncate font-display text-[15px] font-semibold tracking-tight">{t(current.name)}</p>
                 <p className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
                   {t(current.category)}
-                  {current.variant && (
+                  {current.nickname && (
                     <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
-                      {current.nickname ? current.nickname : lang === "tr" ? "Sade" : "Simple"}
+                      {current.nickname}
                     </span>
                   )}
                 </p>
