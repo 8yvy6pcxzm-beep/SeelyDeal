@@ -205,6 +205,9 @@ export function AiDraftDialog({
   const [templateSaved, setTemplateSaved] = useState(false);
   const [savedSectionIndexes, setSavedSectionIndexes] = useState<Record<number, boolean>>({});
   const [savingSectionIndex, setSavingSectionIndex] = useState<number | null>(null);
+  const [savedLibraryBlockIds, setSavedLibraryBlockIds] = useState<Record<string, boolean>>({});
+  const [savingLibraryBlockId, setSavingLibraryBlockId] = useState<string | null>(null);
+  const [showLibraryUpsell, setShowLibraryUpsell] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [attachError, setAttachError] = useState<string | null>(null);
   // Fetched fresh each time the dialog opens — whether this company still needs
@@ -1089,8 +1092,14 @@ export function AiDraftDialog({
   }
 
   /** Saves a single section's title/body as a reusable content block in the company's
-   *  library (İçerik Kütüphanesi → "Hazır İçerikler") via /api/company-documents. */
+   *  library (İçerik Kütüphanesi → "Hazır İçerikler") via /api/company-documents.
+   *  Lite plans never reach the fetch — /content and the AI tool layer both already
+   *  gate on document_library, so this keeps the editor consistent with those. */
   async function saveSectionToLibrary(index: number, title: string, body: string) {
+    if (!planAllows(plan, "document_library")) {
+      setShowLibraryUpsell(true);
+      return;
+    }
     setSavingSectionIndex(index);
     try {
       const res = await fetch("/api/company-documents", {
@@ -1107,6 +1116,32 @@ export function AiDraftDialog({
       setError(lang === "tr" ? "Bağlantı hatası." : "Connection error.");
     } finally {
       setSavingSectionIndex(null);
+    }
+  }
+
+  /** Same as saveSectionToLibrary but for a typed block (currently "Legal") rendered
+   *  via BlockRenderer — see onSaveToLibrary in block-renderer.tsx. */
+  async function saveBlockToLibrary(blockId: string, title: string, content: string) {
+    if (!planAllows(plan, "document_library")) {
+      setShowLibraryUpsell(true);
+      return;
+    }
+    setSavingLibraryBlockId(blockId);
+    try {
+      const res = await fetch("/api/company-documents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, content }),
+      });
+      if (res.ok) setSavedLibraryBlockIds((s) => ({ ...s, [blockId]: true }));
+      else {
+        const data = await res.json().catch(() => null);
+        setError(data?.error || (lang === "tr" ? "Kütüphaneye eklenemedi." : "Couldn't add to the library."));
+      }
+    } catch {
+      setError(lang === "tr" ? "Bağlantı hatası." : "Connection error.");
+    } finally {
+      setSavingLibraryBlockId(null);
     }
   }
 
@@ -1173,6 +1208,23 @@ export function AiDraftDialog({
         className="relative my-auto flex max-h-[92dvh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-pop"
         onClick={(e) => e.stopPropagation()}
       >
+        {showLibraryUpsell && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center rounded-2xl bg-black/40 p-6" onClick={() => setShowLibraryUpsell(false)}>
+            <div className="w-full max-w-sm space-y-3 rounded-xl border border-border bg-card p-5 shadow-pop" onClick={(e) => e.stopPropagation()}>
+              <p className="text-sm font-medium">{lang === "tr" ? "İçerik Kütüphanesi Pro'da" : "Content Library is a Pro feature"}</p>
+              <p className="text-xs text-muted-foreground">
+                {lang === "tr"
+                  ? "Bu bloğu kütüphanene kaydetmek için Pro veya Custom pakete geçmen gerekiyor. Yükselttiğinde beğendiğin her blok tek tıkla tekrar kullanılabilir olur."
+                  : "Saving this block to your library needs the Pro or Custom plan. Once you upgrade, every block you like becomes reusable in one click."}
+              </p>
+              <div className="flex justify-end pt-1">
+                <Button size="sm" onClick={() => setShowLibraryUpsell(false)}>
+                  {lang === "tr" ? "Anladım" : "Got it"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
         {showCloseConfirm && (
           <div className="absolute inset-0 z-20 flex items-center justify-center rounded-2xl bg-black/40 p-6">
             <div className="w-full max-w-sm space-y-3 rounded-xl border border-border bg-card p-5 shadow-pop">
@@ -1412,6 +1464,9 @@ export function AiDraftDialog({
                         };
                       }),
                     getCompanySignState,
+                    onSaveToLibrary: saveBlockToLibrary,
+                    savingLibraryBlockId,
+                    savedLibraryBlockIds,
                   }}
                 />
               )}

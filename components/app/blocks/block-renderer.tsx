@@ -1,3 +1,4 @@
+import { BookmarkPlus, Check, Loader2 } from "lucide-react";
 import type { ProposalBlock } from "@/lib/types/proposal-blocks";
 import { HeroCoverBlock } from "@/components/app/blocks/hero-cover-block";
 import { RichSectionBlock } from "@/components/app/blocks/rich-section-block";
@@ -5,6 +6,7 @@ import { PricingTableBlock } from "@/components/app/blocks/pricing-table-block";
 import { ContractSignOffBlock } from "@/components/app/blocks/contract-sign-off-block";
 import { LegalBlock } from "@/components/app/blocks/legal-block";
 import type { BlockSignState, CompanySignState } from "@/components/app/blocks/block-sign-form";
+import { cn } from "@/lib/utils";
 
 type TeamMember = { name: string; title: string | null; photo_url: string | null };
 
@@ -38,6 +40,14 @@ export type BlockRenderContext = {
    *  block — editor previews only (paired with `editable`), returns undefined until
    *  the proposal has been saved (block_signatures needs a real proposal_id). */
   getCompanySignState?: (blockId: string, blockType: "Legal" | "ContractSignOff") => CompanySignState | undefined;
+  /** Present only on surfaces that offer "Kütüphaneye Kaydet" (currently the editor's
+   *  live preview — see ai-draft-dialog.tsx). Saves the block's own title/content as a
+   *  reusable `content_block` in İçerik Kütüphanesi via POST /api/company-documents.
+   *  Read-only surfaces (public /p/[id] page, proposals-table quick-look) never pass
+   *  this, so the button never renders there. */
+  onSaveToLibrary?: (blockId: string, title: string, content: string) => void;
+  savingLibraryBlockId?: string | null;
+  savedLibraryBlockIds?: Record<string, boolean>;
 };
 
 /** Single render engine every proposal surface (editor preview now, public/
@@ -95,22 +105,60 @@ export function BlockRenderer({ blocks, ctx }: { blocks: ProposalBlock[]; ctx: B
             );
           case "Legal":
             return (
-              <LegalBlock
-                key={block.id}
-                title={block.title}
-                content={block.content}
-                requireSignature={block.settings.requireSignature}
-                lang={ctx.lang}
-                editable={ctx.editable}
-                onChange={ctx.editable ? (patch) => ctx.onLegalBlockChange?.(block.id, patch) : undefined}
-                sign={ctx.editable ? undefined : ctx.getBlockSignState?.(block.id, "Legal")}
-                companySign={ctx.getCompanySignState?.(block.id, "Legal")}
-              />
+              <div key={block.id} className="relative">
+                <LegalBlock
+                  title={block.title}
+                  content={block.content}
+                  requireSignature={block.settings.requireSignature}
+                  lang={ctx.lang}
+                  editable={ctx.editable}
+                  onChange={ctx.editable ? (patch) => ctx.onLegalBlockChange?.(block.id, patch) : undefined}
+                  sign={ctx.editable ? undefined : ctx.getBlockSignState?.(block.id, "Legal")}
+                  companySign={ctx.getCompanySignState?.(block.id, "Legal")}
+                />
+                {ctx.onSaveToLibrary && (
+                  <SaveToLibraryButton
+                    lang={ctx.lang}
+                    saving={ctx.savingLibraryBlockId === block.id}
+                    saved={!!ctx.savedLibraryBlockIds?.[block.id]}
+                    onClick={() => ctx.onSaveToLibrary?.(block.id, block.title, block.content)}
+                  />
+                )}
+              </div>
             );
           default:
             return null;
         }
       })}
     </>
+  );
+}
+
+/** Small inline icon button reused by every block case that offers "Kütüphaneye
+ *  Kaydet" — mirrors the section-level button already shipped in ai-draft-dialog.tsx. */
+function SaveToLibraryButton({
+  lang,
+  saving,
+  saved,
+  onClick,
+}: {
+  lang: "tr" | "en";
+  saving: boolean;
+  saved: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={saving || saved}
+      title={lang === "tr" ? "Kütüphaneye Kaydet" : "Save to library"}
+      className={cn(
+        "absolute right-2 top-2 rounded-md bg-card/80 p-1 backdrop-blur-sm transition-colors",
+        saved ? "text-success" : "text-muted-foreground hover:text-primary",
+      )}
+    >
+      {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : saved ? <Check className="h-3.5 w-3.5" /> : <BookmarkPlus className="h-3.5 w-3.5" />}
+    </button>
   );
 }

@@ -79,7 +79,7 @@ export function ContentLibraryClient() {
 
   const ownDocs = docs.filter((d) => d.type !== "content_block");
   const readyContent = docs.filter((d) => d.type === "content_block");
-  const selected = ownDocs.find((d) => d.id === selectedId) ?? null;
+  const selected = docs.find((d) => d.id === selectedId) ?? null;
 
   function setDocumentLocal(id: string, patch: Partial<CompanyDocument>) {
     setDocs((d) => d.map((x) => (x.id === id ? { ...x, ...patch } : x)));
@@ -173,12 +173,16 @@ export function ContentLibraryClient() {
           <CardContent>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
               {readyContent.map((d) => (
-                <div key={d.id} className="flex flex-col items-center gap-1.5 text-center">
+                <button
+                  key={d.id}
+                  onClick={() => setSelectedId(d.id)}
+                  className="flex flex-col items-center gap-1.5 rounded-xl p-2 text-center transition-colors hover:bg-muted/50"
+                >
                   <div className="grid h-16 w-16 place-items-center rounded-2xl bg-primary/10 text-primary">
                     <FileText className="h-6 w-6" />
                   </div>
-                  <p className="line-clamp-2 text-xs font-medium">{d.title}</p>
-                </div>
+                  <p className="line-clamp-2 text-xs font-medium">{d.title || (lang === "tr" ? "Başlıksız" : "Untitled")}</p>
+                </button>
               ))}
             </div>
           </CardContent>
@@ -354,31 +358,39 @@ function DocumentPreviewModal({
 
         <div className="space-y-2 border-t border-border px-4 py-3">
           <div className="flex flex-wrap items-center gap-2">
-            <select
-              className={textareaClass("h-9 w-auto")}
-              value={doc.type === "content_block" ? "other" : doc.type}
-              onChange={(e) => {
-                const type = e.target.value as CompanyDocument["type"];
-                onChangeLocal({ type });
-                onPersist({ type });
-              }}
-            >
-              {DOC_TYPES.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {lang === "tr" ? opt.tr : opt.en}
-                </option>
-              ))}
-            </select>
-            {doc.type === "proposal_template" &&
-              (doc.is_default_template ? (
-                <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-                  {lang === "tr" ? "Varsayılan şablon" : "Default template"}
-                </span>
-              ) : (
-                <Button variant="outline" size="sm" onClick={onMakeDefault}>
-                  {lang === "tr" ? "Varsayılan yap" : "Make default"}
-                </Button>
-              ))}
+            {doc.type === "content_block" ? (
+              <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                {lang === "tr" ? "Hazır içerik" : "Ready-made content"}
+              </span>
+            ) : (
+              <>
+                <select
+                  className={textareaClass("h-9 w-auto")}
+                  value={doc.type}
+                  onChange={(e) => {
+                    const type = e.target.value as CompanyDocument["type"];
+                    onChangeLocal({ type });
+                    onPersist({ type });
+                  }}
+                >
+                  {DOC_TYPES.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {lang === "tr" ? opt.tr : opt.en}
+                    </option>
+                  ))}
+                </select>
+                {doc.type === "proposal_template" &&
+                  (doc.is_default_template ? (
+                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                      {lang === "tr" ? "Varsayılan şablon" : "Default template"}
+                    </span>
+                  ) : (
+                    <Button variant="outline" size="sm" onClick={onMakeDefault}>
+                      {lang === "tr" ? "Varsayılan yap" : "Make default"}
+                    </Button>
+                  ))}
+              </>
+            )}
             <button
               type="button"
               className="ml-auto text-xs text-muted-foreground underline-offset-2 hover:underline"
