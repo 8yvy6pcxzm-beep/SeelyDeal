@@ -284,7 +284,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         { style: styles.cover, wrap: false },
         React.createElement(
           Svg,
-          { style: styles.coverBg, viewBox: "0 0 600 320" },
+          { style: styles.coverBg, width: "100%", height: "100%", viewBox: "0 0 600 320", preserveAspectRatio: "none" },
           React.createElement(
             Defs,
             {},
