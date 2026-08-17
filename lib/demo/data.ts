@@ -411,7 +411,7 @@ export interface Template {
   /** Sector tag for "draft" templates — drives the sector chips in the AI chat
    *  modal (components/app/ai-draft-dialog.tsx) and lets Seely reference the
    *  right sector-specific defaults (see draft-proposal/route.ts). */
-  sector?: "construction" | "software" | "events" | "consulting" | "general";
+  sector?: "construction" | "software" | "events" | "consulting" | "general" | "accounting" | "audit" | "enterprise_software";
   /** Legacy chat-nickname matching (app/api/draft-proposal/route.ts) — no demo
    *  template sets this anymore, kept only so that file's type still compiles. */
   nickname?: string;
@@ -686,6 +686,167 @@ export const templates: Template[] = [
     contractText: {
       tr: "Kullanım/Lisans Hakları: Teslim edilen görsellerin ticari kullanım hakkı, aksi yazılı olarak belirtilmedikçe yalnızca Müşteri'ye tanınır; Yüklenici, portföy/tanıtım amaçlı kullanım hakkını saklı tutar.\n\nİptal/Erteleme: Çekim tarihinden [X] gün öncesine kadar yapılan iptal/erteleme taleplerinde kapora iadesi yapılmaz.\n\nMücbir Sebep: Hava koşulları veya öngörülemeyen mücbir sebepler nedeniyle çekim ertelenirse, yeni tarih karşılıklı mutabakatla belirlenir.\n\nTeslim Süresi: Belirtilen teslim süresine uyulmaması halinde, gecikilen her hafta için sözleşme bedelinin %[X]'i oranında telafi uygulanır.",
       en: "Usage/License Rights: Commercial usage rights to delivered images are granted solely to the Client unless stated otherwise in writing; the Contractor retains portfolio/promotional usage rights.\n\nCancellation/Rescheduling: Deposits are non-refundable for cancellations/reschedules made within [X] days of the shoot date.\n\nForce Majeure: If the shoot is postponed due to weather or unforeseeable force majeure, a new date is set by mutual agreement.\n\nDelivery Timeline: If the stated delivery timeline is missed, a [X]% compensation of the contract fee applies per week of delay.",
+    },
+  },
+  {
+    id: "t12",
+    name: { tr: "Muhasebe Teklifi", en: "Accounting Proposal" },
+    category: { tr: "Muhasebe", en: "Accounting" },
+    uses: 0,
+    winRate: 0,
+    accent: "var(--seg-2)",
+    kind: "draft",
+    sector: "accounting",
+    introText: {
+      tr: "Sayın [Müşteri Yetkilisi],\n\nİşletmenizin sektöründeki dinamikleri ve büyüme hedeflerini yakından takip ediyor, finansal yönetim ve danışmanlık alanındaki uzmanlığımızla size değer katmak için bu teklifi sunmaktan memnuniyet duyuyoruz.\n\nYıllardır edindiğimiz deneyim ve topluma katkı odaklı çalışma anlayışımızla, işletmenize yalnızca doğru ve zamanında finansal raporlama değil, sürdürülebilir büyümeye giden yolda güvenilir bir danışmanlık ortaklığı sunmayı taahhüt ediyoruz.\n\nAşağıda hizmet kapsamımızı, ekibimizi ve şeffaf fiyatlandırmamızı bulabilirsiniz. Sorularınız için her zaman buradayız.",
+      en: "Dear [Client Contact],\n\nWe closely follow the dynamics and growth goals of your industry, and we're glad to share this proposal to bring our financial management and advisory expertise to your business.\n\nWith years of experience and a genuine commitment to the communities we serve, we aim to deliver not just accurate, timely financial reporting, but a trusted advisory partnership on your path to sustainable growth.\n\nBelow you'll find our scope of services, our team, and transparent pricing. We're always here for your questions.",
+    },
+    aboutText: {
+      tr: "On yılı aşkın süredir küçük ve orta ölçekli işletmelere muhasebe, vergi ve finansal danışmanlık hizmetleri sunuyoruz. Sektöre özel deneyimimizi, güncel mevzuat takibiyle birleştirerek işletmenize doğru ve zamanında finansal görünürlük kazandırıyoruz.\n\n\"Aylık raporlamaları hep zamanında aldık, vergi döneminde de yanımızda oldular — güvenilir bir ortak.\" — [Referans Adı], [Unvan], [Referans Firma]",
+      en: "For over a decade we've provided accounting, tax, and financial advisory services to small and mid-sized businesses. We combine sector-specific experience with up-to-date regulatory knowledge to give your business accurate, timely financial visibility.\n\n\"Monthly reporting always arrived on time, and they were there for us at tax season — a reliable partner.\" — [Reference Name], [Title], [Reference Company]",
+    },
+    sections: [
+      {
+        title: { tr: "Ekip", en: "Team" },
+        body: {
+          tr: "Sürecinizi yönetecek ekibimiz, alanında sertifikalı ve deneyimli profesyonellerden oluşur:\n\n• [Sorumlu Muhasebeci Adı], SMMM — [X] yıllık deneyimiyle finansal raporlama ve vergi süreçlerinizi uçtan uca yönetir.\n• [Kıdemli Denetçi/CPA Adı], CPA — Finansal denetim ve uyum konularında derin uzmanlığa sahiptir.\n• [Finansal Danışman Adı] — Nakit akışı yönetimi ve bütçeleme konularında işletmenize stratejik destek sağlar.",
+          en: "The professionals who will manage your engagement are certified and experienced:\n\n• [Lead Accountant Name], CPA — [X] years of experience managing end-to-end financial reporting and tax processes.\n• [Senior Auditor Name], CPA — Deep expertise in financial audit and compliance.\n• [Financial Advisor Name] — Provides strategic support on cash flow management and budgeting.",
+        },
+      },
+      {
+        title: { tr: "Proje Özeti", en: "Project Summary" },
+        body: {
+          tr: "Bu teklif, aşağıdaki hedeflere ulaşmanız için tasarlanmıştır:\n\n• Operasyonel verimliliği artırmak — muhasebe süreçlerinin dijitalleştirilmesi ve otomasyonu.\n• Nakit akışını iyileştirmek — düzenli nakit akışı projeksiyonları ve alacak/borç takibi.\n• Vergi mevzuatına tam uyum sağlamak — güncel mevzuat takibi ile risklerin en aza indirilmesi.",
+          en: "This proposal is designed to help you reach the following goals:\n\n• Improve operational efficiency — digitizing and automating your accounting processes.\n• Improve cash flow — regular cash flow projections and receivables/payables tracking.\n• Ensure full tax compliance — minimizing risk through up-to-date regulatory monitoring.",
+        },
+      },
+      {
+        title: { tr: "Hizmet Kapsamı", en: "Proposal for Accounting Services" },
+        body: {
+          tr: "• Muhasebe Yazılımı Yönetimi — mevcut yazılımınızın (veya önerilen bir platformun) kurulumu, entegrasyonu ve aylık bakımı.\n• Finansal Raporlama — aylık/üç aylık bilanço, gelir tablosu ve nakit akış tablolarının hazırlanması.\n• Vergi Hazırlığı — KDV, kurumlar vergisi ve diğer beyannamelerin zamanında ve eksiksiz hazırlanması.\n• Borç/Alacak Yönetimi — cari hesap takibi, tahsilat süreçlerinin iyileştirilmesi.\n• Finansal Danışmanlık — bütçeleme, maliyet analizi ve büyüme stratejilerine yönelik periyodik değerlendirme toplantıları.\n\nTüm süreçler, aylık düzenli raporlama toplantıları ve dijital bir panel üzerinden şeffaf şekilde takip edilebilir hale getirilir.",
+          en: "• Accounting Software Management — setup, integration, and monthly maintenance of your existing (or a recommended) platform.\n• Financial Reporting — monthly/quarterly balance sheet, income statement, and cash flow statement preparation.\n• Tax Preparation — timely, accurate preparation of VAT, corporate tax, and other filings.\n• Accounts Payable/Receivable Management — ledger tracking and improved collections processes.\n• Financial Advisory — periodic review meetings covering budgeting, cost analysis, and growth strategy.\n\nAll processes are made transparent through monthly reporting meetings and a digital dashboard.",
+        },
+      },
+      {
+        title: { tr: "Sonraki Adımlar", en: "Next Steps" },
+        body: {
+          tr: "1. Başlangıç Görüşmesi — hedeflerinizin ve mevcut süreçlerinizin netleştirilmesi (Hafta 1).\n2. Sistem Kurulumu ve Veri Aktarımı — muhasebe yazılımının kurulumu ve geçmiş verilerin aktarımı (Hafta 2-3).\n3. Personel Eğitimi — ilgili ekibinizin yeni süreç ve araçlar konusunda eğitilmesi (Hafta 4).\n4. Sürekli Destek — aylık raporlama, düzenli görüşmeler ve süreç iyileştirmeleriyle kesintisiz destek.",
+          en: "1. Kickoff Meeting — clarifying your goals and current processes (Week 1).\n2. System Setup & Data Migration — accounting software setup and historical data migration (Weeks 2-3).\n3. Staff Training — training your relevant team on the new processes and tools (Week 4).\n4. Ongoing Support — uninterrupted support through monthly reporting, regular check-ins, and process improvements.",
+        },
+      },
+      {
+        title: { tr: "İletişim Bilgileri", en: "Contact Information" },
+        body: {
+          tr: "Görüşmeyi ilerletmek, sorularınızı yanıtlamak ve anlaşmayı sonlandırmak için buradayız:\n\n[Sorumlu Muhasebeci Adı]\n[Unvan] — [E-posta] — [Telefon]\n\n[Firma Adı] · [Adres]",
+          en: "We're here to move the conversation forward, answer your questions, and finalize the agreement:\n\n[Lead Accountant Name]\n[Title] — [Email] — [Phone]\n\n[Company Name] · [Address]",
+        },
+      },
+    ],
+    lineItems: [
+      { name: { tr: "Aylık Muhasebe & Finansal Raporlama", en: "Monthly Accounting & Financial Reporting" }, qty: 12, unit: 4500 },
+      { name: { tr: "Vergi Hazırlığı & Beyanname Yönetimi", en: "Tax Preparation & Filing Management" }, qty: 12, unit: 2500 },
+      { name: { tr: "Sistem Kurulumu & Veri Aktarımı (tek seferlik)", en: "System Setup & Data Migration (one-time)" }, qty: 1, unit: 15000 },
+      { name: { tr: "Finansal Danışmanlık (saatlik)", en: "Financial Advisory (hourly)" }, qty: 10, unit: 1200 },
+    ],
+    contractText: {
+      tr: "İşbu sözleşme, Muhasebe Firması tarafından Müşteri'ye sunulacak muhasebe, vergi ve finansal danışmanlık hizmetlerinin genel çerçevesini belirler.\n\nGizlilik: Taraflar, işbu sözleşme kapsamında paylaşılan tüm finansal ve ticari bilgileri gizli tutar; yazılı onay olmaksızın üçüncü şahıslarla paylaşamaz.\n\nÜcretlendirme ve Ödeme Koşulları: Hizmet bedeli, kabul edilen fiyatlandırma teklifinde belirtildiği üzeredir. Fatura kesim tarihinden itibaren ödeme vadesi 15 (on beş) iş günüdür.\n\nSorumluluk: Muhasebe Firması, Müşteri tarafından sağlanan verilerin doğruluğuna dayanarak hizmet verir; eksik/hatalı bilgi kaynaklı sonuçlardan sorumlu tutulamaz.\n\nFesih Şartları: Taraflardan herhangi biri, 30 (otuz) gün önceden yazılı bildirimde bulunmak kaydıyla işbu sözleşmeyi tek taraflı olarak feshedebilir.",
+      en: "This agreement sets out the general framework for the accounting, tax, and financial advisory services the Accounting Firm will provide to the Client.\n\nConfidentiality: The parties treat all financial and commercial information shared under this agreement as confidential and will not disclose it to third parties without written consent.\n\nFees & Payment Terms: Fees are as detailed in the accepted pricing proposal. Payment is due within 15 business days of the invoice date.\n\nLiability: The Accounting Firm relies on the accuracy of data provided by the Client and is not liable for outcomes resulting from incomplete or incorrect information.\n\nTermination: Either party may terminate this agreement unilaterally with 30 days' written notice.",
+    },
+  },
+  {
+    id: "t13",
+    name: { tr: "İşletme Denetimi Teklifi", en: "Business Audit Proposal" },
+    category: { tr: "Denetim", en: "Audit" },
+    uses: 0,
+    winRate: 0,
+    accent: "var(--seg-3)",
+    kind: "draft",
+    sector: "audit",
+    introText: {
+      tr: "Sayın [Müşteri Yetkilisi],\n\n[Şirket Adı] için hazırladığımız bu işletme denetimi teklifinde, finansal ve operasyonel süreçlerinizi kapsamlı şekilde değerlendirecek denetim sürecimizin tüm detaylarını bulacaksınız. Amacımız, riskleri erken aşamada tespit etmenizi sağlayan, şeffaf ve güvenilir bir denetim deneyimi sunmaktır.\n\nAşağıda hizmet kapsamımızı, denetim sürecimizi ve şeffaf fiyatlandırmamızı bulabilirsiniz. Sorularınız için her zaman buradayız.",
+      en: "Dear [Client Contact],\n\nThis proposal for [Company Name] lays out every detail of our audit process, covering a comprehensive assessment of your financial and operational processes. Our goal is to give you a transparent, reliable audit experience that surfaces risk early.\n\nBelow you'll find our scope of services, our audit process, and transparent pricing. We're always here for your questions.",
+    },
+    aboutText: {
+      tr: "On yılı aşkın süredir işletmelere finansal, operasyonel ve uyum denetimi hizmetleri sunuyoruz. Sektöre özel deneyimimizi güncel denetim standartlarıyla birleştirerek, işletmenizin gerçek risk ve fırsat tablosunu ortaya koyuyoruz.\n\n\"Denetim sürecinde son derece titiz ve şeffaftılar; raporları sayesinde gözden kaçırdığımız riskleri erkenden fark ettik.\" — [Referans Adı], [Unvan], [Referans Firma]",
+      en: "For over a decade we've provided financial, operational, and compliance audit services to businesses. We combine sector-specific experience with current audit standards to surface your organization's real picture of risk and opportunity.\n\n\"They were meticulous and transparent throughout the audit — their reports helped us catch risks we'd otherwise have missed.\" — [Reference Name], [Title], [Reference Company]",
+    },
+    sections: [
+      {
+        title: { tr: "Hizmet Kapsamı", en: "Scope of Services" },
+        body: {
+          tr: "Denetimimiz, işletmenizin aşağıdaki alanlarını kapsamlı şekilde değerlendirir:\n\n• Finansal Değerlendirme — mali tabloların doğruluğu, iç kontrol süreçleri ve finansal raporlama standartlarına uyum.\n• Operasyonel Değerlendirme — süreç verimliliği, kaynak kullanımı ve operasyonel risk alanlarının analizi.\n• Uyum Denetimi — yürürlükteki mevzuat ve sektörel düzenlemelere uyumun kontrolü.\n• Risk Değerlendirmesi — finansal, operasyonel ve itibar riskinin tespiti ile önceliklendirilmesi.\n\nHer alan için bulgular, somut ve ölçülebilir öneriler eşliğinde raporlanır.",
+          en: "Our audit provides a comprehensive assessment of the following areas of your business:\n\n• Financial Assessment — accuracy of financial statements, internal control processes, and compliance with financial reporting standards.\n• Operational Assessment — analysis of process efficiency, resource use, and operational risk areas.\n• Compliance Audit — verification of compliance with applicable laws and sector regulations.\n• Risk Assessment — identification and prioritization of financial, operational, and reputational risk.\n\nFindings for each area are reported alongside concrete, measurable recommendations.",
+        },
+      },
+      {
+        title: { tr: "Denetim Sürecimiz", en: "Our Process" },
+        body: {
+          tr: "1. Keşif ve Planlama — denetim kapsamının, hedeflerinin ve zaman çizelgesinin netleştirilmesi.\n2. Veri Toplama — finansal kayıtlar, süreç dokümantasyonu ve paydaş görüşmeleri yoluyla kanıt toplanması.\n3. Analiz — toplanan verilerin denetim standartlarına göre değerlendirilmesi, risk ve bulguların tespiti.\n4. Raporlama — bulguların, risklerin ve önerilerin net ve uygulanabilir bir rapor halinde sunulması.\n5. Değerlendirme Toplantısı — rapor üzerinden yönetimle birlikte önceliklerin ve aksiyon planının belirlenmesi.",
+          en: "1. Discovery & Planning — clarifying the audit's scope, objectives, and timeline.\n2. Data Collection — gathering evidence through financial records, process documentation, and stakeholder interviews.\n3. Analysis — evaluating the collected data against audit standards, identifying risks and findings.\n4. Reporting — presenting findings, risks, and recommendations in a clear, actionable report.\n5. Review Meeting — working through the report with management to set priorities and an action plan.",
+        },
+      },
+    ],
+    lineItems: [
+      { name: { tr: "Finansal Denetim", en: "Financial Audit" }, qty: 1, unit: 18000 },
+      { name: { tr: "Operasyonel Değerlendirme", en: "Operational Assessment" }, qty: 1, unit: 10000 },
+      { name: { tr: "Uyum ve Risk Değerlendirmesi", en: "Compliance & Risk Evaluation" }, qty: 1, unit: 9000 },
+      { name: { tr: "Nihai Rapor ve Sunum", en: "Final Report & Presentation" }, qty: 1, unit: 4000 },
+    ],
+    contractText: {
+      tr: "İşbu sözleşme, Denetçi tarafından Müşteri'ye sunulacak işletme denetimi hizmetlerinin genel çerçevesini, şartlarını ve kapsamını belirler.\n\nGizlilik: Taraflar, denetim kapsamında paylaşılan tüm finansal, ticari ve operasyonel bilgileri gizli tutar; yazılı onay olmaksızın üçüncü şahıslarla paylaşamaz.\n\nÜcretlendirme ve Ödeme Koşulları: Hizmet bedeli, kabul edilen fiyatlandırma teklifinde belirtildiği üzeredir. Fatura kesim tarihinden itibaren ödeme vadesi 15 (on beş) iş günüdür.\n\nSorumluluk: Denetçi, Müşteri tarafından sağlanan verilerin doğruluğuna dayanarak görüş bildirir; eksik veya hatalı bilgi kaynaklı sonuçlardan sorumlu tutulamaz.\n\nOnay: İşbu teklifin elektronik imza ile onaylanması, taraflar arasında kapsam, fiyatlandırma ve hizmet taahhütleri konusunda mutabakata varıldığını teyit eder.",
+      en: "This agreement sets out the general framework, terms, and scope of the business audit services the Auditor will provide to the Client.\n\nConfidentiality: The parties treat all financial, commercial, and operational information shared during the audit as confidential and will not disclose it to third parties without written consent.\n\nFees & Payment Terms: Fees are as detailed in the accepted pricing proposal. Payment is due within 15 business days of the invoice date.\n\nLiability: The Auditor relies on the accuracy of data provided by the Client and is not liable for outcomes resulting from incomplete or incorrect information.\n\nApproval: Electronic signature approval of this proposal confirms mutual agreement between the parties on scope, pricing, and service commitments.",
+    },
+  },
+  {
+    id: "t14",
+    name: { tr: "Kurumsal Yazılım & ERP Teklifi", en: "Enterprise Software Proposal" },
+    category: { tr: "Kurumsal Yazılım", en: "Enterprise Software" },
+    uses: 0,
+    winRate: 0,
+    accent: "var(--seg-2)",
+    kind: "draft",
+    sector: "enterprise_software",
+    introText: {
+      tr: "Sayın [Müşteri Yetkilisi],\n\n[Şirket Adı] bünyesindeki iş süreçlerini uçtan uca birleştirecek bir ERP (Kurumsal Kaynak Planlama) sistemine duyduğunuz ihtiyacı yakından değerlendirdik. Bu teklif, otomasyon, veri güvenliği ve süreç optimizasyonunu destekleyen, ölçeklenebilir ve sağlam bir ERP çözümünün tüm detaylarını içermektedir.\n\nAşağıda hedeflerimizi, hizmet kapsamımızı, ekibimizi ve şeffaf fiyatlandırmamızı bulabilirsiniz. Sorularınız için her zaman buradayız.",
+      en: "Dear [Client Contact],\n\nWe've closely assessed [Company Name]'s need for an ERP (Enterprise Resource Planning) system to unify business processes end to end. This proposal covers every detail of a scalable, robust ERP solution that supports automation, data security, and process optimization.\n\nBelow you'll find our goals, scope of services, our team, and transparent pricing. We're always here for your questions.",
+    },
+    aboutText: {
+      tr: "Kurumsal yazılım alanındaki uzmanlığımızı, sektörel deneyimimizi ve özelleştirilmiş kurumsal çözümler sunma taahhüdümüzü bir araya getiriyoruz. Sunduğumuz ERP çözümü, temel yazılım kurulumunun ötesine geçerek operasyonel verimliliği ve ekipler arası iş birliğini artıran kesintisiz bir çalışma ortamı yaratır.\n\n\"Uygulama sürecinde hem teknik derinlikleri hem de projeyi zamanında teslim etme disiplinleri bizi çok etkiledi.\" — [Referans Adı], [Unvan], [Referans Firma]",
+      en: "We bring together deep enterprise software expertise, sector experience, and a commitment to delivering customized enterprise solutions. Our ERP offering goes beyond basic software implementation to create a seamless work environment that improves operational efficiency and cross-team collaboration.\n\n\"Both their technical depth and their discipline in delivering the project on time impressed us throughout implementation.\" — [Reference Name], [Title], [Reference Company]",
+    },
+    sections: [
+      {
+        title: { tr: "Hizmet Kapsamı", en: "Scope of Services" },
+        body: {
+          tr: "ERP sistemimiz, işletmenizin temel süreçlerini desteklemek üzere aşağıdaki bileşenleri kapsar:\n\n• Kurumsal Uygulama Entegrasyonu — mevcut sistemlerinizin ERP platformuyla sorunsuz şekilde entegre edilmesi.\n• Müşteri İlişkileri Yönetimi (CRM) — satış, pazarlama ve müşteri hizmetleri süreçlerinin tek bir platformda birleştirilmesi.\n• İş Zekası (Business Intelligence) — gerçek zamanlı raporlama ve analiz panelleri ile veriye dayalı karar desteği.\n• Muhasebe ve Finans Yönetimi — finansal süreçlerin otomasyonu ve raporlama standartlarına uyum.\n• Tedarik Zinciri Yönetimi (SCM) — stok, satın alma ve lojistik süreçlerinin uçtan uca takibi.\n• İçerik ve Ana Veri Yönetimi (MDM) — kurumsal verilerin tutarlı, tek bir kaynaktan yönetilmesi.\n\nTüm bileşenler, [Şirket Adı]'nın temel iş süreçlerini destekleyecek şekilde özelleştirilir.",
+          en: "Our ERP system covers the following components to support your business's core processes:\n\n• Enterprise Application Integration — seamlessly connecting your existing systems with the ERP platform.\n• Customer Relationship Management (CRM) — unifying sales, marketing, and customer service processes on a single platform.\n• Business Intelligence — real-time reporting and analytics dashboards for data-driven decisions.\n• Accounting & Finance Management — automating financial processes and aligning with reporting standards.\n• Supply Chain Management (SCM) — end-to-end tracking of inventory, procurement, and logistics.\n• Content & Master Data Management (MDM) — managing enterprise data consistently from a single source of truth.\n\nAll components are customized to support [Company Name]'s core business processes.",
+        },
+      },
+      {
+        title: { tr: "Referans Projeler", en: "Case Studies" },
+        body: {
+          tr: "Daha önce tamamladığımız ERP uygulamalarından bazı örnekler:\n\n• [Referans Firma 1] — envanter görünürlüğünü artırarak stok maliyetlerinde %[X] azalma sağladı.\n• [Referans Firma 2] — manuel süreçlerin otomasyonuyla operasyonel işlem süresini %[X] kısalttı.\n• [Referans Firma 3] — entegre finans ve CRM modülleriyle raporlama süresini günler yerine saatlere indirdi.\n\nBu projeler, ölçülebilir sonuçlar (veri görünürlüğü, süreç otomasyonu, maliyet azaltımı) elde etme konusundaki tecrübemizi yansıtır.",
+          en: "A few examples from ERP implementations we've completed:\n\n• [Reference Company 1] — reduced inventory carrying costs by [X]% through improved stock visibility.\n• [Reference Company 2] — cut operational processing time by [X]% by automating manual processes.\n• [Reference Company 3] — reduced reporting turnaround from days to hours with integrated finance and CRM modules.\n\nThese projects reflect our track record of delivering measurable results — data visibility, process automation, and cost reduction.",
+        },
+      },
+      {
+        title: { tr: "Ekibimiz", en: "Our Team" },
+        body: {
+          tr: "Projeyi yönetecek ekibimiz, ERP uygulama süreçlerinde deneyimli uzmanlardan oluşur:\n\n• [Yazılım Mimarı Adı] — ERP mimarisi ve sistem entegrasyonu konusunda [X] yıllık deneyime sahiptir.\n• [Proje Yöneticisi Adı] — uygulama sürecinin zaman çizelgesine ve kapsamına uygun şekilde yönetilmesinden sorumludur.\n• [Teknik Lider Adı] — özelleştirme, veri geçişi ve teknik entegrasyon süreçlerini yönetir.\n\nEkibimiz, uygulama süreci boyunca [Şirket Adı] ile yakın iş birliği içinde çalışır.",
+          en: "The team managing this project consists of specialists experienced in ERP implementation:\n\n• [Software Architect Name] — [X] years of experience in ERP architecture and system integration.\n• [Project Manager Name] — responsible for managing the implementation on schedule and within scope.\n• [Technical Lead Name] — oversees customization, data migration, and technical integration.\n\nOur team works in close collaboration with [Company Name] throughout the implementation process.",
+        },
+      },
+    ],
+    lineItems: [
+      { name: { tr: "ERP Kurulum ve Entegrasyon", en: "ERP Setup & Integration" }, qty: 1, unit: 65000 },
+      { name: { tr: "Özelleştirme ve Modül Geliştirme (saatlik)", en: "Customization & Module Development (hourly)" }, qty: 120, unit: 950 },
+      { name: { tr: "Veri Geçişi", en: "Data Migration" }, qty: 1, unit: 18000 },
+      { name: { tr: "Kullanıcı Eğitimi", en: "User Training" }, qty: 1, unit: 9000 },
+      { name: { tr: "Uygulama Sonrası Destek (aylık)", en: "Post-Implementation Support (monthly)" }, qty: 6, unit: 6000 },
+    ],
+    contractText: {
+      tr: "İşbu sözleşme, Yüklenici tarafından Müşteri'ye sunulacak ERP uygulama hizmetlerinin genel çerçevesini, hizmet kapsamını ve ödeme takvimini belirler.\n\nGizlilik: Taraflar, proje kapsamında paylaşılan tüm ticari, finansal ve teknik bilgileri gizli bilgi olarak kabul eder; yazılı onay olmaksızın üçüncü şahıslarla paylaşamaz.\n\nÜcretlendirme ve Ödeme Koşulları: Hizmet bedeli, kabul edilen fiyatlandırma teklifinde belirtildiği üzeredir. Ödeme takvimi, uygulama aşamalarına bağlı olarak kilometre taşı bazlı belirlenir.\n\nKapsam Değişikliği: Kapsam dışı yeni talepler yazılı ek teklif ile ayrıca fiyatlandırılır.\n\nOnay: İşbu teklifin elektronik imza ile onaylanması, taraflar arasında kapsam, fiyatlandırma ve uygulama takvimi konusunda mutabakata varıldığını teyit eder ve uygulama sürecinin başlatılmasını sağlar.",
+      en: "This agreement sets out the general framework, scope of services, and payment schedule for the ERP implementation services the Contractor will provide to the Client.\n\nConfidentiality: The parties treat all commercial, financial, and technical information shared during the project as confidential and will not disclose it to third parties without written consent.\n\nFees & Payment Terms: Fees are as detailed in the accepted pricing proposal. The payment schedule is milestone-based, tied to implementation phases.\n\nChange Requests: New requests outside scope are quoted and billed separately in writing.\n\nApproval: Electronic signature approval of this proposal confirms mutual agreement between the parties on scope, pricing, and the implementation timeline, and authorizes the implementation to begin.",
     },
   },
 ];

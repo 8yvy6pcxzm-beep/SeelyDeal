@@ -13,6 +13,7 @@ import { legacyToBlocks } from "@/lib/proposal-blocks/convert-legacy";
 import { BlockRenderer } from "@/components/app/blocks/block-renderer";
 import type { ProposalBlock } from "@/lib/types/proposal-blocks";
 import { templates as demoTemplates } from "@/lib/demo/data";
+import { useDraftStream } from "@/lib/hooks/use-draft-stream";
 
 type Msg = { role: "user" | "assistant"; content: string; attachmentNames?: string[]; hidden?: boolean };
 type Attachment = { name: string; mediaType: string; base64: string };
@@ -212,9 +213,18 @@ export function AiDraftDialog({
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const controllerRef = useRef<AbortController | null>(null);
   const stoppedRef = useRef(false);
   const backdropMouseDownRef = useRef(false);
+  const draftStream = useDraftStream();
+  /** Progressive-disclosure chip prompt from the v2 Clarifier (see
+   *  AI-ARCHITECTURE-V2.md §5) — rendered as tappable chips right under the
+   *  chat instead of making the user type a full sentence back. */
+  const [clarify, setClarify] = useState<{
+    question: { tr: string; en: string };
+    chips: { key: string; label: { tr: string; en: string } }[];
+    multiSelect?: boolean;
+  } | null>(null);
+  const [clarifySelection, setClarifySelection] = useState<string[]>([]);
 
   const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
   // Per-file downscaling keeps images small, but PDFs pass through untouched —
@@ -259,6 +269,9 @@ export function AiDraftDialog({
     { emoji: "🔨", tr: "Tadilat", en: "Renovation", templateId: demoTemplates.find((t) => t.sector === "construction")?.id },
     { emoji: "💻", tr: "Yazılım", en: "Software", templateId: demoTemplates.find((t) => t.sector === "software")?.id },
     { emoji: "💼", tr: "Danışmanlık", en: "Consulting", templateId: demoTemplates.find((t) => t.sector === "consulting")?.id },
+    { emoji: "📊", tr: "Muhasebe", en: "Accounting", templateId: demoTemplates.find((t) => t.sector === "accounting")?.id },
+    { emoji: "🔍", tr: "Denetim", en: "Audit", templateId: demoTemplates.find((t) => t.sector === "audit")?.id },
+    { emoji: "🏢", tr: "Kurumsal Yazılım", en: "Enterprise Software", templateId: demoTemplates.find((t) => t.sector === "enterprise_software")?.id },
     { emoji: "📄", tr: "Varsayılan", en: "Default", templateId: undefined },
   ];
   const [showChecklist, setShowChecklist] = useState(false);
@@ -634,7 +647,7 @@ export function AiDraftDialog({
   function stopGeneration() {
     if (!loading) return;
     stoppedRef.current = true;
-    controllerRef.current?.abort();
+    draftStream.stop();
     setMessages((m) => {
       const last = m[m.length - 1];
       if (last?.role === "user") {
@@ -693,47 +706,39 @@ export function AiDraftDialog({
     setSending(true);
     setError(null);
     setOverage(null);
+    setClarify(null);
+    setClarifySelection([]);
 
-    const controller = new AbortController();
-    controllerRef.current = controller;
     stoppedRef.current = false;
-    const timeoutId = window.setTimeout(() => controller.abort(), 130_000);
+    const timeoutId = window.setTimeout(() => draftStream.stop(), 130_000);
 
-    const requestBody = JSON.stringify({
+    const requestPayload = {
       messages: next.map(({ role, content }) => ({ role, content })),
       websiteUrl: websiteUrl || undefined,
       attachments: sentAttachments.length ? sentAttachments : undefined,
       currentDraft: draft ?? undefined,
       templateId: !draft ? opts?.templateIdOverride ?? activeTemplateId : undefined,
-    });
+    };
 
     // A dropped connection/transient network blip shouldn't dead-end the user
     // in an error box — silently retry once before actually surfacing it.
-    async function fetchWithRetry(attempt = 1): Promise<Response> {
+    async function sendWithRetry(attempt = 1) {
       try {
-        return await fetch("/api/draft-proposal", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: requestBody,
-          signal: controller.signal,
-        });
+        return await draftStream.send(requestPayload);
       } catch (err) {
         if (attempt < 2 && !(err instanceof DOMException && err.name === "AbortError")) {
           await sleep(1200);
-          return fetchWithRetry(attempt + 1);
+          return sendWithRetry(attempt + 1);
         }
         throw err;
       }
     }
 
     try {
-      const res = await fetchWithRetry();
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "Bir şeyler ters gitti.");
-        if (res.status === 429) {
-          setOverage({ link: data.overageLink ?? null, price: data.overagePrice, drafts: data.overageDrafts });
-        }
+      const data = await sendWithRetry();
+      if (data.clarify) {
+        setClarify(data.clarify);
+        if (data.reply.trim()) setMessages((m) => [...m, { role: "assistant", content: data.reply }]);
         return;
       }
       const reply = (data.reply ?? "").trim()
@@ -958,6 +963,10 @@ export function AiDraftDialog({
       if (err instanceof DOMException && err.name === "AbortError" && stoppedRef.current) {
         // User hit Esc — silently stop, no error toast; stopGeneration() already
         // restored their message into the input so they can fix and resend it.
+      } else if (err instanceof Error && (err as { status?: number }).status === 429) {
+        const e = err as Error & { overageLink?: string | null; overagePrice?: number; overageDrafts?: number };
+        setError(e.message);
+        setOverage({ link: e.overageLink ?? null, price: e.overagePrice ?? 0, drafts: e.overageDrafts ?? 0 });
       } else {
         setError(
           err instanceof DOMException && err.name === "AbortError"
@@ -971,7 +980,6 @@ export function AiDraftDialog({
       }
     } finally {
       window.clearTimeout(timeoutId);
-      controllerRef.current = null;
       setLoading(false);
       setSending(false);
     }
@@ -1602,6 +1610,57 @@ export function AiDraftDialog({
                 <p className="text-center text-xs text-success">
                   {lang === "tr" ? "✓ Kaydedildi — düzenlemeye devam edebilirsin." : "✓ Saved — you can keep editing."}
                 </p>
+              )}
+            </div>
+          )}
+
+          {clarify && !loading && (
+            <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border bg-muted/30 p-3">
+              <span className="w-full text-xs text-muted-foreground">
+                {lang === "tr" ? clarify.question.tr : clarify.question.en}
+              </span>
+              {clarify.chips.map((chip) => {
+                const selected = clarifySelection.includes(chip.key);
+                return (
+                  <button
+                    key={chip.key}
+                    type="button"
+                    onClick={() => {
+                      const label = lang === "tr" ? chip.label.tr : chip.label.en;
+                      if (clarify.multiSelect) {
+                        setClarifySelection((prev) => (prev.includes(chip.key) ? prev.filter((k) => k !== chip.key) : [...prev, chip.key]));
+                        setInput((prev) => {
+                          const labels = new Set(prev.split(",").map((s) => s.trim()).filter(Boolean));
+                          if (labels.has(label)) labels.delete(label);
+                          else labels.add(label);
+                          return [...labels].join(", ");
+                        });
+                      } else {
+                        setClarify(null);
+                        setClarifySelection([]);
+                        send(label);
+                      }
+                    }}
+                    className={cn(
+                      "shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                      selected ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground hover:bg-muted",
+                    )}
+                  >
+                    {lang === "tr" ? chip.label.tr : chip.label.en}
+                  </button>
+                );
+              })}
+              {clarify.multiSelect && (
+                <Button
+                  size="sm"
+                  className="ml-auto h-7 px-3 text-xs"
+                  onClick={() => {
+                    setClarify(null);
+                    send();
+                  }}
+                >
+                  {lang === "tr" ? "Devam et" : "Continue"}
+                </Button>
               )}
             </div>
           )}
