@@ -1,20 +1,17 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, FileText, Sparkles, ArrowUpRight, Search } from "lucide-react";
-import { WinGauge } from "@/components/app/charts";
+import { useSearchParams } from "next/navigation";
 import { useLang } from "@/components/i18n/language-provider";
-import { cn } from "@/lib/utils";
 import { templates as demoTemplates, type Template } from "@/lib/demo/data";
-import { TemplateHtmlBlock } from "@/components/app/template-html-block";
 import { VisualTemplateCard } from "@/components/app/visual-template-card";
 import { AiDraftDialog } from "@/components/app/ai-draft-dialog";
 import { usePlan } from "@/components/app/plan-provider";
 import { planAllows } from "@/lib/plan";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import { BlockRenderer } from "@/components/app/blocks/block-renderer";
-import { legacyToBlocks } from "@/lib/proposal-blocks/convert-legacy";
+import { TemplateHeader, type TemplateTab } from "./_components/template-header";
+import { DraftTemplateCard } from "./_components/draft-template-card";
+import { TemplatePreviewPanel } from "./_components/template-preview-panel";
 
 type RealTemplateRow = {
   id: string;
@@ -41,12 +38,16 @@ export default function TemplatesPage() {
 function TemplatesPageInner() {
   const { t, lang } = useLang();
   const plan = usePlan();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const useParam = searchParams.get("use");
   const [realRows, setRealRows] = useState<RealTemplateRow[]>([]);
   const [aiOpen, setAiOpen] = useState(false);
+  const [aiMode, setAiMode] = useState<"template" | "proposal">("template");
+  const [aiTemplateId, setAiTemplateId] = useState<string | undefined>(undefined);
   const [savingDefault, setSavingDefault] = useState(false);
+  const [tab, setTab] = useState<TemplateTab>("visual");
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState<string | null>(null);
 
   // Serializes a draft example into the plain-text shape /api/settings/default-template
   // stores (app/api/draft-proposal/route.ts reads it back as VARSAYILAN TEKLİF ŞABLONU).
@@ -103,7 +104,6 @@ function TemplatesPageInner() {
   const [selected, setSelected] = useState(
     (useParam && templates.some((tpl) => tpl.id === useParam)) ? useParam : templates[0].id,
   );
-  const current = templates.find((tpl) => tpl.id === selected) ?? templates[0];
 
   // Two separate galleries: "Görsel Şablonlar" (design-only skeletons — the AI only
   // ever takes their theme, never their text) and "Taslak Teklif Örnekleri" (real,
@@ -118,8 +118,51 @@ function TemplatesPageInner() {
     }
     return Array.from(byCategory.values());
   }
-  const visualGroups = useMemo(() => groupByCategory(templates.filter((tpl) => tpl.kind !== "draft")), [templates]);
-  const draftGroups = useMemo(() => groupByCategory(templates.filter((tpl) => tpl.kind === "draft")), [templates]);
+
+  function matchesQuery(tpl: Template) {
+    if (!query.trim()) return true;
+    const q = query.trim().toLowerCase();
+    return (
+      t(tpl.name).toLowerCase().includes(q) ||
+      t(tpl.category).toLowerCase().includes(q) ||
+      (tpl.sector ?? "").toLowerCase().includes(q)
+    );
+  }
+
+  const visualAll = useMemo(() => templates.filter((tpl) => tpl.kind !== "draft"), [templates]);
+  const draftAll = useMemo(() => templates.filter((tpl) => tpl.kind === "draft"), [templates]);
+
+  const activeCategories = useMemo(
+    () => Array.from(new Set((tab === "visual" ? visualAll : draftAll).map((tpl) => t(tpl.category)))),
+    [tab, visualAll, draftAll, t],
+  );
+
+  const visualGroups = useMemo(
+    () => groupByCategory(visualAll.filter((tpl) => matchesQuery(tpl) && (!category || t(tpl.category) === category))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [visualAll, query, category, lang],
+  );
+  const draftGroups = useMemo(
+    () => groupByCategory(draftAll.filter((tpl) => matchesQuery(tpl) && (!category || t(tpl.category) === category))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [draftAll, query, category, lang],
+  );
+
+  // Switching tabs (or typing a search that no longer matches the current selection's
+  // category) shouldn't leave the preview panel stuck on a card from the other gallery —
+  // derived directly instead of synced back into `selected` via an effect.
+  const visibleFlat = tab === "visual" ? visualGroups.flat() : draftGroups.flat();
+  const current =
+    visibleFlat.find((tpl) => tpl.id === selected) ??
+    visibleFlat[0] ??
+    templates.find((tpl) => tpl.id === selected) ??
+    templates[0];
+
+  function changeTab(next: TemplateTab) {
+    setTab(next);
+    setCategory(null);
+  }
+
   const canCreateTemplates = planAllows(plan, "templates_create");
   // Templates (visual/design starting points) are a Pro+ feature end to end — Lite
   // can't browse or use them either, not just create new ones. Lite customizes
@@ -127,11 +170,12 @@ function TemplatesPageInner() {
   const templatesAllowed = planAllows(plan, "templates_create");
 
   function draftFromCurrent() {
-    // Hand off just the template's id — the AI chat resolves it server-side and
-    // writes real content (blended with the company's own doc library, if any)
-    // instead of us dumping raw template text (with unfilled placeholders) here.
-    sessionStorage.setItem("seelydeal:draftFromTemplate", JSON.stringify({ templateId: current.id }));
-    router.push("/proposals?fromTemplate=1");
+    // Open the AI chat right here, in-context, instead of routing away to /proposals —
+    // the dialog already resolves templateId server-side and kicks off the first
+    // message itself (see the initialTemplateId effect in ai-draft-dialog.tsx).
+    setAiMode("proposal");
+    setAiTemplateId(current.id);
+    setAiOpen(true);
   }
 
   if (!templatesAllowed) {
@@ -151,55 +195,39 @@ function TemplatesPageInner() {
     );
   }
 
+  const groups = tab === "visual" ? visualGroups : draftGroups;
+
   return (
     <div className="mx-auto max-w-[1200px] animate-fade-in space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight">
-            {lang === "tr" ? "Şablonlar" : "Templates"}
-          </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {lang === "tr"
-              ? "Onaylı, markaya uygun başlangıç noktaları. AI buradan yazmaya başlar."
-              : "Approved, on-brand starting points. The AI drafts from here."}
-          </p>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <div className="hidden h-9 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm sm:flex">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <input
-              placeholder={lang === "tr" ? "Şablon ara…" : "Search templates…"}
-              className="w-36 bg-transparent text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
-            />
-          </div>
-          <button
-            onClick={() => setAiOpen(true)}
-            disabled={!canCreateTemplates}
-            title={!canCreateTemplates ? (lang === "tr" ? "Pro veya üstü plan gerekir" : "Requires Pro plan or higher") : undefined}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Plus className="h-4 w-4" />
-            {lang === "tr" ? "Yeni şablon" : "New template"}
-          </button>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-primary/25 bg-primary/[0.06] px-4 py-2.5 text-[13px] text-primary">
-        {lang === "tr"
-          ? "Örnek şablonlar + kendi oluşturduğun şablonlar."
-          : "Sample templates + the ones you've created."}
-      </div>
+      <TemplateHeader
+        lang={lang}
+        tab={tab}
+        onTabChange={changeTab}
+        visualCount={visualAll.length}
+        draftCount={draftAll.length}
+        query={query}
+        onQueryChange={setQuery}
+        category={category}
+        onCategoryChange={setCategory}
+        categories={activeCategories}
+        canCreateTemplates={canCreateTemplates}
+        onNewTemplate={() => {
+          setAiMode("template");
+          setAiTemplateId(undefined);
+          setAiOpen(true);
+        }}
+      />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
         <div className="space-y-6">
-          {visualGroups.length > 0 && (
-            <div>
-              <h2 className="mb-3 text-[13px] font-semibold text-muted-foreground">
-                {lang === "tr" ? "Görsel Şablonlar" : "Visual Templates"}
-              </h2>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {visualGroups.map((group) => (
+          {groups.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-6 py-10 text-center text-sm text-muted-foreground">
+              {lang === "tr" ? "Aramanla eşleşen şablon bulunamadı." : "No templates match your search."}
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {groups.map((group) =>
+                tab === "visual" ? (
                   <VisualTemplateCard
                     key={group[0].category.tr}
                     group={group}
@@ -208,195 +236,40 @@ function TemplatesPageInner() {
                     t={t}
                     onSelect={setSelected}
                   />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {draftGroups.length > 0 && (
-            <div>
-              <h2 className="mb-3 text-[13px] font-semibold text-muted-foreground">
-                {lang === "tr" ? "Taslak Teklif Örnekleri" : "Draft Proposal Examples"}
-              </h2>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {draftGroups.map((group) => {
-                  // Which variant of this group is currently shown: whichever one is `selected`, else the first.
-                  const active = group.find((tpl) => tpl.id === selected) ?? group[0];
-                  const isSel = group.some((tpl) => tpl.id === selected);
-                  return (
-                    <button
-                      key={active.category.tr}
-                      onClick={() => setSelected(active.id)}
-                      className={cn(
-                        "group rounded-2xl border bg-card p-4 text-left shadow-soft transition-all hover:shadow-pop",
-                        isSel ? "border-primary/40 ring-1 ring-primary/20" : "border-border",
-                      )}
-                    >
-                      {/* preview */}
-                      <div className="relative flex h-32 items-center justify-center overflow-hidden rounded-xl" style={{ background: `color-mix(in oklch, ${active.accent} 12%, white)` }}>
-                        <span className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full opacity-30 blur-xl" style={{ background: active.accent }} aria-hidden />
-                        <div className="w-28 rounded-lg border border-border bg-card p-2.5 shadow-pill">
-                          <div className="h-2 w-12 rounded-full" style={{ background: active.accent }} />
-                          <div className="mt-2 space-y-1">
-                            <div className="h-1.5 w-full rounded-full bg-muted" />
-                            <div className="h-1.5 w-3/4 rounded-full bg-muted" />
-                            <div className="h-1.5 w-5/6 rounded-full bg-muted" />
-                          </div>
-                          <div className="mt-2 flex items-center justify-between">
-                            <div className="h-2 w-8 rounded-full bg-muted" />
-                            <div className="h-2 w-6 rounded-full" style={{ background: active.accent }} />
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mt-3 flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="truncate font-semibold tracking-tight">{t(active.category)}</p>
-                          {group.length > 1 && (
-                            <div className="mt-1.5 flex flex-wrap items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                              {group.map((variant) => (
-                                <span
-                                  key={variant.id}
-                                  role="button"
-                                  tabIndex={0}
-                                  aria-label={lang === "tr" ? "Varyant seç" : "Select variant"}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelected(variant.id);
-                                  }}
-                                  className={cn(
-                                    "h-2 w-2 rounded-full transition-colors",
-                                    variant.id === active.id ? "bg-primary" : "bg-muted hover:bg-muted-foreground/40",
-                                  )}
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
-                          {active.winRate}% {lang === "tr" ? "kazanç" : "win"}
-                        </span>
-                      </div>
-                      <div className="mt-2.5 flex items-center justify-between border-t border-border pt-2.5 text-[11.5px] text-muted-foreground">
-                        <span className="tnum">{active.uses} {lang === "tr" ? "kullanım" : "uses"}</span>
-                        <span className="inline-flex items-center gap-1 font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">
-                          {lang === "tr" ? "Kullan" : "Use"} <ArrowUpRight className="h-3 w-3" />
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+                ) : (
+                  <DraftTemplateCard
+                    key={group[0].category.tr}
+                    group={group}
+                    selected={selected}
+                    lang={lang}
+                    t={t}
+                    onSelect={setSelected}
+                  />
+                ),
+              )}
             </div>
           )}
         </div>
 
-        {/* Detail rail */}
-        <aside className="space-y-5 lg:sticky lg:top-2 lg:self-start">
-          <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
-            <div className="flex items-center gap-3">
-              <span className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: current.accent }}>
-                <FileText className="h-5 w-5" />
-              </span>
-              <div className="min-w-0">
-                <p className="truncate font-display text-[15px] font-semibold tracking-tight">{t(current.name)}</p>
-                <p className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
-                  {t(current.category)}
-                  {current.kind === "draft" && (
-                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
-                      {lang === "tr" ? "Taslak" : "Draft"}
-                    </span>
-                  )}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-5 flex items-center gap-4">
-              <WinGauge pct={current.winRate} size={84} />
-              <div className="space-y-1 text-[13px]">
-                <p className="text-muted-foreground">{lang === "tr" ? "Kazanma oranı" : "Win rate"}</p>
-                <p className="tnum text-xl font-bold">{current.winRate}%</p>
-                <p className="tnum text-[11.5px] text-muted-foreground">{current.uses} {lang === "tr" ? "kez kullanıldı" : "times used"}</p>
-              </div>
-            </div>
-
-            {current.kind === "draft" ? (
-              <div className="mt-5 space-y-3">
-                <BlockRenderer
-                  blocks={legacyToBlocks({
-                    sections: current.sections.map((sec) => ({ title: t(sec.title), body: t(sec.body) })),
-                    lineItems: current.lineItems,
-                    contractText: current.contractText ? t(current.contractText) : undefined,
-                  })}
-                  ctx={{
-                    title: t(current.name),
-                    client: lang === "tr" ? "Müşteri" : "Client",
-                    value: (current.lineItems ?? []).reduce((sum, li) => sum + li.qty * li.unit, 0),
-                    lineItems: (current.lineItems ?? []).map((li, i) => ({ id: String(i), name: t(li.name), unit: li.unit, qty: li.qty })),
-                    lang,
-                  }}
-                />
-              </div>
-            ) : (
-              <div className="mt-5">
-                <p className="label-mono pb-2 text-muted-foreground">{lang === "tr" ? "Bölümler" : "Sections"}</p>
-                <div className="space-y-2">
-                  {current.sections.map((sec, i) => (
-                    <div key={sec.title.en} className="rounded-lg border border-border bg-card px-2.5 py-2">
-                      <div className="flex items-center gap-2.5">
-                        <span className="tnum text-[10px] text-muted-foreground">{String(i + 1).padStart(2, "0")}</span>
-                        <span className="text-[13px] font-medium">{t(sec.title)}</span>
-                      </div>
-                      {sec.html ? (
-                        <TemplateHtmlBlock html={sec.html} />
-                      ) : (
-                        <p className="mt-1 pl-[26px] text-[12px] leading-relaxed text-muted-foreground">{t(sec.body)}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <button
-              onClick={draftFromCurrent}
-              className="mt-5 flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary py-2.5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
-            >
-              <Sparkles className="h-4 w-4" />
-              {lang === "tr" ? "Bu şablonla yaz" : "Draft from this template"}
-            </button>
-
-            {current.kind === "draft" && (
-              <button
-                onClick={() => saveAsDefault(current)}
-                disabled={savingDefault}
-                className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border py-2.5 text-[13px] font-semibold transition-colors hover:bg-muted disabled:opacity-50"
-              >
-                {savingDefault
-                  ? lang === "tr" ? "Kaydediliyor…" : "Saving…"
-                  : lang === "tr" ? "Bu taslağı varsayılan yap" : "Make this the default"}
-              </button>
-            )}
-          </div>
-
-          <div className="rounded-2xl border border-border bg-muted/30 p-5 shadow-soft">
-            <p className="text-[13px] font-semibold">{lang === "tr" ? "İpucu" : "Pro tip"}</p>
-            <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted-foreground">
-              {lang === "tr"
-                ? "En yüksek kazanma oranlı şablonlardan başla; AI geçmiş kazananlarından öğrenir."
-                : "Start from your highest win-rate templates; the AI learns from your past winners."}
-            </p>
-          </div>
-        </aside>
+        <TemplatePreviewPanel
+          current={current}
+          lang={lang}
+          t={t}
+          savingDefault={savingDefault}
+          onDraft={draftFromCurrent}
+          onSaveAsDefault={() => saveAsDefault(current)}
+        />
       </div>
 
       <AiDraftDialog
         open={aiOpen}
-        onClose={() => setAiOpen(false)}
-        onSaved={() => {
+        onClose={() => {
           setAiOpen(false);
-          loadReal();
+          setAiTemplateId(undefined);
         }}
-        mode="template"
+        onSaved={loadReal}
+        mode={aiMode}
+        initialTemplateId={aiMode === "proposal" ? aiTemplateId : undefined}
       />
     </div>
   );
