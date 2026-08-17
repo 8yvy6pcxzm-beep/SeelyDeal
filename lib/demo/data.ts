@@ -1064,9 +1064,13 @@ export const templates: Template[] = [
       en: "This statement of work and agreement sets out the scope of the market research services the Research Firm will provide to the Client and the responsibilities of each party.\n\nDeliverables & Responsibilities: Reports and findings for each phase are delivered according to the timeline stated in this proposal; the Client is responsible for providing necessary internal data and feedback in a timely manner.\n\nConfidentiality & Ethics: All research is conducted with participant consent; data privacy is carefully protected and used solely for this project.\n\nCancellation & Changes: Change requests within the project scope must be submitted in writing and are priced separately; deposits are non-refundable for cancellations made within [X] days of the start date.\n\nApproval: Electronic signature approval of this proposal confirms mutual agreement between the parties on scope, pricing, and collaboration expectations, and enables scheduling of the kickoff meeting.",
     },
   },
+  { id: "t19", name: { tr: "Kurumsal & Ciddi", en: "Corporate & Formal" }, category: { tr: "Kurumsal", en: "Corporate" }, uses: 0, winRate: 0, accent: "var(--seg-1)", sections: GENERIC_SECTIONS },
+  { id: "t20", name: { tr: "Minimalist & Temiz", en: "Minimalist & Clean" }, category: { tr: "Modern", en: "Modern" }, uses: 0, winRate: 0, accent: "var(--seg-2)", sections: GENERIC_SECTIONS },
+  { id: "t21", name: { tr: "Canlı & Dinamik", en: "Vibrant & Dynamic" }, category: { tr: "Yaratıcı", en: "Creative" }, uses: 0, winRate: 0, accent: "var(--seg-3)", sections: GENERIC_SECTIONS },
+  { id: "t22", name: { tr: "Premium & Şık", en: "Premium & Elegant" }, category: { tr: "Lüks & Hizmet", en: "Premium" }, uses: 0, winRate: 0, accent: "var(--seg-4)", sections: GENERIC_SECTIONS },
 ];
 
-/** Pure design/theme skeletons (t1–t4) — `kind` is unset. Their `sections` text
+/** Pure design/theme skeletons (t1–t4, t19–t22) — `kind` is unset. Their `sections` text
  *  is never shown to the AI, only `theme`/`accent` (see resolvedTemplateBlock
  *  in app/api/draft-proposal/prompts.ts). Use this instead of filtering
  *  `templates` inline so the "visual vs draft" split stays in one place. */
