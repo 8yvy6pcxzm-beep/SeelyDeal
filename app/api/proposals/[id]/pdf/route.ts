@@ -32,95 +32,138 @@ Font.register({
 // TR dictionary) — disable it so long words wrap on spaces instead.
 Font.registerHyphenationCallback((word) => [word]);
 
+// Colors that don't move with the brand theme — kept out of createStyles so
+// they aren't recomputed per proposal.
+const NEUTRAL = {
+  border: "#ECEBF1",
+  soft: "#FAFAFC",
+  ink: "#1a1c1a",
+  body: "#333",
+  muted: "#555",
+  faint: "#888",
+  hairline: "#eee",
+};
+
+// Styles that depend on the proposal's theme (brand color). Everything else
+// (spacing, type scale, structural layout) is theme-independent and lives in
+// the static `styles` sheet below.
+function createThemedStyles(primary: string, accent: string) {
+  return StyleSheet.create({
+    h2Bar: { width: 3, height: 10, backgroundColor: primary, borderRadius: 2 },
+    h2: { fontSize: 9.5, fontWeight: 700, color: primary, textTransform: "uppercase", letterSpacing: 0.5 },
+    checkMark: { fontSize: 8.5, color: primary, fontWeight: 700 },
+    pkgBox: {
+      borderWidth: 1,
+      borderLeftWidth: 3,
+      borderColor: NEUTRAL.border,
+      borderLeftColor: primary,
+      borderRadius: 8,
+      padding: 12,
+      backgroundColor: mixWithWhite(primary, 0.04),
+    },
+    rowAlt: { backgroundColor: mixWithWhite(primary, 0.05) },
+    totalLabel: { fontSize: 11, fontWeight: 700, color: "#fff" },
+    auditHeaderCell: { fontSize: 7.5, fontWeight: 700, color: primary, textTransform: "uppercase" },
+    coverBrand: { fontSize: 10.5, fontWeight: 700, marginBottom: 10, letterSpacing: 0.5, color: "#fff" },
+    metaValue: { fontSize: 9.5, fontWeight: 700, marginTop: 2, color: "#fff" },
+    accentDot: { color: accent },
+  });
+}
+
+// Cheap "mix a brand hex with white" for subtle tinted backgrounds — avoids
+// pulling in a color library just for this. Falls back to a flat tint if the
+// input isn't a plain #rrggbb hex (e.g. an oklch/rgba string from theme_json).
+function mixWithWhite(hex: string, amount: number): string {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return `rgba(91,61,246,${amount})`;
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return `rgba(${r},${g},${b},${amount})`;
+}
+
 const styles = StyleSheet.create({
-  page: { padding: 0, fontSize: 10, fontFamily: "Inter", color: "#1a1c1a" },
-  cover: { position: "relative", padding: 40, color: "#fff", minHeight: 260 },
+  page: { padding: 0, fontSize: 9.5, fontFamily: "Inter", color: NEUTRAL.ink },
+  cover: { position: "relative", padding: 24, minHeight: 140 },
   coverBg: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
-  coverLogo: { height: 28, marginBottom: 10, objectFit: "contain" },
-  coverBrand: { fontSize: 11, fontWeight: 700, marginBottom: 16, letterSpacing: 0.5 },
-  title: { fontSize: 24, fontWeight: 700, marginBottom: 4 },
-  client: { fontSize: 11, color: "#eee", marginBottom: 16 },
+  coverLogo: { height: 22, marginBottom: 8, objectFit: "contain" },
+  title: { fontSize: 19, fontWeight: 700, marginBottom: 3, color: "#fff" },
+  client: { fontSize: 10, color: "#eee", marginBottom: 10 },
   metaCard: {
     flexDirection: "row",
-    gap: 24,
-    marginTop: 20,
-    alignSelf: "flex-end",
+    gap: 18,
+    marginTop: 12,
+    alignSelf: "flex-start",
     backgroundColor: "rgba(255,255,255,0.14)",
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.3)",
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
   },
-  metaLabel: { fontSize: 8, color: "rgba(255,255,255,0.75)", textTransform: "uppercase", letterSpacing: 0.5 },
-  metaValue: { fontSize: 10, fontWeight: 700, marginTop: 2 },
-  body: { padding: 40, paddingTop: 24, paddingBottom: 48 },
-  h2Row: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 18, marginBottom: 8 },
-  h2Bar: { width: 3, height: 11, backgroundColor: "#5b3df6", borderRadius: 2 },
-  h2: { fontSize: 11, fontWeight: 700, color: "#5b3df6", textTransform: "uppercase", letterSpacing: 0.5 },
-  text: { lineHeight: 1.5, fontSize: 10, color: "#333" },
-  checkRow: { flexDirection: "row", gap: 8, marginBottom: 8 },
-  checkMark: { fontSize: 9, color: "#5b3df6", fontWeight: 700 },
-  checkTitle: { fontSize: 10, fontWeight: 700 },
-  checkBody: { fontSize: 9.5, color: "#555", marginTop: 1, lineHeight: 1.4 },
-  partiesRow: { flexDirection: "row", gap: 12 },
-  partyBox: { flex: 1, borderWidth: 1, borderColor: "#ECEBF1", borderRadius: 10, padding: 12, backgroundColor: "#FAFAFC" },
-  partyLabel: { fontSize: 8, color: "#888", textTransform: "uppercase", marginBottom: 3, letterSpacing: 0.5 },
-  partyName: { fontSize: 10, fontWeight: 700 },
-  partyLine: { fontSize: 9, color: "#666", marginTop: 1 },
-  pkgBox: { borderWidth: 1, borderLeftWidth: 3, borderColor: "#ECEBF1", borderLeftColor: "#5b3df6", borderRadius: 10, padding: 14, backgroundColor: "#f8f7ff" },
-  row: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 6, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: "#eee" },
-  rowAlt: { backgroundColor: "rgba(91,61,246,0.04)" },
+  metaLabel: { fontSize: 7, color: "rgba(255,255,255,0.75)", textTransform: "uppercase", letterSpacing: 0.5 },
+  body: { padding: 32, paddingTop: 14, paddingBottom: 40 },
+  section: { marginTop: 12 },
+  h2Row: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 },
+  text: { lineHeight: 1.35, fontSize: 9, color: NEUTRAL.body },
+  checkRow: { flexDirection: "row", gap: 6, marginBottom: 5 },
+  checkTitle: { fontSize: 9, fontWeight: 700 },
+  checkBody: { fontSize: 8.5, color: NEUTRAL.muted, marginTop: 1, lineHeight: 1.3 },
+  partiesRow: { flexDirection: "row", gap: 10 },
+  partyBox: { flex: 1, borderWidth: 1, borderColor: NEUTRAL.border, borderRadius: 8, padding: 10, backgroundColor: NEUTRAL.soft },
+  partyLabel: { fontSize: 7, color: NEUTRAL.faint, textTransform: "uppercase", marginBottom: 3, letterSpacing: 0.5 },
+  partyName: { fontSize: 9, fontWeight: 700 },
+  partyLine: { fontSize: 8, color: "#666", marginTop: 1 },
+  row: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 4, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: NEUTRAL.hairline },
   totalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 10,
-    padding: 12,
-    borderRadius: 8,
+    marginTop: 8,
+    padding: 10,
+    borderRadius: 6,
     backgroundColor: "#1e293b",
   },
-  totalLabel: { fontSize: 12, fontWeight: 700, color: "#fff" },
-  clauseBox: { flexDirection: "row", gap: 8, marginTop: 6 },
-  clauseBar: { width: 2, backgroundColor: "#ECEBF1", borderRadius: 1 },
-  clause: { fontSize: 8.5, color: "#555", lineHeight: 1.4, flex: 1 },
+  clauseBox: { flexDirection: "row", gap: 8, marginTop: 5 },
+  clauseBar: { width: 2, backgroundColor: NEUTRAL.border, borderRadius: 1 },
+  clause: { fontSize: 8, color: NEUTRAL.muted, lineHeight: 1.3, flex: 1 },
   footer: {
     position: "absolute",
-    bottom: 0,
+    bottom: 20,
     left: 0,
     right: 0,
     borderTopWidth: 1,
-    borderTopColor: "#eee",
-    paddingVertical: 10,
+    borderTopColor: NEUTRAL.hairline,
+    paddingTop: 8,
     paddingHorizontal: 16,
     textAlign: "center",
-    fontSize: 8,
-    color: "#888",
+    fontSize: 7.5,
+    color: NEUTRAL.faint,
   },
-  auditTable: { borderWidth: 1, borderColor: "#ECEBF1", borderRadius: 8, marginTop: 4, overflow: "hidden" },
-  auditHeaderRow: { flexDirection: "row", backgroundColor: "#f8f7ff", borderBottomWidth: 1, borderBottomColor: "#ECEBF1" },
-  auditRow: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#eee" },
-  auditRowAlt: { backgroundColor: "#FAFAFC" },
-  auditCellRole: { width: "16%", padding: 6, fontSize: 8.5 },
-  auditCellSigner: { width: "26%", padding: 6, fontSize: 8.5 },
-  auditCellIp: { width: "18%", padding: 6, fontSize: 8.5 },
-  auditCellTime: { width: "24%", padding: 6, fontSize: 8.5 },
-  auditCellOtp: { width: "16%", padding: 6, fontSize: 8.5 },
-  auditHeaderCell: { fontSize: 8, fontWeight: 700, color: "#5b3df6", textTransform: "uppercase" },
-  auditEmpty: { fontSize: 9, color: "#888", marginTop: 8 },
+  auditTable: { borderWidth: 1, borderColor: NEUTRAL.border, borderRadius: 8, marginTop: 4, overflow: "hidden" },
+  auditHeaderRow: { flexDirection: "row", backgroundColor: NEUTRAL.soft, borderBottomWidth: 1, borderBottomColor: NEUTRAL.border },
+  auditRow: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: NEUTRAL.hairline },
+  auditRowAlt: { backgroundColor: NEUTRAL.soft },
+  auditCellRole: { width: "16%", padding: 5, fontSize: 8 },
+  auditCellSigner: { width: "26%", padding: 5, fontSize: 8 },
+  auditCellIp: { width: "18%", padding: 5, fontSize: 8 },
+  auditCellTime: { width: "24%", padding: 5, fontSize: 8 },
+  auditCellOtp: { width: "16%", padding: 5, fontSize: 8 },
+  auditEmpty: { fontSize: 8.5, color: NEUTRAL.faint, marginTop: 8 },
   auditNoteBox: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    marginTop: 16,
-    padding: 12,
-    borderRadius: 8,
+    marginTop: 14,
+    padding: 10,
+    borderRadius: 6,
     backgroundColor: "#f0fdf4",
     borderWidth: 1,
     borderColor: "#bbf7d0",
   },
-  auditNoteMark: { fontSize: 11, color: "#16a34a", fontWeight: 700 },
-  auditNote: { fontSize: 8.5, color: "#166534", lineHeight: 1.4, flex: 1 },
+  auditNoteMark: { fontSize: 10, color: "#16a34a", fontWeight: 700 },
+  auditNote: { fontSize: 8, color: "#166534", lineHeight: 1.3, flex: 1 },
 });
 
 function splitClauses(text: string): string[] {
@@ -128,12 +171,12 @@ function splitClauses(text: string): string[] {
   return parts.length > 1 ? parts : [text];
 }
 
-function h2El(label: string) {
+function h2El(label: string, theme: ReturnType<typeof createThemedStyles>) {
   return React.createElement(
     View,
-    { style: styles.h2Row },
-    React.createElement(View, { style: styles.h2Bar }),
-    React.createElement(Text, { style: styles.h2 }, label),
+    { style: styles.h2Row, wrap: false },
+    React.createElement(View, { style: theme.h2Bar }),
+    React.createElement(Text, { style: theme.h2 }, label),
   );
 }
 
@@ -178,7 +221,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const nextSteps: { title: string; body: string }[] = proposal.next_steps || [];
   const client: Record<string, string> = proposal.client_contact || {};
   const company = proposal.companies;
-  const brandColor = company?.primary_color || "#5b3df6";
+
+  // Same resolution order as the public HTML page: per-proposal theme first,
+  // then the company brand color, then the app default.
+  const theme = (proposal.theme_json || {}) as { primaryColor?: string; accentColor?: string };
+  const brandColor = theme.primaryColor || company?.primary_color || "#5b3df6";
+  const accentColor = theme.accentColor || brandColor;
+  const t = createThemedStyles(brandColor, accentColor);
+
   const total = lineItems.reduce((s, li) => (li.optional && !li.included ? s : s + li.qty * li.unit), 0);
   const validDays = proposal.valid_days || 15;
   const createdDate = new Date(proposal.created_at).toLocaleDateString("tr-TR");
@@ -231,7 +281,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       // Cover
       React.createElement(
         View,
-        { style: [styles.cover, { backgroundColor: brandColor }] },
+        { style: styles.cover, wrap: false },
         React.createElement(
           Svg,
           { style: styles.coverBg, viewBox: "0 0 600 320" },
@@ -242,13 +292,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
               LinearGradient,
               { id: "coverGrad", x1: "0", y1: "0", x2: "1", y2: "1" },
               React.createElement(Stop, { offset: "0", stopColor: brandColor, stopOpacity: 1 }),
-              React.createElement(Stop, { offset: "1", stopColor: "#a955f7", stopOpacity: 1 }),
+              React.createElement(Stop, { offset: "1", stopColor: accentColor, stopOpacity: 1 }),
             ),
           ),
           React.createElement(Rect, { x: "0", y: "0", width: "600", height: "320", fill: "url(#coverGrad)" }),
         ),
         company?.logo_url ? React.createElement(Image, { style: styles.coverLogo, src: company.logo_url }) : null,
-        React.createElement(Text, { style: styles.coverBrand }, company?.name ?? appConfig.name),
+        React.createElement(Text, { style: t.coverBrand }, company?.name ?? appConfig.name),
         React.createElement(Text, { style: styles.title }, proposal.title),
         React.createElement(Text, { style: styles.client }, proposal.clients?.name ?? ""),
         React.createElement(
@@ -258,25 +308,25 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
             View,
             {},
             React.createElement(Text, { style: styles.metaLabel }, "Hazırlayan"),
-            React.createElement(Text, { style: styles.metaValue }, company?.name ?? ""),
+            React.createElement(Text, { style: t.metaValue }, company?.name ?? ""),
           ),
           React.createElement(
             View,
             {},
             React.createElement(Text, { style: styles.metaLabel }, "Muhatap"),
-            React.createElement(Text, { style: styles.metaValue }, client.contactName || proposal.clients?.name || "—"),
+            React.createElement(Text, { style: t.metaValue }, client.contactName || proposal.clients?.name || "—"),
           ),
           React.createElement(
             View,
             {},
             React.createElement(Text, { style: styles.metaLabel }, "Teklif Tarihi"),
-            React.createElement(Text, { style: styles.metaValue }, createdDate),
+            React.createElement(Text, { style: t.metaValue }, createdDate),
           ),
           React.createElement(
             View,
             {},
             React.createElement(Text, { style: styles.metaLabel }, "Geçerlilik"),
-            React.createElement(Text, { style: styles.metaValue }, `${validDays} gün`),
+            React.createElement(Text, { style: t.metaValue }, `${validDays} gün`),
           ),
         ),
       ),
@@ -289,8 +339,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         proposal.intro_text
           ? React.createElement(
               View,
-              {},
-              h2El("Ön Yazı"),
+              { style: styles.section },
+              h2El("Ön Yazı", t),
               React.createElement(Text, { style: styles.text }, proposal.intro_text),
             )
           : null,
@@ -299,8 +349,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         proposal.about_text
           ? React.createElement(
               View,
-              {},
-              h2El("Hakkımızda"),
+              { style: styles.section },
+              h2El("Hakkımızda", t),
               React.createElement(Text, { style: styles.text }, proposal.about_text),
             )
           : null,
@@ -308,8 +358,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         // Taraflar
         React.createElement(
           View,
-          {},
-          h2El("Taraflar"),
+          { style: styles.section },
+          h2El("Taraflar", t),
           React.createElement(
             View,
             { style: styles.partiesRow, wrap: false },
@@ -338,17 +388,19 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
           ),
         ),
 
-        // Hizmet kapsamı
+        // Hizmet kapsamı — each row wraps independently so a page break lands
+        // between items, never mid-item, and the section header never gets
+        // stranded alone at the bottom of a page.
         sections.length > 0
           ? React.createElement(
               View,
-              {},
-              h2El("Hizmet Kapsamı"),
+              { style: styles.section },
+              h2El("Hizmet Kapsamı", t),
               ...sections.map((s, i) =>
                 React.createElement(
                   View,
                   { key: i, style: styles.checkRow, wrap: false },
-                  React.createElement(Text, { style: styles.checkMark }, "✓"),
+                  React.createElement(Text, { style: t.checkMark }, "✓"),
                   React.createElement(
                     View,
                     {},
@@ -364,22 +416,22 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         lineItems.length > 0 || billingOptions.length > 0
           ? React.createElement(
               View,
-              {},
-              h2El("Paket ve Ücret"),
+              { style: styles.section },
+              h2El("Paket ve Ücret", t),
               React.createElement(
                 View,
-                { style: styles.pkgBox },
+                { style: t.pkgBox },
                 ...billingOptions.map((o, i) =>
                   React.createElement(
                     Text,
-                    { key: `b${i}`, style: { fontSize: 10, fontWeight: 700, marginBottom: 4 } },
+                    { key: `b${i}`, style: { fontSize: 9, fontWeight: 700, marginBottom: 3 } },
                     `${o.label.tr}: $${o.price.toLocaleString()}`,
                   ),
                 ),
                 ...lineItems.map((li, i) =>
                   React.createElement(
                     View,
-                    { key: i, style: i % 2 === 1 ? [styles.row, styles.rowAlt] : styles.row, wrap: false },
+                    { key: i, style: i % 2 === 1 ? [styles.row, t.rowAlt] : styles.row, wrap: false },
                     React.createElement(Text, {}, `${li.name} × ${li.qty}${li.optional ? " (opsiyonel)" : ""}`),
                     React.createElement(Text, {}, `$${(li.optional && !li.included ? 0 : li.unit * li.qty).toLocaleString()}`),
                   ),
@@ -388,20 +440,21 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
                   ? React.createElement(
                       View,
                       { style: styles.totalRow, wrap: false },
-                      React.createElement(Text, { style: styles.totalLabel }, "Toplam"),
-                      React.createElement(Text, { style: styles.totalLabel }, `$${total.toLocaleString()}`),
+                      React.createElement(Text, { style: t.totalLabel }, "Toplam"),
+                      React.createElement(Text, { style: t.totalLabel }, `$${total.toLocaleString()}`),
                     )
                   : null,
               ),
             )
           : null,
 
-        // Sözleşme koşulları
+        // Sözleşme koşulları — each clause wraps independently, same reasoning
+        // as the scope checklist above.
         proposal.contract_text
           ? React.createElement(
               View,
-              {},
-              h2El("Sözleşme Koşulları"),
+              { style: styles.section },
+              h2El("Sözleşme Koşulları", t),
               ...splitClauses(proposal.contract_text).map((c: string, i: number) =>
                 React.createElement(
                   View,
@@ -417,13 +470,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         nextSteps.length > 0
           ? React.createElement(
               View,
-              {},
-              h2El("Sonraki Adımlar"),
+              { style: styles.section },
+              h2El("Sonraki Adımlar", t),
               ...nextSteps.map((step, i) =>
                 React.createElement(
                   View,
                   { key: i, style: styles.checkRow, wrap: false },
-                  React.createElement(Text, { style: styles.checkMark }, "✓"),
+                  React.createElement(Text, { style: t.checkMark }, "✓"),
                   React.createElement(
                     View,
                     {},
@@ -451,7 +504,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       React.createElement(
         View,
         { style: styles.body },
-        h2El("İmza ve Denetim İzi (Audit Trail)"),
+        h2El("İmza ve Denetim İzi (Audit Trail)", t),
         auditRows.length === 0
           ? React.createElement(Text, { style: styles.auditEmpty }, "Bu teklif için henüz kayıtlı bir imza yok.")
           : React.createElement(
@@ -460,11 +513,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
               React.createElement(
                 View,
                 { style: styles.auditHeaderRow },
-                React.createElement(Text, { style: [styles.auditCellRole, styles.auditHeaderCell] }, "Rol"),
-                React.createElement(Text, { style: [styles.auditCellSigner, styles.auditHeaderCell] }, "İsim / E-posta"),
-                React.createElement(Text, { style: [styles.auditCellIp, styles.auditHeaderCell] }, "IP Adresi"),
-                React.createElement(Text, { style: [styles.auditCellTime, styles.auditHeaderCell] }, "Zaman Damgası"),
-                React.createElement(Text, { style: [styles.auditCellOtp, styles.auditHeaderCell] }, "OTP Doğrulama"),
+                React.createElement(Text, { style: [styles.auditCellRole, t.auditHeaderCell] }, "Rol"),
+                React.createElement(Text, { style: [styles.auditCellSigner, t.auditHeaderCell] }, "İsim / E-posta"),
+                React.createElement(Text, { style: [styles.auditCellIp, t.auditHeaderCell] }, "IP Adresi"),
+                React.createElement(Text, { style: [styles.auditCellTime, t.auditHeaderCell] }, "Zaman Damgası"),
+                React.createElement(Text, { style: [styles.auditCellOtp, t.auditHeaderCell] }, "OTP Doğrulama"),
               ),
               ...auditRows.map((r, i) =>
                 React.createElement(
