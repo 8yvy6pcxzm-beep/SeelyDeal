@@ -1,5 +1,19 @@
 import { NextResponse } from "next/server";
-import { renderToBuffer, Document, Page, Text, View, StyleSheet, Font, Image } from "@react-pdf/renderer";
+import {
+  renderToBuffer,
+  Document,
+  Page,
+  Text,
+  View,
+  StyleSheet,
+  Font,
+  Image,
+  Svg,
+  Defs,
+  LinearGradient,
+  Stop,
+  Rect,
+} from "@react-pdf/renderer";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getAuthedUser } from "@/lib/supabase/auth-user";
 import appConfig from "@/app.config";
@@ -11,41 +25,82 @@ Font.register({
   family: "Inter",
   fonts: [
     { src: path.join(process.cwd(), "fonts", "Inter-Regular.ttf"), fontWeight: 400 },
-    { src: path.join(process.cwd(), "fonts", "Inter-Regular.ttf"), fontWeight: 700 },
+    { src: path.join(process.cwd(), "fonts", "Inter-Bold.ttf"), fontWeight: 700 },
   ],
 });
+// react-pdf's own hyphenation callback breaks mid-word for Turkish text (no
+// TR dictionary) — disable it so long words wrap on spaces instead.
+Font.registerHyphenationCallback((word) => [word]);
 
 const styles = StyleSheet.create({
   page: { padding: 0, fontSize: 10, fontFamily: "Inter", color: "#1a1c1a" },
-  cover: { padding: 40, color: "#fff" },
+  cover: { position: "relative", padding: 40, color: "#fff", minHeight: 260 },
+  coverBg: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   coverLogo: { height: 28, marginBottom: 10, objectFit: "contain" },
-  coverBrand: { fontSize: 11, fontWeight: 700, marginBottom: 16 },
-  title: { fontSize: 22, fontWeight: 700, marginBottom: 4 },
+  coverBrand: { fontSize: 11, fontWeight: 700, marginBottom: 16, letterSpacing: 0.5 },
+  title: { fontSize: 24, fontWeight: 700, marginBottom: 4 },
   client: { fontSize: 11, color: "#eee", marginBottom: 16 },
-  metaRow: { flexDirection: "row", gap: 24, marginTop: 8, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.25)", paddingTop: 12 },
-  metaLabel: { fontSize: 8, color: "rgba(255,255,255,0.7)", textTransform: "uppercase" },
+  metaCard: {
+    flexDirection: "row",
+    gap: 24,
+    marginTop: 20,
+    alignSelf: "flex-end",
+    backgroundColor: "rgba(255,255,255,0.14)",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  metaLabel: { fontSize: 8, color: "rgba(255,255,255,0.75)", textTransform: "uppercase", letterSpacing: 0.5 },
   metaValue: { fontSize: 10, fontWeight: 700, marginTop: 2 },
-  body: { padding: 40, paddingTop: 24 },
-  h2: { fontSize: 11, fontWeight: 700, color: "#5b3df6", textTransform: "uppercase", marginTop: 18, marginBottom: 8 },
+  body: { padding: 40, paddingTop: 24, paddingBottom: 48 },
+  h2Row: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 18, marginBottom: 8 },
+  h2Bar: { width: 3, height: 11, backgroundColor: "#5b3df6", borderRadius: 2 },
+  h2: { fontSize: 11, fontWeight: 700, color: "#5b3df6", textTransform: "uppercase", letterSpacing: 0.5 },
   text: { lineHeight: 1.5, fontSize: 10, color: "#333" },
   checkRow: { flexDirection: "row", gap: 8, marginBottom: 8 },
   checkMark: { fontSize: 9, color: "#5b3df6", fontWeight: 700 },
   checkTitle: { fontSize: 10, fontWeight: 700 },
   checkBody: { fontSize: 9.5, color: "#555", marginTop: 1, lineHeight: 1.4 },
   partiesRow: { flexDirection: "row", gap: 12 },
-  partyBox: { flex: 1, borderWidth: 1, borderColor: "#e5e5e5", borderRadius: 8, padding: 10 },
-  partyLabel: { fontSize: 8, color: "#888", textTransform: "uppercase", marginBottom: 3 },
+  partyBox: { flex: 1, borderWidth: 1, borderColor: "#ECEBF1", borderRadius: 10, padding: 12, backgroundColor: "#FAFAFC" },
+  partyLabel: { fontSize: 8, color: "#888", textTransform: "uppercase", marginBottom: 3, letterSpacing: 0.5 },
   partyName: { fontSize: 10, fontWeight: 700 },
   partyLine: { fontSize: 9, color: "#666", marginTop: 1 },
-  pkgBox: { borderWidth: 1.5, borderColor: "#5b3df6", borderRadius: 8, padding: 12, backgroundColor: "#f8f7ff" },
-  row: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: "#eee" },
-  totalRow: { flexDirection: "row", justifyContent: "space-between", paddingTop: 8, marginTop: 4, borderTopWidth: 2, borderTopColor: "#111" },
-  totalLabel: { fontSize: 12, fontWeight: 700 },
-  clause: { fontSize: 8.5, color: "#555", marginTop: 5, lineHeight: 1.4 },
-  footer: { borderTopWidth: 1, borderTopColor: "#eee", padding: 16, textAlign: "center", fontSize: 8, color: "#888" },
-  auditTable: { borderWidth: 1, borderColor: "#e5e5e5", borderRadius: 6, marginTop: 4 },
-  auditHeaderRow: { flexDirection: "row", backgroundColor: "#f8f7ff", borderBottomWidth: 1, borderBottomColor: "#e5e5e5" },
+  pkgBox: { borderWidth: 1, borderLeftWidth: 3, borderColor: "#ECEBF1", borderLeftColor: "#5b3df6", borderRadius: 10, padding: 14, backgroundColor: "#f8f7ff" },
+  row: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 6, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: "#eee" },
+  rowAlt: { backgroundColor: "rgba(91,61,246,0.04)" },
+  totalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: "#1e293b",
+  },
+  totalLabel: { fontSize: 12, fontWeight: 700, color: "#fff" },
+  clauseBox: { flexDirection: "row", gap: 8, marginTop: 6 },
+  clauseBar: { width: 2, backgroundColor: "#ECEBF1", borderRadius: 1 },
+  clause: { fontSize: 8.5, color: "#555", lineHeight: 1.4, flex: 1 },
+  footer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderTopWidth: 1,
+    borderTopColor: "#eee",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    textAlign: "center",
+    fontSize: 8,
+    color: "#888",
+  },
+  auditTable: { borderWidth: 1, borderColor: "#ECEBF1", borderRadius: 8, marginTop: 4, overflow: "hidden" },
+  auditHeaderRow: { flexDirection: "row", backgroundColor: "#f8f7ff", borderBottomWidth: 1, borderBottomColor: "#ECEBF1" },
   auditRow: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#eee" },
+  auditRowAlt: { backgroundColor: "#FAFAFC" },
   auditCellRole: { width: "16%", padding: 6, fontSize: 8.5 },
   auditCellSigner: { width: "26%", padding: 6, fontSize: 8.5 },
   auditCellIp: { width: "18%", padding: 6, fontSize: 8.5 },
@@ -53,12 +108,33 @@ const styles = StyleSheet.create({
   auditCellOtp: { width: "16%", padding: 6, fontSize: 8.5 },
   auditHeaderCell: { fontSize: 8, fontWeight: 700, color: "#5b3df6", textTransform: "uppercase" },
   auditEmpty: { fontSize: 9, color: "#888", marginTop: 8 },
-  auditNote: { fontSize: 8.5, color: "#555", marginTop: 14, lineHeight: 1.4, borderTopWidth: 1, borderTopColor: "#eee", paddingTop: 10 },
+  auditNoteBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: "#f0fdf4",
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+  },
+  auditNoteMark: { fontSize: 11, color: "#16a34a", fontWeight: 700 },
+  auditNote: { fontSize: 8.5, color: "#166534", lineHeight: 1.4, flex: 1 },
 });
 
 function splitClauses(text: string): string[] {
   const parts = text.split(/\n?(?=\d+\.\s)/).map((s) => s.trim()).filter(Boolean);
   return parts.length > 1 ? parts : [text];
+}
+
+function h2El(label: string) {
+  return React.createElement(
+    View,
+    { style: styles.h2Row },
+    React.createElement(View, { style: styles.h2Bar }),
+    React.createElement(Text, { style: styles.h2 }, label),
+  );
 }
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -156,13 +232,28 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       React.createElement(
         View,
         { style: [styles.cover, { backgroundColor: brandColor }] },
+        React.createElement(
+          Svg,
+          { style: styles.coverBg, viewBox: "0 0 600 320" },
+          React.createElement(
+            Defs,
+            {},
+            React.createElement(
+              LinearGradient,
+              { id: "coverGrad", x1: "0", y1: "0", x2: "1", y2: "1" },
+              React.createElement(Stop, { offset: "0", stopColor: brandColor, stopOpacity: 1 }),
+              React.createElement(Stop, { offset: "1", stopColor: "#a955f7", stopOpacity: 1 }),
+            ),
+          ),
+          React.createElement(Rect, { x: "0", y: "0", width: "600", height: "320", fill: "url(#coverGrad)" }),
+        ),
         company?.logo_url ? React.createElement(Image, { style: styles.coverLogo, src: company.logo_url }) : null,
         React.createElement(Text, { style: styles.coverBrand }, company?.name ?? appConfig.name),
         React.createElement(Text, { style: styles.title }, proposal.title),
         React.createElement(Text, { style: styles.client }, proposal.clients?.name ?? ""),
         React.createElement(
           View,
-          { style: styles.metaRow },
+          { style: styles.metaCard },
           React.createElement(
             View,
             {},
@@ -199,7 +290,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
           ? React.createElement(
               View,
               {},
-              React.createElement(Text, { style: styles.h2 }, "Ön Yazı"),
+              h2El("Ön Yazı"),
               React.createElement(Text, { style: styles.text }, proposal.intro_text),
             )
           : null,
@@ -209,7 +300,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
           ? React.createElement(
               View,
               {},
-              React.createElement(Text, { style: styles.h2 }, "Hakkımızda"),
+              h2El("Hakkımızda"),
               React.createElement(Text, { style: styles.text }, proposal.about_text),
             )
           : null,
@@ -218,10 +309,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         React.createElement(
           View,
           {},
-          React.createElement(Text, { style: styles.h2 }, "Taraflar"),
+          h2El("Taraflar"),
           React.createElement(
             View,
-            { style: styles.partiesRow },
+            { style: styles.partiesRow, wrap: false },
             React.createElement(
               View,
               { style: styles.partyBox },
@@ -252,11 +343,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
           ? React.createElement(
               View,
               {},
-              React.createElement(Text, { style: styles.h2 }, "Hizmet Kapsamı"),
+              h2El("Hizmet Kapsamı"),
               ...sections.map((s, i) =>
                 React.createElement(
                   View,
-                  { key: i, style: styles.checkRow },
+                  { key: i, style: styles.checkRow, wrap: false },
                   React.createElement(Text, { style: styles.checkMark }, "✓"),
                   React.createElement(
                     View,
@@ -274,7 +365,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
           ? React.createElement(
               View,
               {},
-              React.createElement(Text, { style: styles.h2 }, "Paket ve Ücret"),
+              h2El("Paket ve Ücret"),
               React.createElement(
                 View,
                 { style: styles.pkgBox },
@@ -288,7 +379,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
                 ...lineItems.map((li, i) =>
                   React.createElement(
                     View,
-                    { key: i, style: styles.row },
+                    { key: i, style: i % 2 === 1 ? [styles.row, styles.rowAlt] : styles.row, wrap: false },
                     React.createElement(Text, {}, `${li.name} × ${li.qty}${li.optional ? " (opsiyonel)" : ""}`),
                     React.createElement(Text, {}, `$${(li.optional && !li.included ? 0 : li.unit * li.qty).toLocaleString()}`),
                   ),
@@ -296,7 +387,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
                 lineItems.length > 0
                   ? React.createElement(
                       View,
-                      { style: styles.totalRow },
+                      { style: styles.totalRow, wrap: false },
                       React.createElement(Text, { style: styles.totalLabel }, "Toplam"),
                       React.createElement(Text, { style: styles.totalLabel }, `$${total.toLocaleString()}`),
                     )
@@ -310,9 +401,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
           ? React.createElement(
               View,
               {},
-              React.createElement(Text, { style: styles.h2 }, "Sözleşme Koşulları"),
+              h2El("Sözleşme Koşulları"),
               ...splitClauses(proposal.contract_text).map((c: string, i: number) =>
-                React.createElement(Text, { key: i, style: styles.clause }, c),
+                React.createElement(
+                  View,
+                  { key: i, style: styles.clauseBox, wrap: false },
+                  React.createElement(View, { style: styles.clauseBar }),
+                  React.createElement(Text, { style: styles.clause }, c),
+                ),
               ),
             )
           : null,
@@ -322,11 +418,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
           ? React.createElement(
               View,
               {},
-              React.createElement(Text, { style: styles.h2 }, "Sonraki Adımlar"),
+              h2El("Sonraki Adımlar"),
               ...nextSteps.map((step, i) =>
                 React.createElement(
                   View,
-                  { key: i, style: styles.checkRow },
+                  { key: i, style: styles.checkRow, wrap: false },
                   React.createElement(Text, { style: styles.checkMark }, "✓"),
                   React.createElement(
                     View,
@@ -340,11 +436,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
           : null,
       ),
 
-      React.createElement(
-        Text,
-        { style: styles.footer },
-        `${appConfig.name} — ${company?.name ?? ""} · Bu teklif ${createdDate} tarihinden itibaren ${validDays} gün geçerlidir.`,
-      ),
+      React.createElement(Text, {
+        style: styles.footer,
+        fixed: true,
+        render: ({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) =>
+          `${appConfig.name} — ${company?.name ?? ""} · Bu teklif ${createdDate} tarihinden itibaren ${validDays} gün geçerlidir. · Sayfa ${pageNumber} / ${totalPages}`,
+      }),
     ),
 
     // İmza ve Denetim İzi (Audit Trail) — last page, every signature event on record
@@ -354,7 +451,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       React.createElement(
         View,
         { style: styles.body },
-        React.createElement(Text, { style: styles.h2 }, "İmza ve Denetim İzi (Audit Trail)"),
+        h2El("İmza ve Denetim İzi (Audit Trail)"),
         auditRows.length === 0
           ? React.createElement(Text, { style: styles.auditEmpty }, "Bu teklif için henüz kayıtlı bir imza yok.")
           : React.createElement(
@@ -372,7 +469,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
               ...auditRows.map((r, i) =>
                 React.createElement(
                   View,
-                  { key: i, style: styles.auditRow },
+                  { key: i, style: i % 2 === 1 ? [styles.auditRow, styles.auditRowAlt] : styles.auditRow, wrap: false },
                   React.createElement(Text, { style: styles.auditCellRole }, r.role),
                   React.createElement(Text, { style: styles.auditCellSigner }, r.signer),
                   React.createElement(Text, { style: styles.auditCellIp }, r.ip),
@@ -382,11 +479,22 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
               ),
             ),
         React.createElement(
-          Text,
-          { style: styles.auditNote },
-          "Bu doküman elektronik olarak imzalanmış ve doğrulama izleri saklanmıştır.",
+          View,
+          { style: styles.auditNoteBox, wrap: false },
+          React.createElement(Text, { style: styles.auditNoteMark }, "✓"),
+          React.createElement(
+            Text,
+            { style: styles.auditNote },
+            "Bu doküman elektronik olarak imzalanmış ve doğrulama izleri saklanmıştır.",
+          ),
         ),
       ),
+      React.createElement(Text, {
+        style: styles.footer,
+        fixed: true,
+        render: ({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) =>
+          `${appConfig.name} — ${company?.name ?? ""} · Sayfa ${pageNumber} / ${totalPages}`,
+      }),
     ),
   );
 
