@@ -747,9 +747,17 @@ ${pricingBlock}${websiteContext}${prefillBlock}`;
   // draft was started from), tool-added blocks after.
   const templateBlocks = resolved?.blocks ?? [];
   if (draft && (templateBlocks.length > 0 || pendingLegalBlocks.length > 0 || pendingContentBlocks.length > 0)) {
+    // templateBlocks (when present) already contains the FULL block set the template
+    // was saved with — cover/sections/pricing included — so it replaces legacyToBlocks
+    // as the base instead of being appended alongside it; otherwise cover/section/pricing
+    // got generated twice (once from draft.sections/lineItems, once from the template copy).
     const baseBlocks: ProposalBlock[] =
-      Array.isArray(draft.blocks) && draft.blocks.length > 0 ? draft.blocks : legacyToBlocks(draft);
-    draft.blocks = [...baseBlocks, ...templateBlocks, ...pendingContentBlocks, ...pendingLegalBlocks];
+      templateBlocks.length > 0
+        ? templateBlocks
+        : Array.isArray(draft.blocks) && draft.blocks.length > 0
+          ? draft.blocks
+          : legacyToBlocks(draft);
+    draft.blocks = [...baseBlocks, ...pendingContentBlocks, ...pendingLegalBlocks];
   }
 
   // Optional ```brand``` block — logo/color (and, during onboarding, company name) the model detected this turn (see MARKA KAYDI rule above).

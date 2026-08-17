@@ -98,10 +98,10 @@ export async function GET(req: Request) {
   const { data: blockSignatures } = ids.length
     ? await service
         .from("block_signatures")
-        .select("proposal_id, block_id, block_type, signer_name, signer_email, otp_verified, ip, signed_at")
+        .select("proposal_id, block_id, block_type, signer_role, signer_name, signer_email, otp_verified, ip, signed_at")
         .in("proposal_id", ids)
         .order("signed_at", { ascending: false })
-    : { data: [] as { proposal_id: string; block_id: string; block_type: string; signer_name: string; signer_email: string | null; otp_verified: boolean; ip: string | null; signed_at: string }[] };
+    : { data: [] as { proposal_id: string; block_id: string; block_type: string; signer_role: string; signer_name: string; signer_email: string | null; otp_verified: boolean; ip: string | null; signed_at: string }[] };
 
   const dayKeys = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();

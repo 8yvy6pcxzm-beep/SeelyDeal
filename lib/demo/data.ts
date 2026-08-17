@@ -91,6 +91,10 @@ export interface ProposalRow {
   timeline: ViewEvent[];
   lineItems: LineItem[];
   template: L;
+  /** Block-level signature audit trail (see supabase/migrations/20260817000000_add_block_signatures.sql)
+   *  — only populated for real (non-demo) rows, used to hydrate the "signed" badge on
+   *  reopen instead of only after a same-session sign click. */
+  blockSignatures?: { blockId: string; blockType: string; signerRole: "company" | "client"; signerName: string; signedAt: string }[];
 }
 
 const coverPreview: L = {

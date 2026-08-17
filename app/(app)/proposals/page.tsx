@@ -89,6 +89,15 @@ function ProposalsPageInner() {
           included: li.included,
         })),
         template: { tr: "AI taslağı", en: "AI draft" },
+        blockSignatures: (p.block_signatures ?? []).map(
+          (s: { block_id: string; block_type: string; signer_role: "company" | "client"; signer_name: string; signed_at: string }) => ({
+            blockId: s.block_id,
+            blockType: s.block_type,
+            signerRole: s.signer_role,
+            signerName: s.signer_name,
+            signedAt: s.signed_at,
+          }),
+        ),
       }));
       setRealRows(mapped);
       setLiveIds(new Set((data.proposals ?? []).filter((p: any) => p.live_now).map((p: any) => p.id)));

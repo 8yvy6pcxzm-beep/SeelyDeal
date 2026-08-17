@@ -56,6 +56,23 @@ export function ProposalPreviewDialog({
   const [companySigningBlockId, setCompanySigningBlockId] = useState<string | null>(null);
   const [companySignErrors, setCompanySignErrors] = useState<Record<string, string>>({});
 
+  // Hydrate from the proposal's own block_signatures every time a (possibly different)
+  // proposal opens — without this, the badge only showed "signed" after a same-session
+  // click and reverted to the plain button on reopen/refresh even though the DB row exists.
+  useEffect(() => {
+    if (!proposal) {
+      setCompanySignatures({});
+      return;
+    }
+    const fromServer = Object.fromEntries(
+      (proposal.blockSignatures ?? [])
+        .filter((s) => s.signerRole === "company")
+        .map((s) => [s.blockId, { signerName: s.signerName, signedAt: s.signedAt }]),
+    );
+    setCompanySignatures(fromServer);
+    setCompanySignErrors({});
+  }, [proposal]);
+
   async function handleCompanySign(blockId: string, blockType: "Legal" | "ContractSignOff") {
     if (!proposal) return;
     setCompanySigningBlockId(blockId);
