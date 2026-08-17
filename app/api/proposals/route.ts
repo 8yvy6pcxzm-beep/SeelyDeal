@@ -4,7 +4,7 @@ import { getAuthedUser } from "@/lib/supabase/auth-user";
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const { title, client, value, sections, lineItems, contractText, paymentLink, billingOptions, introText, aboutText, clientContact, nextSteps, validDays, themeJson, templateId, format, viewMode } = body;
+  const { title, client, value, sections, lineItems, blocks, contractText, paymentLink, billingOptions, introText, aboutText, clientContact, nextSteps, validDays, themeJson, templateId, format, viewMode } = body;
 
   const user = await getAuthedUser(req);
   if (!user) return NextResponse.json({ error: "Giriş yapmalısın." }, { status: 401 });
@@ -45,6 +45,10 @@ export async function POST(req: Request) {
       value: Number.isFinite(numericValue) ? numericValue : 0,
       sections: Array.isArray(sections) ? sections : [],
       line_items: Array.isArray(lineItems) ? lineItems : [],
+      // Typed blocks (see lib/types/proposal-blocks.ts) — e.g. Legal blocks the AI
+      // pulled from the Content Library during drafting. Without this, a proposal
+      // saved for the first time (confirmed:true) silently lost every block.
+      blocks: Array.isArray(blocks) ? blocks : [],
       contract_text: contractText || null,
       payment_link: paymentLink || null,
       billing_options: Array.isArray(billingOptions) ? billingOptions : [],

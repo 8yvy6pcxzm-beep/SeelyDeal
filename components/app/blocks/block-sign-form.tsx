@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Loader2, PenLine } from "lucide-react";
+import { CheckCircle2, Loader2, PenLine, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -80,6 +80,43 @@ export function BlockSignForm({ lang, state }: { lang: "tr" | "en"; state: Block
       >
         {state.signing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PenLine className="h-3.5 w-3.5" />}
         {lang === "tr" ? "İmzala" : "Sign"}
+      </Button>
+      {state.error && <p className="text-[11px] text-destructive">{state.error}</p>}
+    </div>
+  );
+}
+
+/** State/handlers for the authenticated "sign on behalf of the company" affordance
+ *  the proposal editor shows on Legal/ContractSignOff blocks — a `signer_role:
+ *  "company"` row in block_signatures, no OTP (the caller is already logged in).
+ *  See app/api/proposals/[id]/blocks/[blockId]/company-sign/route.ts. */
+export type CompanySignState = {
+  signature: { signerName: string; signedAt: string } | null;
+  signing: boolean;
+  onSign: () => void;
+  error?: string | null;
+};
+
+export function CompanySignBadge({ lang, state }: { lang: "tr" | "en"; state: CompanySignState }) {
+  if (state.signature) {
+    return (
+      <div className="mt-2 flex items-center gap-1.5 rounded-lg border border-success/30 bg-success/10 px-2.5 py-1.5 text-[11px] text-success">
+        <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+        <span>
+          {lang === "tr" ? "Şirket adına imzalandı — " : "Signed on behalf of the company — "}
+          <span className="font-medium">{state.signature.signerName}</span>
+          {" · "}
+          {new Date(state.signature.signedAt).toLocaleString(lang === "tr" ? "tr-TR" : "en-US")}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-2 space-y-1">
+      <Button variant="outline" size="sm" onClick={state.onSign} disabled={state.signing} className="h-8 gap-1.5 text-[11.5px]">
+        {state.signing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PenLine className="h-3.5 w-3.5" />}
+        {lang === "tr" ? "Şirket Adına İmzala" : "Sign on Behalf of Company"}
       </Button>
       {state.error && <p className="text-[11px] text-destructive">{state.error}</p>}
     </div>

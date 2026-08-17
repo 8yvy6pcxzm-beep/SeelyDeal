@@ -39,6 +39,11 @@ type ResolvedTemplate = {
    *  never copy its wording). "company" = the company's own saved template (via "Taslak
    *  olarak kaydet" or /api/templates) — its content IS the point, reuse it directly. */
   source: "demo" | "company";
+  /** Only ever set for "company" templates — the model's json schema has no `blocks`
+   *  field, so these can't flow through the AI's reply. Instead they're merged straight
+   *  into `draft.blocks` below (same place Content Library tool blocks are merged),
+   *  so a Legal block saved into a template actually survives "bu şablonla yaz". */
+  blocks?: ProposalBlock[];
 };
 
 /** Finds the named demo template a chat is asking for, if any. Nicknames are opt-in
@@ -74,6 +79,7 @@ type CompanyTemplateRow = {
   name: string;
   sections: unknown;
   line_items: unknown;
+  blocks: unknown;
   contract_text: string | null;
   intro_text: string | null;
   about_text: string | null;
@@ -87,6 +93,7 @@ function normalizeCompanyTemplate(row: CompanyTemplateRow): ResolvedTemplate {
     sections: (row.sections ?? []) as { title: string; body: string }[],
     lineItems: (row.line_items ?? []) as { name: string; qty: number; unit: number }[],
     contractText: row.contract_text ?? undefined,
+    blocks: Array.isArray(row.blocks) && row.blocks.length > 0 ? (row.blocks as ProposalBlock[]) : undefined,
     source: "company",
   };
 }
@@ -111,7 +118,7 @@ async function resolveTemplateById(
 
   const { data: row } = await service
     .from("templates")
-    .select("name, sections, line_items, contract_text, intro_text, about_text")
+    .select("name, sections, line_items, blocks, contract_text, intro_text, about_text")
     .eq("id", id)
     .eq("company_id", companyId)
     .maybeSingle();
@@ -175,6 +182,22 @@ const draftTools = [
       required: ["documentId"],
     },
   },
+  {
+    name: "generate_custom_text_block",
+    description:
+      "İçerik Kütüphanesi'nde UYGUN bir doküman YOKSA (search_content_library'de bulunamadıysa ya da kullanıcı açıkça 'sıfırdan yaz' dediyse) kullanılır — SEN kendi yazdığın bir metni, teklife özel bağımsız bir blok olarak ekler. 'legal' tipi bir sözleşme/NDA/hukuki madde bloğu (teklifin sonuna, imzalanabilir), 'text' tipi ise normal bir bölüm metni (Teslim Edilecekler, Stratejimiz vb.) üretir. Bu araçla eklenen içerik HİÇBİR ZAMAN company_documents'a (İçerik Kütüphanesi'ne) yazılmaz — sadece bu tekliften. Kullanıcı 'bunu kütüphaneme de kaydet' derse bunu ayrıca söyle, bu araç onu yapmaz.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        blockType: { type: "string", enum: ["legal", "text"], description: "'legal' = imzalanabilir sözleşme/madde bloğu, 'text' = normal bölüm metni." },
+        title: { type: "string", description: "Blok başlığı (legal) ya da bölüm başlığı (text)." },
+        content: { type: "string", description: "SENİN yazdığın tam metin — placeholder değil, gerçek içerik." },
+        requireSignature: { type: "boolean", description: "Sadece blockType 'legal' iken: bu blok için ayrı imza zorunlu tutulsun mu (varsayılan false)." },
+        icon: { type: "string", enum: ["team", "timeline", "strategy"], description: "Sadece blockType 'text' iken: opsiyonel bölüm ikonu." },
+      },
+      required: ["blockType", "title", "content"],
+    },
+  },
 ];
 
 async function runDraftTool(
@@ -228,6 +251,35 @@ async function runDraftTool(
     const block = createTextBlockFromDocument(doc, label, icon);
     pendingContentBlocks.push(block);
     return JSON.stringify({ ok: true, label });
+  }
+
+  if (name === "generate_custom_text_block") {
+    const title = typeof input.title === "string" && input.title.trim() ? input.title.trim() : "Yeni Bölüm";
+    const content = typeof input.content === "string" ? input.content.trim() : "";
+    if (!content) return JSON.stringify({ error: "content boş olamaz." });
+
+    if (input.blockType === "legal") {
+      const block: ProposalBlock = {
+        id: `legal-custom-${Date.now()}`,
+        type: "Legal",
+        title,
+        content,
+        settings: { requireSignature: input.requireSignature === true },
+      };
+      pendingLegalBlocks.push(block);
+      return JSON.stringify({ ok: true, title });
+    }
+
+    const icon = input.icon === "team" || input.icon === "timeline" || input.icon === "strategy" ? input.icon : undefined;
+    const block: ProposalBlock = {
+      id: `text-custom-${Date.now()}`,
+      type: "RichSection",
+      label: title,
+      body: content,
+      ...(icon ? { icon } : {}),
+    };
+    pendingContentBlocks.push(block);
+    return JSON.stringify({ ok: true, label: title });
   }
 
   return JSON.stringify({ error: "Bilinmeyen araç." });
@@ -289,7 +341,7 @@ export async function POST(req: Request) {
       // template mentioned by name in free-form chat and to list them in the system prompt.
       service
         .from("templates")
-        .select("id, name, sections, line_items, contract_text, intro_text, about_text")
+        .select("id, name, sections, line_items, blocks, contract_text, intro_text, about_text")
         .eq("company_id", profile.company_id),
     ]);
 
@@ -454,8 +506,11 @@ Sözleşme: ${resolved.contractText}`
 7. Sözleşme Şartları — varsa revize edilmiş contractText, yoksa boş bırak.
 8. Sonraki Adımlar (ÇEKİRDEK) — kabul sonrası süreç (nextSteps, 3-5 adım).`;
   const defaultSections = company?.default_sections as Record<string, boolean> | null | undefined;
+  // Applies both on a brand-new draft AND in edit mode (currentDraft set) — a company's
+  // section preference shouldn't be forgotten mid-conversation, only overridden by an
+  // explicit request in this same turn (see the "önceliklendir" clause below).
   const defaultSectionsBlock =
-    !currentDraft && defaultSections
+    defaultSections
       ? `\nVARSAYILAN BÖLÜM TERCİHİ: Şirket, aksi açıkça istenmedikçe her yeni teklifte şu bölümleri kullanmak istiyor: ${Object.entries(
           defaultSections,
         )
@@ -686,10 +741,15 @@ ${pricingBlock}${websiteContext}${prefillBlock}`;
   // blocks are appended first (they belong among the proposal's regular sections),
   // Legal blocks last (always at the very end). Neither is ever written back to
   // company_documents.
-  if (draft && (pendingLegalBlocks.length > 0 || pendingContentBlocks.length > 0)) {
+  // A resolved company template's own saved blocks (e.g. a Legal block saved into it)
+  // can't flow through the model's json reply — merge them in directly, same as the
+  // Content Library tool blocks below. Template blocks go first (they're the base the
+  // draft was started from), tool-added blocks after.
+  const templateBlocks = resolved?.blocks ?? [];
+  if (draft && (templateBlocks.length > 0 || pendingLegalBlocks.length > 0 || pendingContentBlocks.length > 0)) {
     const baseBlocks: ProposalBlock[] =
       Array.isArray(draft.blocks) && draft.blocks.length > 0 ? draft.blocks : legacyToBlocks(draft);
-    draft.blocks = [...baseBlocks, ...pendingContentBlocks, ...pendingLegalBlocks];
+    draft.blocks = [...baseBlocks, ...templateBlocks, ...pendingContentBlocks, ...pendingLegalBlocks];
   }
 
   // Optional ```brand``` block — logo/color (and, during onboarding, company name) the model detected this turn (see MARKA KAYDI rule above).

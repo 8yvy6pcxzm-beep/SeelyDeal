@@ -43,6 +43,17 @@ const styles = StyleSheet.create({
   totalLabel: { fontSize: 12, fontWeight: 700 },
   clause: { fontSize: 8.5, color: "#555", marginTop: 5, lineHeight: 1.4 },
   footer: { borderTopWidth: 1, borderTopColor: "#eee", padding: 16, textAlign: "center", fontSize: 8, color: "#888" },
+  auditTable: { borderWidth: 1, borderColor: "#e5e5e5", borderRadius: 6, marginTop: 4 },
+  auditHeaderRow: { flexDirection: "row", backgroundColor: "#f8f7ff", borderBottomWidth: 1, borderBottomColor: "#e5e5e5" },
+  auditRow: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#eee" },
+  auditCellRole: { width: "16%", padding: 6, fontSize: 8.5 },
+  auditCellSigner: { width: "26%", padding: 6, fontSize: 8.5 },
+  auditCellIp: { width: "18%", padding: 6, fontSize: 8.5 },
+  auditCellTime: { width: "24%", padding: 6, fontSize: 8.5 },
+  auditCellOtp: { width: "16%", padding: 6, fontSize: 8.5 },
+  auditHeaderCell: { fontSize: 8, fontWeight: 700, color: "#5b3df6", textTransform: "uppercase" },
+  auditEmpty: { fontSize: 9, color: "#888", marginTop: 8 },
+  auditNote: { fontSize: 8.5, color: "#555", marginTop: 14, lineHeight: 1.4, borderTopWidth: 1, borderTopColor: "#eee", paddingTop: 10 },
 });
 
 function splitClauses(text: string): string[] {
@@ -62,12 +73,18 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   const { data: proposal } = await service
     .from("proposals")
-    .select("*, clients(name), companies(name, primary_color, email, logo_url, address, phone)")
+    .select("*, clients(name), companies(name, primary_color, email, logo_url, address, phone, plan)")
     .eq("id", id)
     .eq("company_id", profile.company_id)
     .maybeSingle();
 
   if (!proposal) return NextResponse.json({ error: "Teklif bulunamadı." }, { status: 404 });
+
+  const { data: blockSignatures } = await service
+    .from("block_signatures")
+    .select("block_id, block_type, signer_role, signer_name, signer_email, otp_verified, ip, signed_at")
+    .eq("proposal_id", id)
+    .order("signed_at", { ascending: true });
 
   const lineItems: { name: string; qty: number; unit: number; optional?: boolean; included?: boolean }[] = proposal.line_items || [];
   const billingOptions: { key: string; label: { tr: string; en: string }; price: number }[] = proposal.billing_options || [];
@@ -89,6 +106,45 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const total = lineItems.reduce((s, li) => (li.optional && !li.included ? s : s + li.qty * li.unit), 0);
   const validDays = proposal.valid_days || 15;
   const createdDate = new Date(proposal.created_at).toLocaleDateString("tr-TR");
+
+  // Audit rows: the whole-proposal "Accept & Sign" event (proposals.signed_at/…)
+  // plus every per-block signature (block_signatures — see ../blocks/[blockId]/sign
+  // and ../blocks/[blockId]/company-sign). OTP is only required above the Lite plan.
+  const otpRequiredForProposal = (proposal.companies as { plan?: string } | null)?.plan !== "lite";
+  const auditRows: {
+    role: string;
+    signer: string;
+    ip: string;
+    time: string;
+    otp: string;
+  }[] = [];
+  if (proposal.signed_at) {
+    auditRows.push({
+      role: "Müşteri — Teklif Onayı",
+      signer: proposal.signed_by_name || "—",
+      ip: proposal.signed_ip || "—",
+      time: new Date(proposal.signed_at).toLocaleString("tr-TR"),
+      otp: otpRequiredForProposal ? "Doğrulandı" : "Gerekli değil (Lite)",
+    });
+  }
+  for (const s of (blockSignatures ?? []) as {
+    block_type: string;
+    signer_role: string;
+    signer_name: string;
+    signer_email: string | null;
+    otp_verified: boolean;
+    ip: string | null;
+    signed_at: string;
+  }[]) {
+    const blockLabel = s.block_type === "Legal" ? "Yasal Madde" : "Sözleşme";
+    auditRows.push({
+      role: `${s.signer_role === "company" ? "Şirket" : "Müşteri"} — ${blockLabel}`,
+      signer: s.signer_email ? `${s.signer_name} (${s.signer_email})` : s.signer_name,
+      ip: s.ip || "—",
+      time: new Date(s.signed_at).toLocaleString("tr-TR"),
+      otp: s.otp_verified ? "Doğrulandı" : "Gerekli değil",
+    });
+  }
 
   const doc = React.createElement(
     Document,
@@ -288,6 +344,48 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         Text,
         { style: styles.footer },
         `${appConfig.name} — ${company?.name ?? ""} · Bu teklif ${createdDate} tarihinden itibaren ${validDays} gün geçerlidir.`,
+      ),
+    ),
+
+    // İmza ve Denetim İzi (Audit Trail) — last page, every signature event on record
+    React.createElement(
+      Page,
+      { size: "A4", style: styles.page },
+      React.createElement(
+        View,
+        { style: styles.body },
+        React.createElement(Text, { style: styles.h2 }, "İmza ve Denetim İzi (Audit Trail)"),
+        auditRows.length === 0
+          ? React.createElement(Text, { style: styles.auditEmpty }, "Bu teklif için henüz kayıtlı bir imza yok.")
+          : React.createElement(
+              View,
+              { style: styles.auditTable },
+              React.createElement(
+                View,
+                { style: styles.auditHeaderRow },
+                React.createElement(Text, { style: [styles.auditCellRole, styles.auditHeaderCell] }, "Rol"),
+                React.createElement(Text, { style: [styles.auditCellSigner, styles.auditHeaderCell] }, "İsim / E-posta"),
+                React.createElement(Text, { style: [styles.auditCellIp, styles.auditHeaderCell] }, "IP Adresi"),
+                React.createElement(Text, { style: [styles.auditCellTime, styles.auditHeaderCell] }, "Zaman Damgası"),
+                React.createElement(Text, { style: [styles.auditCellOtp, styles.auditHeaderCell] }, "OTP Doğrulama"),
+              ),
+              ...auditRows.map((r, i) =>
+                React.createElement(
+                  View,
+                  { key: i, style: styles.auditRow },
+                  React.createElement(Text, { style: styles.auditCellRole }, r.role),
+                  React.createElement(Text, { style: styles.auditCellSigner }, r.signer),
+                  React.createElement(Text, { style: styles.auditCellIp }, r.ip),
+                  React.createElement(Text, { style: styles.auditCellTime }, r.time),
+                  React.createElement(Text, { style: styles.auditCellOtp }, r.otp),
+                ),
+              ),
+            ),
+        React.createElement(
+          Text,
+          { style: styles.auditNote },
+          "Bu doküman elektronik olarak imzalanmış ve doğrulama izleri saklanmıştır.",
+        ),
       ),
     ),
   );

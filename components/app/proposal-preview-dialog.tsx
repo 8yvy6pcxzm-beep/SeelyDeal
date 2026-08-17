@@ -49,6 +49,45 @@ export function ProposalPreviewDialog({
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  // Authenticated "sign on behalf of the company" state for Legal/ContractSignOff
+  // blocks — same pattern as ai-draft-dialog.tsx's editor preview, just here for
+  // the read-only quick-look (this dialog is only reachable from inside the app).
+  const [companySignatures, setCompanySignatures] = useState<Record<string, { signerName: string; signedAt: string }>>({});
+  const [companySigningBlockId, setCompanySigningBlockId] = useState<string | null>(null);
+  const [companySignErrors, setCompanySignErrors] = useState<Record<string, string>>({});
+
+  async function handleCompanySign(blockId: string, blockType: "Legal" | "ContractSignOff") {
+    if (!proposal) return;
+    setCompanySigningBlockId(blockId);
+    setCompanySignErrors((prev) => ({ ...prev, [blockId]: "" }));
+    try {
+      const res = await fetch(`/api/proposals/${proposal.id}/blocks/${blockId}/company-sign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ blockType }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || (lang === "tr" ? "İmzalanamadı." : "Couldn't sign."));
+      setCompanySignatures((prev) => ({
+        ...prev,
+        [blockId]: { signerName: data.signature.signer_name, signedAt: data.signature.signed_at },
+      }));
+    } catch (e) {
+      setCompanySignErrors((prev) => ({ ...prev, [blockId]: e instanceof Error ? e.message : String(e) }));
+    } finally {
+      setCompanySigningBlockId(null);
+    }
+  }
+
+  function getCompanySignState(blockId: string, blockType: "Legal" | "ContractSignOff") {
+    return {
+      signature: companySignatures[blockId] ?? null,
+      signing: companySigningBlockId === blockId,
+      onSign: () => handleCompanySign(blockId, blockType),
+      error: companySignErrors[blockId] || null,
+    };
+  }
+
   if (!proposal || !mounted) return null;
 
   return createPortal(
@@ -95,6 +134,7 @@ export function ProposalPreviewDialog({
               value: proposal.value,
               lineItems: proposal.lineItems.map((li) => ({ id: li.id, name: t(li.name), unit: li.unit, qty: li.qty, optional: li.optional })),
               lang,
+              getCompanySignState,
             }}
           />
 

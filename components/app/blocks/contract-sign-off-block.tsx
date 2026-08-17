@@ -1,6 +1,6 @@
 "use client";
 
-import { BlockSignForm, type BlockSignState } from "@/components/app/blocks/block-sign-form";
+import { BlockSignForm, type BlockSignState, CompanySignBadge, type CompanySignState } from "@/components/app/blocks/block-sign-form";
 
 // Splits contract text into numbered clauses when written as "1. ... 2. ..."; falls back to one block.
 function splitClauses(text: string): string[] {
@@ -12,11 +12,15 @@ export function ContractSignOffBlock({
   contractText,
   lang,
   sign,
+  companySign,
 }: {
   contractText?: string;
   lang: "tr" | "en";
   /** Public-page signing state — omitted in editor previews. */
   sign?: BlockSignState;
+  /** Authenticated "sign on behalf of the company" state — editor previews only,
+   *  and only once the proposal has been saved (see ai-draft-dialog.tsx). */
+  companySign?: CompanySignState;
 }) {
   return (
     <div className="rounded-lg border border-border bg-card p-2.5">
@@ -31,6 +35,7 @@ export function ContractSignOffBlock({
         </div>
       )}
       {sign && <BlockSignForm lang={lang} state={sign} />}
+      {companySign && <CompanySignBadge lang={lang} state={companySign} />}
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { getAuthedUser } from "@/lib/supabase/auth-user";
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const { name, industry, sections, lineItems, contractText, introText, aboutText, nextSteps, billingOptions, validDays } = body;
+  const { name, industry, sections, lineItems, blocks, contractText, introText, aboutText, nextSteps, billingOptions, validDays } = body;
 
   const user = await getAuthedUser(req);
   if (!user) return NextResponse.json({ error: "Giriş yapmalısın." }, { status: 401 });
@@ -21,6 +21,9 @@ export async function POST(req: Request) {
       industry: industry || null,
       sections: Array.isArray(sections) ? sections : [],
       line_items: Array.isArray(lineItems) ? lineItems : [],
+      // Same blocks[] a proposal carries (Legal blocks etc.) — without this, saving a
+      // draft that has Legal blocks "as a template" silently dropped them.
+      blocks: Array.isArray(blocks) ? blocks : [],
       contract_text: contractText || null,
       intro_text: introText || null,
       about_text: aboutText || null,

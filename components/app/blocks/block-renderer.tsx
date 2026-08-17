@@ -4,7 +4,7 @@ import { RichSectionBlock } from "@/components/app/blocks/rich-section-block";
 import { PricingTableBlock } from "@/components/app/blocks/pricing-table-block";
 import { ContractSignOffBlock } from "@/components/app/blocks/contract-sign-off-block";
 import { LegalBlock } from "@/components/app/blocks/legal-block";
-import type { BlockSignState } from "@/components/app/blocks/block-sign-form";
+import type { BlockSignState, CompanySignState } from "@/components/app/blocks/block-sign-form";
 
 type TeamMember = { name: string; title: string | null; photo_url: string | null };
 
@@ -34,6 +34,10 @@ export type BlockRenderContext = {
    *  block id, or undefined to render the block without a sign form (editor previews,
    *  read-only surfaces). Omitted entirely on non-public surfaces. */
   getBlockSignState?: (blockId: string, blockType: "Legal" | "ContractSignOff") => BlockSignState | undefined;
+  /** Authenticated "sign on behalf of the company" state for a Legal/ContractSignOff
+   *  block — editor previews only (paired with `editable`), returns undefined until
+   *  the proposal has been saved (block_signatures needs a real proposal_id). */
+  getCompanySignState?: (blockId: string, blockType: "Legal" | "ContractSignOff") => CompanySignState | undefined;
 };
 
 /** Single render engine every proposal surface (editor preview now, public/
@@ -86,6 +90,7 @@ export function BlockRenderer({ blocks, ctx }: { blocks: ProposalBlock[]; ctx: B
                 contractText={block.contractText}
                 lang={ctx.lang}
                 sign={ctx.getBlockSignState?.(block.id, "ContractSignOff")}
+                companySign={ctx.getCompanySignState?.(block.id, "ContractSignOff")}
               />
             );
           case "Legal":
@@ -99,6 +104,7 @@ export function BlockRenderer({ blocks, ctx }: { blocks: ProposalBlock[]; ctx: B
                 editable={ctx.editable}
                 onChange={ctx.editable ? (patch) => ctx.onLegalBlockChange?.(block.id, patch) : undefined}
                 sign={ctx.editable ? undefined : ctx.getBlockSignState?.(block.id, "Legal")}
+                companySign={ctx.getCompanySignState?.(block.id, "Legal")}
               />
             );
           default:

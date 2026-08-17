@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { BlockSignForm, type BlockSignState } from "@/components/app/blocks/block-sign-form";
+import { BlockSignForm, type BlockSignState, CompanySignBadge, type CompanySignState } from "@/components/app/blocks/block-sign-form";
 
 /** Editable text block for per-proposal legal clauses (NDA, custom addenda, …).
  *  Unlike ContractSignOff (fixed "7th section" caption), a proposal can carry
@@ -16,6 +16,7 @@ export function LegalBlock({
   editable = false,
   onChange,
   sign,
+  companySign,
 }: {
   title: string;
   content: string;
@@ -26,6 +27,9 @@ export function LegalBlock({
   /** Public-page signing state — omitted in editor previews and read-only surfaces
    *  that don't offer signing (e.g. the proposals-table quick-look). */
   sign?: BlockSignState;
+  /** Authenticated "sign on behalf of the company" state — editor previews only,
+   *  and only once the proposal has been saved (see ai-draft-dialog.tsx). */
+  companySign?: CompanySignState;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -50,6 +54,7 @@ export function LegalBlock({
             <p className="mt-1 text-[11px] text-muted-foreground">{lang === "tr" ? "İmza gerekli" : "Signature required"}</p>
           )
         )}
+        {requireSignature && companySign && <CompanySignBadge lang={lang} state={companySign} />}
       </div>
     );
   }
@@ -79,6 +84,7 @@ export function LegalBlock({
         />
         {lang === "tr" ? "İmza gerektir" : "Require signature"}
       </label>
+      {requireSignature && companySign && <CompanySignBadge lang={lang} state={companySign} />}
     </div>
   );
 }

@@ -189,6 +189,15 @@ export function AiDraftDialog({
   // proposal instead of creating a new one — the dialog stays open and chattable
   // after the first save so the user can keep refining it, on every plan.
   const [savedProposalId, setSavedProposalId] = useState<string | null>(null);
+  // Authenticated "sign on behalf of the company" state for Legal/ContractSignOff
+  // blocks in the preview below — only usable once the proposal is saved, since
+  // block_signatures rows need a real proposal_id (see savedProposalId above).
+  const [companySignatures, setCompanySignatures] = useState<Record<string, { signerName: string; signedAt: string }>>({});
+  const [companySigningBlockId, setCompanySigningBlockId] = useState<string | null>(null);
+  const [companySignErrors, setCompanySignErrors] = useState<Record<string, string>>({});
+  // "Sign on behalf of company" clicked before the proposal has a real id yet — queued
+  // here instead of silently doing nothing, and flushed once saveDraft() gets an id back.
+  const [pendingCompanySign, setPendingCompanySign] = useState<Record<string, "Legal" | "ContractSignOff">>({});
   const [showSaveTemplateField, setShowSaveTemplateField] = useState(false);
   const [templateSaveName, setTemplateSaveName] = useState("");
   const [savingTemplate, setSavingTemplate] = useState(false);
@@ -505,6 +514,50 @@ export function AiDraftDialog({
       // localStorage unavailable (private mode etc.) — just skip the strip.
     }
   }, [open, plan, messages.length]);
+
+  async function handleCompanySign(blockId: string, blockType: "Legal" | "ContractSignOff", proposalIdOverride?: string) {
+    const proposalId = proposalIdOverride ?? savedProposalId;
+    if (!proposalId) {
+      // No id yet — the proposal hasn't been saved for the first time. Queue the
+      // intent instead of dropping it; saveDraft() flushes this once it has an id.
+      setPendingCompanySign((prev) => ({ ...prev, [blockId]: blockType }));
+      return;
+    }
+    setCompanySigningBlockId(blockId);
+    setCompanySignErrors((prev) => ({ ...prev, [blockId]: "" }));
+    try {
+      const res = await fetch(`/api/proposals/${proposalId}/blocks/${blockId}/company-sign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ blockType }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || (lang === "tr" ? "İmzalanamadı." : "Couldn't sign."));
+      setCompanySignatures((prev) => ({
+        ...prev,
+        [blockId]: { signerName: data.signature.signer_name, signedAt: data.signature.signed_at },
+      }));
+    } catch (e) {
+      setCompanySignErrors((prev) => ({ ...prev, [blockId]: e instanceof Error ? e.message : String(e) }));
+    } finally {
+      setCompanySigningBlockId(null);
+      setPendingCompanySign((prev) => {
+        if (!(blockId in prev)) return prev;
+        const next = { ...prev };
+        delete next[blockId];
+        return next;
+      });
+    }
+  }
+
+  function getCompanySignState(blockId: string, blockType: "Legal" | "ContractSignOff") {
+    return {
+      signature: companySignatures[blockId] ?? null,
+      signing: companySigningBlockId === blockId || blockId in pendingCompanySign,
+      onSign: () => handleCompanySign(blockId, blockType),
+      error: companySignErrors[blockId] || null,
+    };
+  }
 
   function rememberRecentTemplate(id: string) {
     try {
@@ -939,6 +992,7 @@ export function AiDraftDialog({
                 name: toSave.title,
                 sections: toSave.sections,
                 lineItems: toSave.lineItems,
+                blocks: toSave.blocks,
                 contractText: toSave.contractText,
                 introText: toSave.introText,
                 aboutText: toSave.aboutText,
@@ -967,7 +1021,14 @@ export function AiDraftDialog({
         );
         return false;
       }
-      if (mode !== "template" && !savedProposalId && data?.id) setSavedProposalId(data.id);
+      if (mode !== "template" && !savedProposalId && data?.id) {
+        setSavedProposalId(data.id);
+        // Flush any "sign on behalf of company" clicks made before this first save —
+        // block_signatures needs a real proposal_id, so those were queued until now.
+        Object.entries(pendingCompanySign).forEach(([blockId, blockType]) => {
+          handleCompanySign(blockId, blockType, data.id);
+        });
+      }
       onSaved();
       return true;
     } catch {
@@ -1318,9 +1379,9 @@ export function AiDraftDialog({
                   </div>
                 );
               })()}
-              {draft.blocks && draft.blocks.some((b) => b.type === "Legal") && (
+              {draft.blocks && draft.blocks.some((b) => b.type === "Legal" || b.type === "ContractSignOff") && (
                 <BlockRenderer
-                  blocks={draft.blocks.filter((b) => b.type === "Legal")}
+                  blocks={draft.blocks.filter((b) => b.type === "Legal" || b.type === "ContractSignOff")}
                   ctx={{
                     title: draft.title,
                     client: draft.client,
@@ -1338,6 +1399,7 @@ export function AiDraftDialog({
                           ),
                         };
                       }),
+                    getCompanySignState,
                   }}
                 />
               )}
