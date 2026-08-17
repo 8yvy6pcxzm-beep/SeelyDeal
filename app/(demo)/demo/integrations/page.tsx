@@ -36,10 +36,16 @@ export default function DemoIntegrationsPage() {
                 <p className="text-[13.5px] font-medium">{it.name}</p>
                 <p className="mt-0.5 truncate text-[12px] text-muted-foreground">{it.purpose}</p>
               </div>
-              <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 text-[11px] font-semibold text-success">
-                <Check className="h-3 w-3" />
-                {lang === "tr" ? "Bağlı" : "Connected"}
-              </span>
+              {it.comingSoon ? (
+                <span className="shrink-0 text-[11px] font-semibold text-muted-foreground/50">
+                  {lang === "tr" ? "Yakında" : "Coming soon"}
+                </span>
+              ) : (
+                <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 text-[11px] font-semibold text-success">
+                  <Check className="h-3 w-3" />
+                  {lang === "tr" ? "Bağlı" : "Connected"}
+                </span>
+              )}
             </div>
           ))}
         </div>
