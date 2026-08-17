@@ -272,6 +272,10 @@ export function AiDraftDialog({
     { emoji: "📊", tr: "Muhasebe", en: "Accounting", templateId: demoTemplates.find((t) => t.sector === "accounting")?.id },
     { emoji: "🔍", tr: "Denetim", en: "Audit", templateId: demoTemplates.find((t) => t.sector === "audit")?.id },
     { emoji: "🏢", tr: "Kurumsal Yazılım", en: "Enterprise Software", templateId: demoTemplates.find((t) => t.sector === "enterprise_software")?.id },
+    { emoji: "🎯", tr: "Koçluk / Yön. Danışmanlığı", en: "Coaching / Advisory", templateId: demoTemplates.find((t) => t.sector === "coaching")?.id },
+    { emoji: "💰", tr: "Finansal Hizmetler", en: "Financial Services", templateId: demoTemplates.find((t) => t.sector === "financial_services")?.id },
+    { emoji: "🧑‍💼", tr: "İnsan Kaynakları", en: "Human Resources", templateId: demoTemplates.find((t) => t.sector === "hr_consulting")?.id },
+    { emoji: "📈", tr: "Pazar Araştırması", en: "Market Research", templateId: demoTemplates.find((t) => t.sector === "market_research")?.id },
     { emoji: "📄", tr: "Varsayılan", en: "Default", templateId: undefined },
   ];
   const [showChecklist, setShowChecklist] = useState(false);

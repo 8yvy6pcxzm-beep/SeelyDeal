@@ -411,7 +411,19 @@ export interface Template {
   /** Sector tag for "draft" templates — drives the sector chips in the AI chat
    *  modal (components/app/ai-draft-dialog.tsx) and lets Seely reference the
    *  right sector-specific defaults (see draft-proposal/route.ts). */
-  sector?: "construction" | "software" | "events" | "consulting" | "general" | "accounting" | "audit" | "enterprise_software";
+  sector?:
+    | "construction"
+    | "software"
+    | "events"
+    | "consulting"
+    | "general"
+    | "accounting"
+    | "audit"
+    | "enterprise_software"
+    | "coaching"
+    | "financial_services"
+    | "hr_consulting"
+    | "market_research";
   /** Legacy chat-nickname matching (app/api/draft-proposal/route.ts) — no demo
    *  template sets this anymore, kept only so that file's type still compiles. */
   nickname?: string;
@@ -847,6 +859,209 @@ export const templates: Template[] = [
     contractText: {
       tr: "İşbu sözleşme, Yüklenici tarafından Müşteri'ye sunulacak ERP uygulama hizmetlerinin genel çerçevesini, hizmet kapsamını ve ödeme takvimini belirler.\n\nGizlilik: Taraflar, proje kapsamında paylaşılan tüm ticari, finansal ve teknik bilgileri gizli bilgi olarak kabul eder; yazılı onay olmaksızın üçüncü şahıslarla paylaşamaz.\n\nÜcretlendirme ve Ödeme Koşulları: Hizmet bedeli, kabul edilen fiyatlandırma teklifinde belirtildiği üzeredir. Ödeme takvimi, uygulama aşamalarına bağlı olarak kilometre taşı bazlı belirlenir.\n\nKapsam Değişikliği: Kapsam dışı yeni talepler yazılı ek teklif ile ayrıca fiyatlandırılır.\n\nOnay: İşbu teklifin elektronik imza ile onaylanması, taraflar arasında kapsam, fiyatlandırma ve uygulama takvimi konusunda mutabakata varıldığını teyit eder ve uygulama sürecinin başlatılmasını sağlar.",
       en: "This agreement sets out the general framework, scope of services, and payment schedule for the ERP implementation services the Contractor will provide to the Client.\n\nConfidentiality: The parties treat all commercial, financial, and technical information shared during the project as confidential and will not disclose it to third parties without written consent.\n\nFees & Payment Terms: Fees are as detailed in the accepted pricing proposal. The payment schedule is milestone-based, tied to implementation phases.\n\nChange Requests: New requests outside scope are quoted and billed separately in writing.\n\nApproval: Electronic signature approval of this proposal confirms mutual agreement between the parties on scope, pricing, and the implementation timeline, and authorizes the implementation to begin.",
+    },
+  },
+  {
+    id: "t15",
+    name: { tr: "Üst Düzey Yöneticilik Koçluğu / Yönetici Danışmanlığı Teklifi", en: "Executive Coaching / Leadership Advisory Proposal" },
+    category: { tr: "Koçluk / Yönetici Danışmanlığı", en: "Coaching / Leadership Advisory" },
+    uses: 0,
+    winRate: 0,
+    accent: "var(--seg-4)",
+    kind: "draft",
+    sector: "coaching",
+    introText: {
+      tr: "Sayın [Danışan Adı],\n\nTek kişilik bir faaliyetten bugünkü büyüyen işletmenize uzanan yolculuğunuz gerçekten takdire değer. Üst düzey yöneticilik koçluğu, bu yolculuğun mesleki gelişiminizdeki bir sonraki kritik adımı olabilir.\n\nBu teklifte, hem kişisel hem de ticari potansiyelinizi ortaya çıkarmanıza yardımcı olacak bir ortak, bir destekçi ve stratejik bir rehber olarak üstleneceğim rolü, koçluk sürecimizin nasıl işleyeceğini ve yatırımın detaylarını bulacaksınız.",
+      en: "Dear [Client Name],\n\nYour journey from a one-person operation to the growing business you run today is genuinely admirable. Executive coaching can be the next critical step in that journey's professional development.\n\nIn this proposal you'll find the role I'll take on as a partner, a supporter, and a strategic guide to help unlock both your personal and business potential, how our coaching process will work, and the details of the investment.",
+    },
+    aboutText: {
+      tr: "Solo girişimcilerden üst düzey yöneticilere kadar çok çeşitli danışanlarla çalışma konusunda engin bir deneyime sahibim. Yaklaşımım, kararlı liderlik ile güçlü, açık iletişimi bir araya getirir; danışanlarımın hem kendilerini hem de işlerini daha net görmelerine yardımcı olurum.\n\n\"Onunla çalışmak, kendi liderlik tarzımı yeniden keşfetmemi sağladı — hem işimde hem de kişisel hayatımda somut bir fark yarattı.\" — [Referans Adı], [Unvan], [Referans Firma]",
+      en: "I bring extensive experience working with a wide range of clients, from solo entrepreneurs to senior executives. My approach combines decisive leadership with strong, open communication, helping clients see both themselves and their business more clearly.\n\n\"Working with them helped me rediscover my own leadership style — it made a tangible difference both in my business and in my personal life.\" — [Reference Name], [Title], [Reference Company]",
+    },
+    sections: [
+      {
+        title: { tr: "Koçluk Hedefleri", en: "Coaching Goals" },
+        body: {
+          tr: "İlk koçluk oturumumuzda, mesleki gelişiminize yönelik stratejik yaklaşımımızı birlikte netleştireceğiz. Bu bölüm, koçluk sürecinin hedeflerini, teslim edilecek unsurları ve hedeflerinize ulaşmayı bekleyebileceğiniz zaman çizelgesini özetler:\n\n• Netleştirilecek hedefler — [X] ay içinde ulaşılması hedeflenen kişisel ve ticari kilometre taşları.\n• Teslim edilecekler — düzenli oturum notları, gelişim değerlendirmeleri ve eylem planları.\n• Zaman çizelgesi — [X] aylık program boyunca aşamalı ilerleme takibi.",
+          en: "In our first coaching session, we'll clarify together our strategic approach to your professional development. This section outlines the goals of the coaching process, the deliverables, and the timeline you can expect to reach your goals:\n\n• Goals to clarify — personal and business milestones targeted within [X] months.\n• Deliverables — regular session notes, progress assessments, and action plans.\n• Timeline — phased progress tracking over the [X]-month program.",
+        },
+      },
+      {
+        title: { tr: "Koçluk Nasıl İşler?", en: "How Coaching Works" },
+        body: {
+          tr: "Koçluk ilişkisinin temelinde güven yer alır. Süreç, tercihinize göre yüz yüze, telefon veya video konferans yoluyla gerçekleştirilebilecek esnek bire bir görüşmeleri içerir.\n\nEtkili koçluğun sonuçları arasında şunlar yer alır:\n• Daha net bir liderlik vizyonu ve karar alma özgüveni.\n• Kişisel ve profesyonel önceliklerin uyumlu hale getirilmesi.\n• Zorlayıcı durumlar karşısında sürdürülebilir stratejiler geliştirme becerisi.",
+          en: "Trust is at the core of the coaching relationship. The process includes flexible one-on-one sessions that can take place in person, by phone, or via video conference, based on your preference.\n\nThe outcomes of effective coaching include:\n• A clearer leadership vision and confidence in decision-making.\n• Alignment between personal and professional priorities.\n• The ability to build sustainable strategies for facing challenging situations.",
+        },
+      },
+      {
+        title: { tr: "Koçluk Süreci", en: "Coaching Process" },
+        body: {
+          tr: "İlk ücretsiz görüşmeden 12 aylık kapsamlı koçluk planına kadar sürecimiz şu adımlardan oluşur:\n\n1. Keşif Toplantısı — hedeflerinizin ve mevcut durumunuzun ücretsiz olarak birlikte değerlendirilmesi.\n2. Değerlendirme — güçlü yönlerinizin ve karşılaştığınız zorlukların netleştirilmesi.\n3. Strateji Tasarımı — kişiselleştirilmiş bir koçluk planının oluşturulması.\n4. Sürekli Uygulama — düzenli takip oturumları ve ilerleme değerlendirmeleriyle desteklenen [X] aylık program.",
+          en: "From the initial free consultation to a comprehensive 12-month coaching plan, our process consists of the following steps:\n\n1. Discovery Meeting — a free, joint assessment of your goals and current situation.\n2. Assessment — clarifying your strengths and the challenges you face.\n3. Strategy Design — building a personalized coaching plan.\n4. Ongoing Practice — a [X]-month program supported by regular follow-up sessions and progress reviews.",
+        },
+      },
+    ],
+    lineItems: [
+      { name: { tr: "Keşif Görüşmesi", en: "Discovery Consultation" }, qty: 1, unit: 0 },
+      { name: { tr: "Bire Bir Koçluk Oturumu (aylık)", en: "One-on-One Coaching Session (monthly)" }, qty: 12, unit: 3500 },
+      { name: { tr: "Strateji Tasarımı ve Değerlendirme Raporu", en: "Strategy Design & Assessment Report" }, qty: 1, unit: 2500 },
+    ],
+    contractText: {
+      tr: "İşbu sözleşme, Koç tarafından Danışan'a sunulacak üst düzey yöneticilik koçluğu hizmetlerinin genel çerçevesini belirler.\n\nSunulacak Hizmetler ve Toplantı Gereksinimleri: Koçluk oturumları, karşılıklı mutabakatla belirlenen sıklıkta ve süre boyunca gerçekleştirilir; Danışan'ın oturumlara düzenli katılımı, sürecin verimliliği için esastır.\n\nGizlilik: Koç, oturumlar sırasında paylaşılan tüm kişisel ve ticari bilgileri gizli tutar.\n\nİptal veya Değişiklik: Oturumların iptali veya yeniden planlanması, en az [X] saat önceden bildirilmelidir; aksi halde oturum ücreti tahsil edilir.\n\nOnay: İşbu teklifin elektronik imza ile onaylanması, taraflar arasında kapsam, ücretlendirme ve koçluk süreci konusunda mutabakata varıldığını teyit eder.",
+      en: "This agreement sets out the general framework for the executive coaching services the Coach will provide to the Client.\n\nServices & Meeting Requirements: Coaching sessions take place at a frequency and duration set by mutual agreement; the Client's regular attendance is essential to the effectiveness of the process.\n\nConfidentiality: The Coach keeps all personal and business information shared during sessions confidential.\n\nCancellation or Rescheduling: Sessions must be cancelled or rescheduled with at least [X] hours' notice; otherwise the session fee is charged.\n\nApproval: Electronic signature approval of this proposal confirms mutual agreement between the parties on scope, fees, and the coaching process.",
+    },
+  },
+  {
+    id: "t16",
+    name: { tr: "Finansal Hizmetler Teklifi", en: "Financial Services Proposal" },
+    category: { tr: "Finansal Danışmanlık", en: "Financial Advisory" },
+    uses: 0,
+    winRate: 0,
+    accent: "var(--seg-1)",
+    kind: "draft",
+    sector: "financial_services",
+    introText: {
+      tr: "Sayın [Müşteri Yetkilisi],\n\nTicari hedeflerinize ulaşmada stratejik finans yönetiminin taşıdığı önemi biliyoruz. Bu teklifte, [Şirket Adı]'nın finansal operasyonlarını genel iş stratejinizle uyumlu hale getirerek kârlılığı, büyümeyi ve sürdürülebilirliği en üst düzeye çıkarmaya yönelik yaklaşımımızın tüm detaylarını bulacaksınız.\n\nAşağıda ekibimizi, hizmet kapsamımızı ve şeffaf fiyatlandırmamızı bulabilirsiniz. Sorularınız için her zaman buradayız.",
+      en: "Dear [Client Contact],\n\nWe understand how much strategic financial management matters to reaching your business goals. In this proposal you'll find our full approach to aligning [Company Name]'s financial operations with your overall business strategy to maximize profitability, growth, and sustainability.\n\nBelow you'll find our team, our scope of services, and transparent pricing. We're always here for your questions.",
+    },
+    aboutText: {
+      tr: "Finansal İşler Direktörlüğü (CFO) hizmetleri ve finansal danışmanlık alanında uzmanlaşmış bir finansal hizmetler firmasıyız. Sektör deneyimimizi ve pazar bilgimizi, işletmelerin kaynaklarını optimize etmelerine yardımcı olacak özel finansal yönetim sistemleriyle birleştiriyoruz.\n\n\"Finansal görünürlüğümüzü tamamen değiştirdiler; artık yatırım kararlarını çok daha net verilerle alıyoruz.\" — [Referans Adı], [Unvan], [Referans Firma]",
+      en: "We're a financial services firm specialized in CFO services and financial advisory. We combine our sector experience and market knowledge with custom financial management systems that help businesses optimize their resources.\n\n\"They completely transformed our financial visibility — we now make investment decisions with far clearer data.\" — [Reference Name], [Title], [Reference Company]",
+    },
+    sections: [
+      {
+        title: { tr: "Ekibimizle Tanışın", en: "Meet Our Team" },
+        body: {
+          tr: "Finans teklifinin sunulmasından sorumlu kilit profesyonellerimiz:\n\n• [Finans Stratejisti Adı] — iş planlaması ve uzun vadeli finansal strateji konusunda [X] yıllık deneyime sahiptir.\n• [Kıdemli Muhasebeci Adı], SMMM — vergi yönetimi ve finansal raporlama süreçlerini uçtan uca yönetir.\n• [Risk Danışmanı Adı] — risk değerlendirmesi ve mevzuata uyum konularında derin uzmanlığa sahiptir.\n\nEkibimiz, ihtiyaçlarınıza özel finansal çözümler geliştirmek için yakın iş birliği içinde çalışır.",
+          en: "The key professionals responsible for delivering this financial proposal:\n\n• [Financial Strategist Name] — [X] years of experience in business planning and long-term financial strategy.\n• [Senior Accountant Name], CPA — manages tax administration and financial reporting processes end to end.\n• [Risk Advisor Name] — deep expertise in risk assessment and regulatory compliance.\n\nOur team works in close collaboration to develop financial solutions tailored to your needs.",
+        },
+      },
+      {
+        title: { tr: "Proje Özeti", en: "Project Summary" },
+        body: {
+          tr: "[Şirket Adı]'nın mevcut finansal tablosunu ve finansal hizmet hedeflerini özetler:\n\n• Kurumsal hedefler — büyüme, kârlılık ve sürdürülebilirlik önceliklerinin netleştirilmesi.\n• Finansal kaynak tahsisi ve bütçeleme stratejileri.\n• Uzun vadeli finansal planlama.\n\nLiderlik ekibinizle yakın çalışarak nakit akışını izler, yatırım kararlarını iyileştirir ve finansal istikrarınızı artırırız.",
+          en: "Summarizes [Company Name]'s current financial picture and the goals for financial services:\n\n• Corporate goals — clarifying priorities around growth, profitability, and sustainability.\n• Financial resource allocation and budgeting strategies.\n• Long-term financial planning.\n\nWe work closely with your leadership team to monitor cash flow, improve investment decisions, and strengthen financial stability.",
+        },
+      },
+      {
+        title: { tr: "Teklif", en: "The Proposal" },
+        body: {
+          tr: "Sunduğumuz hizmetlerin ayrıntılı açıklaması:\n\n• Finansal Gözetim — mali tabloların düzenli takibi ve doğruluğunun sağlanması.\n• Gelir ve Gider Analizi — bütçeleme ve mevzuata uyum dahil.\n• Risk Yönetimi — finansal riskleri tespit etme, pazar dalgalanmalarını yönetme ve varlıklarınızı koruyacak risk azaltma stratejileri geliştirme.\n\nTüm hizmetler, işletmenizin büyüklüğüne ve ihtiyaçlarına göre özelleştirilir.",
+          en: "A detailed description of the services we offer:\n\n• Financial Oversight — regular monitoring and accuracy checks of financial statements.\n• Income & Expense Analysis — including budgeting and regulatory compliance.\n• Risk Management — identifying financial risks, managing market volatility, and developing mitigation strategies to protect your assets and investments.\n\nAll services are customized to your business's size and needs.",
+        },
+      },
+      {
+        title: { tr: "Sonraki Adımlar", en: "Next Steps" },
+        body: {
+          tr: "1. İlk Görüşme — hedeflerinizin ve mevcut finansal durumunuzun değerlendirilmesi (Hafta 1).\n2. İşe Alım (Onboarding) — finansal verilerin aktarımı ve sistemlerin kurulumu (Hafta 2-3).\n3. Uygulama Planı — belirlenen hizmetlerin devreye alınması ve raporlama düzeninin başlatılması (Hafta 4).\n4. Sürekli Destek — düzenli raporlama, değerlendirme toplantıları ve süreç iyileştirmeleri.",
+          en: "1. Initial Consultation — assessing your goals and current financial position (Week 1).\n2. Onboarding — transferring financial data and setting up systems (Weeks 2-3).\n3. Implementation Plan — rolling out the agreed services and starting the reporting cadence (Week 4).\n4. Ongoing Support — regular reporting, review meetings, and process improvements.",
+        },
+      },
+    ],
+    lineItems: [
+      { name: { tr: "CFO Danışmanlığı (aylık)", en: "CFO Advisory (monthly)" }, qty: 12, unit: 15000 },
+      { name: { tr: "Risk Değerlendirmesi", en: "Risk Assessment" }, qty: 1, unit: 12000 },
+      { name: { tr: "Bütçeleme ve Uzun Vadeli Finansal Planlama", en: "Budgeting & Long-Term Financial Planning" }, qty: 1, unit: 9000 },
+      { name: { tr: "Aylık Finansal Raporlama", en: "Monthly Financial Reporting" }, qty: 12, unit: 3500 },
+    ],
+    contractText: {
+      tr: "İşbu sözleşme (nihai kullanımdan önce bir hukuk uzmanı tarafından incelenmesi önerilir), Firma tarafından Müşteri'ye sunulacak finansal danışmanlık ve CFO hizmetlerinin kapsamını, gizlilik ve standart yürütme kurallarını belirler.\n\nİş Kapsamı: Hizmetler, işbu teklifte belirtilen kapsamla sınırlıdır; kapsam dışı talepler ayrıca fiyatlandırılır.\n\nGizlilik: Taraflar, işbu sözleşme kapsamında paylaşılan tüm finansal ve ticari bilgileri gizli tutar; yazılı onay olmaksızın üçüncü şahıslarla paylaşamaz.\n\nÜcretlendirme ve Ödeme Koşulları: Hizmet bedeli, kabul edilen fiyatlandırma teklifinde belirtildiği üzeredir. Fatura kesim tarihinden itibaren ödeme vadesi 15 (on beş) iş günüdür.\n\nOnay: İşbu teklifin elektronik imza ile onaylanması, taraflar arasında kapsam, fiyatlandırma ve hizmet taahhütleri konusunda mutabakata varıldığını teyit eder.",
+      en: "This agreement (recommended for review by legal counsel before final use) sets out the scope, confidentiality, and standard execution terms for the financial advisory and CFO services the Firm will provide to the Client.\n\nScope of Work: Services are limited to the scope stated in this proposal; requests outside scope are quoted separately.\n\nConfidentiality: The parties treat all financial and commercial information shared under this agreement as confidential and will not disclose it to third parties without written consent.\n\nFees & Payment Terms: Fees are as detailed in the accepted pricing proposal. Payment is due within 15 business days of the invoice date.\n\nApproval: Electronic signature approval of this proposal confirms mutual agreement between the parties on scope, pricing, and service commitments.",
+    },
+  },
+  {
+    id: "t17",
+    name: { tr: "İnsan Kaynakları Danışmanlığı Teklifi", en: "HR Consulting Proposal" },
+    category: { tr: "İnsan Kaynakları", en: "Human Resources" },
+    uses: 0,
+    winRate: 0,
+    accent: "var(--seg-2)",
+    kind: "draft",
+    sector: "hr_consulting",
+    introText: {
+      tr: "Sayın [Müşteri Yetkilisi],\n\nBordro, yan haklar ve yasal mevzuata uyum yönetiminde işletmelerin karşılaştığı zorlukların farkındayız. İK hizmetlerini dış kaynak kullanarak almak; verimliliği artırır, mevzuata uyumu güvence altına alır ve çalışan memnuniyetini yükseltir.\n\nBu teklifte, modern İK teknolojilerini uzman danışmanlık hizmetleriyle birleştiren, [Şirket Adı]'nın ihtiyaçlarına özel bir İK çözümünün tüm detaylarını bulacaksınız.",
+      en: "Dear [Client Contact],\n\nWe understand the challenges businesses face in managing payroll, benefits, and regulatory compliance. Outsourcing HR services increases efficiency, ensures compliance, and raises employee satisfaction.\n\nIn this proposal you'll find every detail of an HR solution tailored to [Company Name]'s needs, combining modern HR technology with expert advisory services.",
+    },
+    aboutText: {
+      tr: "İK danışmanlığı alanında yılların verdiği tecrübeyle bordro ve yan haklar yönetimi sunuyoruz. Satış, idari işler, ilaç, bilişim, bankacılık, inşaat ve gayrimenkul gibi çok çeşitli sektörlerden müşterileri destekliyoruz. İş gücü planlaması, çalışan tutma ve yasal mevzuata uyum konularında ayrılmaz bir ortak olmayı hedefliyoruz.\n\n\"Bordro ve yan haklar süreçlerimizi devraldıktan sonra İK ekibimiz stratejik işlere daha fazla zaman ayırabildi.\" — [Referans Adı], [Unvan], [Referans Firma]",
+      en: "With years of experience in HR consulting, we deliver payroll and benefits management. We support clients across a wide range of sectors — sales, administration, pharmaceuticals, technology, banking, construction, and real estate. Our goal is to be an indispensable partner in workforce planning, employee retention, and regulatory compliance.\n\n\"After they took over our payroll and benefits processes, our HR team could spend far more time on strategic work.\" — [Reference Name], [Title], [Reference Company]",
+    },
+    sections: [
+      {
+        title: { tr: "Ekibimiz", en: "Our Team" },
+        body: {
+          tr: "İK hizmetleri ekibimiz aşağıdaki uzmanlardan oluşur:\n\n• [Bordro Uzmanı Adı] — bordro işlemleri ve vergi beyanı konusunda [X] yıllık deneyime sahiptir.\n• [Yan Haklar Yöneticisi Adı] — sağlık, sigorta ve maluliyet yan haklarının yönetiminden sorumludur.\n• [İK Bilgi Sistemleri Uzmanı Adı] — entegre İK sistemlerinin kurulumu ve raporlama süreçlerini yönetir.\n\nHer ekip üyesi, size özelleştirilmiş ve etkili İK çözümleri sunmak için sektördeki engin deneyimini bir araya getirir.",
+          en: "Our HR services team consists of the following specialists:\n\n• [Payroll Specialist Name] — [X] years of experience in payroll processing and tax filing.\n• [Benefits Manager Name] — responsible for managing health, insurance, and disability benefits.\n• [HR Information Systems Specialist Name] — manages the setup of integrated HR systems and reporting processes.\n\nEach team member brings extensive sector experience to deliver customized, effective HR solutions.",
+        },
+      },
+      {
+        title: { tr: "Nasıl Yardımcı Olabiliriz?", en: "How We Can Help" },
+        body: {
+          tr: "• Entegre İK Bilgi Sistemi — kolay çevrim içi erişim ve ayrıntılı İK raporları sunarak bordro ve yan haklar yönetimini kolaylaştırır.\n• Yan Haklar İdaresi — çalışanların sağlık, sigorta ve maluliyet yönetimini kapsar; yasal uyumu ve maliyet takibini sağlar.\n• Bordro Hizmetleri — doğrudan yatırma (EFT), vergi beyanı, devam takibi ve yeni işe alım bildirimini içerir.\n\nBu çözümler, işletmenizin iş gücü yönetimini verimli bir şekilde optimize etmesine yardımcı olur.",
+          en: "• Integrated HR Information System — simplifies payroll and benefits management with easy online access and detailed HR reports.\n• Benefits Administration — covers employee health, insurance, and disability management; ensures compliance and cost tracking.\n• Payroll Services — includes direct deposit, tax filing, attendance tracking, and new-hire reporting.\n\nThese solutions help your business optimize workforce management efficiently.",
+        },
+      },
+      {
+        title: { tr: "Sonraki Adımlar", en: "Next Steps" },
+        body: {
+          tr: "1. Teklifin İncelenmesi — hizmet kapsamının ve paketlerin birlikte gözden geçirilmesi.\n2. Uygun Paketin Seçilmesi — ihtiyaçlarınıza en uygun hizmet katmanının belirlenmesi.\n3. Başlangıç (Kickoff) Toplantısı — uygulama takviminin ve sorumlulukların netleştirilmesi.\n\nÖzel İK ihtiyaçlarınızı daha ayrıntılı görüşmek üzere bir toplantı planlamanızı öneririz.",
+          en: "1. Reviewing the Proposal — jointly reviewing the scope of services and packages.\n2. Selecting the Right Package — determining the service tier best suited to your needs.\n3. Kickoff Meeting — clarifying the implementation timeline and responsibilities.\n\nWe recommend scheduling a meeting to discuss your specific HR needs in more detail.",
+        },
+      },
+    ],
+    lineItems: [
+      { name: { tr: "Bronz Paket — Bordro & Yan Haklar Yönetimi (aylık, 20 saat)", en: "Bronze Package — Payroll & Benefits Management (monthly, 20 hours)" }, qty: 12, unit: 6000 },
+      { name: { tr: "Gümüş Paket — Entegre İK Sistemi Erişimi (aylık)", en: "Silver Package — Integrated HR System Access (monthly)" }, qty: 12, unit: 9500 },
+      { name: { tr: "Altın Paket — Çalışan Oryantasyon Oturumları Dahil (aylık)", en: "Gold Package — Includes Employee Orientation Sessions (monthly)" }, qty: 12, unit: 14000 },
+      { name: { tr: "Ofis Dışı İK Desteği (saatlik)", en: "Off-Site HR Support (hourly)" }, qty: 10, unit: 850 },
+    ],
+    contractText: {
+      tr: "İşbu sözleşme, Firma tarafından Müşteri'ye sunulacak İK danışmanlığı hizmetlerinin genel çerçevesini belirler. Hiçbir İK zorluğu, ekibimizin üstesinden gelemeyeceği kadar karmaşık değildir.\n\nGizlilik: Taraflar, işbu sözleşme kapsamında paylaşılan tüm çalışan ve ticari bilgileri gizli tutar; yazılı onay olmaksızın üçüncü şahıslarla paylaşamaz.\n\nÜcretlendirme ve Ödeme Koşulları: Hizmet bedeli, seçilen pakete göre belirlenir. Fatura kesim tarihinden itibaren ödeme vadesi 15 (on beş) iş günüdür.\n\nFesih Şartları: Taraflardan herhangi biri, 30 (otuz) gün önceden yazılı bildirimde bulunmak kaydıyla işbu sözleşmeyi tek taraflı olarak feshedebilir.\n\nOnay: İşbu teklifin elektronik imza ile onaylanması, taraflar arasında kapsam, fiyatlandırma ve hizmet taahhütleri konusunda mutabakata varıldığını teyit eder ve İK hizmetlerinin başlatılmasını sağlar. Özel ihtiyaçlarınızı görüşmek üzere bir toplantı planlamanızı öneririz.",
+      en: "This agreement sets out the general framework for the HR consulting services the Firm will provide to the Client. No HR challenge is too complex for our team.\n\nConfidentiality: The parties treat all employee and business information shared under this agreement as confidential and will not disclose it to third parties without written consent.\n\nFees & Payment Terms: Fees are set according to the selected package. Payment is due within 15 business days of the invoice date.\n\nTermination: Either party may terminate this agreement unilaterally with 30 days' written notice.\n\nApproval: Electronic signature approval of this proposal confirms mutual agreement between the parties on scope, pricing, and service commitments, and authorizes HR services to begin. We recommend scheduling a meeting to discuss your specific needs.",
+    },
+  },
+  {
+    id: "t18",
+    name: { tr: "Pazar Araştırması Teklifi", en: "Market Research Proposal" },
+    category: { tr: "Pazar Araştırması", en: "Market Research" },
+    uses: 0,
+    winRate: 0,
+    accent: "var(--seg-3)",
+    kind: "draft",
+    sector: "market_research",
+    introText: {
+      tr: "Sayın [Müşteri Yetkilisi],\n\nBu teklif, [Şirket Adı] için ideal hedef kitlenizin kim olduğunu, bu kitlenin nerede bulunduğunu ve kararlarını nelerin yönlendirdiğini ortaya çıkaracak pazar araştırması projesinin amacını ve kapsamını açıklar. Amacımız, ekibinize etkili pazarlama için net ve uygulanabilir bir yol haritası sunmaktır.\n\nAşağıda araştırma sürecimizi, ekibimizi ve şeffaf fiyatlandırmamızı bulabilirsiniz. Sorularınız için her zaman buradayız.",
+      en: "Dear [Client Contact],\n\nThis proposal outlines the purpose and scope of a market research project for [Company Name] that will uncover who your ideal target audience is, where they can be found, and what drives their decisions. Our goal is to give your team a clear, actionable roadmap for effective marketing.\n\nBelow you'll find our research process, our team, and transparent pricing. We're always here for your questions.",
+    },
+    aboutText: {
+      tr: "Titiz ve pratik araştırmalara olan bağlılığımızla tanınıyoruz. Derin merak ve stratejik düşünceyi bir araya getirerek verileri sonuç getiren içgörülere dönüştürüyoruz.\n\nTüm araştırmalarımız katılımcı onayıyla yürütülür ve veri gizliliği proje boyunca titizlikle korunur; katı etik kurallara bağlı kalırız.\n\n\"Sundukları içgörüler sayesinde niş kitlemizle çok daha güçlü bağ kurduk ve dönüşüm oranlarımız belirgin şekilde arttı.\" — [Referans Adı], [Unvan], [Referans Firma]",
+      en: "We're known for our commitment to rigorous, practical research. We combine deep curiosity with strategic thinking to turn data into insights that drive results.\n\nAll our research is conducted with participant consent, and data privacy is carefully protected throughout the project; we adhere to strict ethical standards.\n\n\"Their insights helped us connect far more strongly with our niche audience, and our conversion rates rose noticeably.\" — [Reference Name], [Title], [Reference Company]",
+    },
+    sections: [
+      {
+        title: { tr: "Araştırma Süreci", en: "Research Process" },
+        body: {
+          tr: "1. Dahili Veri İncelemesi — mevcut müşteri tabanınızı anlamak için elinizdeki verilerin analiz edilmesi.\n2. Temel Araştırma Sorularının Belirlenmesi — projeye yön verecek net soruların oluşturulması.\n3. Dış Çevre Analizi — demografik bilgiler, davranış eğilimleri ve rakip analizinin incelenmesi.\n4. Raporlama — tüm bulguların, pazarlama stratejinize yön verecek uygulanabilir içgörüler içeren özel bir raporda toplanması.",
+          en: "1. Internal Data Review — analyzing your existing data to understand your current customer base.\n2. Defining Core Research Questions — establishing clear questions to guide the project.\n3. External Landscape Analysis — examining demographics, behavioral trends, and competitors.\n4. Reporting — compiling all findings into a custom report with actionable insights to guide your marketing strategy.",
+        },
+      },
+      {
+        title: { tr: "Ekibimiz", en: "Our Team" },
+        body: {
+          tr: "Bu projenin arkasındaki araştırmacılar ve stratejistler:\n\n• [Baş Araştırmacı Adı] — pazar araştırması ve veri analizi konusunda [X] yıllık deneyime sahiptir.\n• [Pazarlama Stratejisti Adı] — araştırma bulgularını uygulanabilir pazarlama stratejilerine dönüştürür.\n• [Veri Analisti Adı] — demografik ve davranışsal verilerin analizinden sorumludur.\n\nEkibimiz, her projeye analitik ve yaratıcı uzmanlığın bir karışımını taşır.",
+          en: "The researchers and strategists behind this project:\n\n• [Lead Researcher Name] — [X] years of experience in market research and data analysis.\n• [Marketing Strategist Name] — turns research findings into actionable marketing strategies.\n• [Data Analyst Name] — responsible for analyzing demographic and behavioral data.\n\nOur team brings a blend of analytical and creative expertise to every project.",
+        },
+      },
+    ],
+    lineItems: [
+      { name: { tr: "Dahili Veri İncelemesi & Araştırma Soruları", en: "Internal Data Review & Research Questions" }, qty: 1, unit: 7000 },
+      { name: { tr: "Dış Çevre ve Rakip Analizi", en: "External Landscape & Competitor Analysis" }, qty: 1, unit: 11000 },
+      { name: { tr: "Saha Araştırması (anket/görüşme)", en: "Field Research (survey/interviews)" }, qty: 1, unit: 9000 },
+      { name: { tr: "Nihai Rapor ve Sunum", en: "Final Report & Presentation" }, qty: 1, unit: 5000 },
+    ],
+    contractText: {
+      tr: "İşbu iş tanımı belgesi ve sözleşme, Araştırma Firması tarafından Müşteri'ye sunulacak pazar araştırması hizmetlerinin kapsamını ve tarafların sorumluluklarını belirler.\n\nTeslim Edilecekler ve Sorumluluklar: Her aşamada teslim edilecek raporlar ve bulgular, işbu teklifte belirtilen zaman çizelgesine göre sunulur; Müşteri, gerekli iç verileri ve geri bildirimleri zamanında sağlamakla yükümlüdür.\n\nGizlilik ve Etik: Tüm araştırmalar katılımcı onayıyla yürütülür; veri gizliliği titizlikle korunur ve yalnızca bu proje kapsamında kullanılır.\n\nİptal ve Değişiklik: Proje kapsamındaki değişiklik talepleri yazılı olarak bildirilmeli ve ayrıca fiyatlandırılmalıdır; başlangıç tarihinden [X] gün öncesine kadar yapılan iptallerde kapora iadesi yapılmaz.\n\nOnay: İşbu teklifin elektronik imza ile onaylanması, taraflar arasında kapsam, fiyatlandırma ve iş birliği beklentileri konusunda mutabakata varıldığını teyit eder ve açılış toplantısının planlanmasını sağlar.",
+      en: "This statement of work and agreement sets out the scope of the market research services the Research Firm will provide to the Client and the responsibilities of each party.\n\nDeliverables & Responsibilities: Reports and findings for each phase are delivered according to the timeline stated in this proposal; the Client is responsible for providing necessary internal data and feedback in a timely manner.\n\nConfidentiality & Ethics: All research is conducted with participant consent; data privacy is carefully protected and used solely for this project.\n\nCancellation & Changes: Change requests within the project scope must be submitted in writing and are priced separately; deposits are non-refundable for cancellations made within [X] days of the start date.\n\nApproval: Electronic signature approval of this proposal confirms mutual agreement between the parties on scope, pricing, and collaboration expectations, and enables scheduling of the kickoff meeting.",
     },
   },
 ];
