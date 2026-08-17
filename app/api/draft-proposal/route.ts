@@ -746,7 +746,16 @@ ${pricingBlock}${websiteContext}${prefillBlock}`;
   // Content Library tool blocks below. Template blocks go first (they're the base the
   // draft was started from), tool-added blocks after.
   const templateBlocks = resolved?.blocks ?? [];
-  if (draft && (templateBlocks.length > 0 || pendingLegalBlocks.length > 0 || pendingContentBlocks.length > 0)) {
+  const hasPendingBlocks = templateBlocks.length > 0 || pendingLegalBlocks.length > 0 || pendingContentBlocks.length > 0;
+  // The model is instructed to always emit a ```json``` block, but a turn whose ONLY
+  // content is a tool call (e.g. "kütüphanede yok, sıfırdan bir madde ekle") has
+  // sometimes skipped it in practice — without this fallback, the block it just
+  // built (pendingLegalBlocks/pendingContentBlocks) would be silently discarded
+  // since there'd be no `draft` object to attach it to.
+  if (!draft && hasPendingBlocks) {
+    draft = (currentDraft && typeof currentDraft === "object" ? { ...(currentDraft as Record<string, unknown>) } : { title: "[Teklif Başlığı]", sections: [], lineItems: [] }) as Record<string, unknown> & { blocks?: unknown };
+  }
+  if (draft && hasPendingBlocks) {
     // templateBlocks (when present) already contains the FULL block set the template
     // was saved with — cover/sections/pricing included — so it replaces legacyToBlocks
     // as the base instead of being appended alongside it; otherwise cover/section/pricing
