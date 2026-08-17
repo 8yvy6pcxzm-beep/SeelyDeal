@@ -3,6 +3,7 @@ import { createLegalBlockFromDocument } from "@/lib/proposal-blocks/legal-block"
 import { createTextBlockFromDocument } from "@/lib/proposal-blocks/text-block";
 import { isSeelyDealPricingLeak } from "@/lib/seelydeal-pricing-leak";
 import type { ProposalBlock } from "@/lib/types/proposal-blocks";
+import { planAllows } from "@/lib/plan";
 
 /** Real Content Library RAG tools — moved verbatim out of v1's
  *  app/api/draft-proposal/route.ts (see AI-ARCHITECTURE-V2.md §9: this
@@ -79,14 +80,27 @@ export const contentLibraryTools = [
 
 export const contentLibraryToolNames = new Set(contentLibraryTools.map((t) => t.name));
 
+const LIBRARY_GATED_TOOLS = new Set(["search_content_library", "add_legal_block_to_proposal", "add_text_block_from_library"]);
+
 export async function runContentLibraryTool(
   name: string,
   input: Record<string, unknown>,
   service: ReturnType<typeof CreateServiceClient>,
   companyId: string,
+  plan: "lite" | "pro" | "custom",
   pendingLegalBlocks: ProposalBlock[],
   pendingContentBlocks: ProposalBlock[],
 ): Promise<string> {
+  // Content Library (company_documents) is a Pro+ feature — same "document_library"
+  // gate the UI already enforces (app/(app)/content/page.tsx). generate_custom_text_block
+  // is deliberately NOT gated here: it never touches company_documents, it's the model
+  // writing fresh content, which is a base capability on every plan.
+  if (LIBRARY_GATED_TOOLS.has(name) && !planAllows(plan, "document_library")) {
+    return JSON.stringify({
+      error: "İçerik Kütüphanesi Pro ve Custom paketlerinde kullanılabilir. Bu şirket Lite planda — kullanıcıya yükseltmesi gerektiğini söyle, kütüphaneden bir şey ekleyemezsin.",
+    });
+  }
+
   if (name === "search_content_library") {
     let q = service.from("company_documents").select("id, type, title, content").eq("company_id", companyId);
     if (typeof input.type === "string") q = q.eq("type", input.type);

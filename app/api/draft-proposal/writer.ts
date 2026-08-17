@@ -42,6 +42,11 @@ export async function* streamDraft(opts: {
   attachments?: Attachment[];
   service: ReturnType<typeof CreateServiceClient>;
   companyId: string;
+  /** Content Library tools (search_content_library etc.) are gated to Pro+ —
+   *  same "document_library" feature the UI (app/(app)/content/page.tsx) already
+   *  enforces — see runContentLibraryTool's own check below for why this can't
+   *  live only in the UI. */
+  plan: "lite" | "pro" | "custom";
   resolvedTemplateBlocks?: ProposalBlock[];
   themeJson?: Record<string, unknown>;
   /** Fires when the client disconnects (tab closed, stop button, network
@@ -104,6 +109,7 @@ export async function* streamDraft(opts: {
             (tu.input as Record<string, unknown>) ?? {},
             opts.service,
             opts.companyId,
+            opts.plan,
             pendingLegalBlocks,
             pendingContentBlocks,
           );
@@ -115,12 +121,13 @@ export async function* streamDraft(opts: {
           const parsed = pseudoTools.emit_draft.schema.safeParse(tu.input ?? {});
           if (!parsed.success) return { tu, content: JSON.stringify({ error: "Şema doğrulanamadı.", issues: parsed.error.issues }) };
           const draft: Record<string, unknown> = { ...parsed.data };
-          const baseBlocks: ProposalBlock[] = legacyToBlocks(draft);
-          const templateBlocks = opts.resolvedTemplateBlocks ?? [];
-          if (templateBlocks.length > 0 || pendingContentBlocks.length > 0 || pendingLegalBlocks.length > 0) {
-            draft.blocks = [...baseBlocks, ...templateBlocks, ...pendingContentBlocks, ...pendingLegalBlocks];
-          }
           if (opts.themeJson) draft.themeJson = { ...(draft.themeJson as Record<string, unknown> | undefined), ...opts.themeJson };
+          // Blocks are NOT merged here — pendingLegalBlocks/pendingContentBlocks may
+          // still be empty at this exact point even though a sibling tool_use in this
+          // SAME batch (e.g. add_legal_block_to_proposal) will fill them in a moment.
+          // Promise.all runs every tool_use concurrently; this branch has no `await`
+          // so it can finish synchronously before that sibling's DB round-trip does.
+          // The merge happens once below, after ALL of toolResults has settled.
           return { tu, content: JSON.stringify({ ok: true }), event: { type: "draft", draft } as DraftEvent };
         }
         if (name === "set_brand") {
@@ -152,6 +159,20 @@ export async function* streamDraft(opts: {
         return { tu, content: JSON.stringify({ error: "Bilinmeyen araç." }) };
       }),
     );
+
+    // Now that every tool_use in this batch has fully settled (including any async
+    // content-library DB round-trips), pendingLegalBlocks/pendingContentBlocks hold
+    // everything this turn produced — safe to merge into any `draft` event now.
+    const templateBlocks = opts.resolvedTemplateBlocks ?? [];
+    if (templateBlocks.length > 0 || pendingContentBlocks.length > 0 || pendingLegalBlocks.length > 0) {
+      for (const result of toolResults) {
+        if ("event" in result && result.event?.type === "draft") {
+          const draft = result.event.draft as Record<string, unknown>;
+          const baseBlocks: ProposalBlock[] = Array.isArray(draft.blocks) ? (draft.blocks as ProposalBlock[]) : legacyToBlocks(draft);
+          draft.blocks = [...baseBlocks, ...templateBlocks, ...pendingContentBlocks, ...pendingLegalBlocks];
+        }
+      }
+    }
 
     for (const result of toolResults) {
       yield { type: "tool_call", name: result.tu.name };

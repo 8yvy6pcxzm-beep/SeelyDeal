@@ -156,6 +156,7 @@ export async function POST(req: Request) {
         attachments,
         service,
         companyId,
+        plan: core.company?.plan ?? "lite",
         resolvedTemplateBlocks: resolvedTemplate?.blocks,
         themeJson,
         signal,
