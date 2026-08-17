@@ -21,8 +21,10 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // Refreshes the session cookie if needed; does not gate routes (auth pages keep a demo bypass fallback).
-  await supabase.auth.getUser();
+  // Refreshes the session cookie if needed; callers decide whether to gate the route.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  return response;
+  return { response, user };
 }
