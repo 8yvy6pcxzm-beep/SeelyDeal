@@ -108,6 +108,11 @@ export type ResolvedTemplate = {
   theme?: { primaryColor: string; accentColor: string; font?: string };
   nickname?: string;
   source: "demo" | "company";
+  /** true only for a demo template with kind: "draft" (a real, usable example —
+   *  see getDraftTemplates in lib/demo/data.ts). Company templates are always
+   *  real content too; this just distinguishes demo "visual skeleton" (t1–t4,
+   *  kind unset) from demo "draft example" among source:"demo" rows. */
+  isDraftExample: boolean;
   blocks?: ProposalBlock[];
 };
 
@@ -133,6 +138,7 @@ function normalizeDemoTemplate(t: (typeof templates)[number]): ResolvedTemplate 
     theme: t.theme,
     nickname: t.nickname,
     source: "demo",
+    isDraftExample: t.kind === "draft",
   };
 }
 
@@ -146,6 +152,7 @@ function normalizeCompanyTemplate(row: CompanyTemplateRow): ResolvedTemplate {
     contractText: row.contract_text ?? undefined,
     blocks: Array.isArray(row.blocks) && row.blocks.length > 0 ? (row.blocks as ProposalBlock[]) : undefined,
     source: "company",
+    isDraftExample: false,
   };
 }
 

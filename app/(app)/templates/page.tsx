@@ -8,6 +8,7 @@ import { useLang } from "@/components/i18n/language-provider";
 import { cn } from "@/lib/utils";
 import { templates as demoTemplates, type Template } from "@/lib/demo/data";
 import { TemplateHtmlBlock } from "@/components/app/template-html-block";
+import { VisualTemplateCard } from "@/components/app/visual-template-card";
 import { AiDraftDialog } from "@/components/app/ai-draft-dialog";
 import { usePlan } from "@/components/app/plan-provider";
 import { planAllows } from "@/lib/plan";
@@ -192,84 +193,101 @@ function TemplatesPageInner() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
         <div className="space-y-6">
-          {([
-            { heading: { tr: "Görsel Şablonlar", en: "Visual Templates" }, groups: visualGroups },
-            { heading: { tr: "Taslak Teklif Örnekleri", en: "Draft Proposal Examples" }, groups: draftGroups },
-          ] as const)
-            .filter((section) => section.groups.length > 0)
-            .map((section) => (
-              <div key={section.heading.tr}>
-                <h2 className="mb-3 text-[13px] font-semibold text-muted-foreground">{lang === "tr" ? section.heading.tr : section.heading.en}</h2>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {section.groups.map((group) => {
-                    // Which variant of this group is currently shown: whichever one is `selected`, else the first.
-                    const active = group.find((tpl) => tpl.id === selected) ?? group[0];
-                    const isSel = group.some((tpl) => tpl.id === selected);
-                    return (
-                      <button
-                        key={active.category.tr}
-                        onClick={() => setSelected(active.id)}
-                        className={cn(
-                          "group rounded-2xl border bg-card p-4 text-left shadow-soft transition-all hover:shadow-pop",
-                          isSel ? "border-primary/40 ring-1 ring-primary/20" : "border-border",
-                        )}
-                      >
-                        {/* preview */}
-                        <div className="relative flex h-32 items-center justify-center overflow-hidden rounded-xl" style={{ background: `color-mix(in oklch, ${active.accent} 12%, white)` }}>
-                          <span className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full opacity-30 blur-xl" style={{ background: active.accent }} aria-hidden />
-                          <div className="w-28 rounded-lg border border-border bg-card p-2.5 shadow-pill">
-                            <div className="h-2 w-12 rounded-full" style={{ background: active.accent }} />
-                            <div className="mt-2 space-y-1">
-                              <div className="h-1.5 w-full rounded-full bg-muted" />
-                              <div className="h-1.5 w-3/4 rounded-full bg-muted" />
-                              <div className="h-1.5 w-5/6 rounded-full bg-muted" />
-                            </div>
-                            <div className="mt-2 flex items-center justify-between">
-                              <div className="h-2 w-8 rounded-full bg-muted" />
-                              <div className="h-2 w-6 rounded-full" style={{ background: active.accent }} />
-                            </div>
-                          </div>
-                        </div>
-                        <div className="mt-3 flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="truncate font-semibold tracking-tight">{t(active.category)}</p>
-                            {group.length > 1 && (
-                              <div className="mt-1.5 flex flex-wrap items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                                {group.map((variant) => (
-                                  <span
-                                    key={variant.id}
-                                    role="button"
-                                    tabIndex={0}
-                                    aria-label={lang === "tr" ? "Varyant seç" : "Select variant"}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelected(variant.id);
-                                    }}
-                                    className={cn(
-                                      "h-2 w-2 rounded-full transition-colors",
-                                      variant.id === active.id ? "bg-primary" : "bg-muted hover:bg-muted-foreground/40",
-                                    )}
-                                  />
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
-                            {active.winRate}% {lang === "tr" ? "kazanç" : "win"}
-                          </span>
-                        </div>
-                        <div className="mt-2.5 flex items-center justify-between border-t border-border pt-2.5 text-[11.5px] text-muted-foreground">
-                          <span className="tnum">{active.uses} {lang === "tr" ? "kullanım" : "uses"}</span>
-                          <span className="inline-flex items-center gap-1 font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">
-                            {lang === "tr" ? "Kullan" : "Use"} <ArrowUpRight className="h-3 w-3" />
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
+          {visualGroups.length > 0 && (
+            <div>
+              <h2 className="mb-3 text-[13px] font-semibold text-muted-foreground">
+                {lang === "tr" ? "Görsel Şablonlar" : "Visual Templates"}
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {visualGroups.map((group) => (
+                  <VisualTemplateCard
+                    key={group[0].category.tr}
+                    group={group}
+                    selected={selected}
+                    lang={lang}
+                    t={t}
+                    onSelect={setSelected}
+                  />
+                ))}
               </div>
-            ))}
+            </div>
+          )}
+
+          {draftGroups.length > 0 && (
+            <div>
+              <h2 className="mb-3 text-[13px] font-semibold text-muted-foreground">
+                {lang === "tr" ? "Taslak Teklif Örnekleri" : "Draft Proposal Examples"}
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {draftGroups.map((group) => {
+                  // Which variant of this group is currently shown: whichever one is `selected`, else the first.
+                  const active = group.find((tpl) => tpl.id === selected) ?? group[0];
+                  const isSel = group.some((tpl) => tpl.id === selected);
+                  return (
+                    <button
+                      key={active.category.tr}
+                      onClick={() => setSelected(active.id)}
+                      className={cn(
+                        "group rounded-2xl border bg-card p-4 text-left shadow-soft transition-all hover:shadow-pop",
+                        isSel ? "border-primary/40 ring-1 ring-primary/20" : "border-border",
+                      )}
+                    >
+                      {/* preview */}
+                      <div className="relative flex h-32 items-center justify-center overflow-hidden rounded-xl" style={{ background: `color-mix(in oklch, ${active.accent} 12%, white)` }}>
+                        <span className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full opacity-30 blur-xl" style={{ background: active.accent }} aria-hidden />
+                        <div className="w-28 rounded-lg border border-border bg-card p-2.5 shadow-pill">
+                          <div className="h-2 w-12 rounded-full" style={{ background: active.accent }} />
+                          <div className="mt-2 space-y-1">
+                            <div className="h-1.5 w-full rounded-full bg-muted" />
+                            <div className="h-1.5 w-3/4 rounded-full bg-muted" />
+                            <div className="h-1.5 w-5/6 rounded-full bg-muted" />
+                          </div>
+                          <div className="mt-2 flex items-center justify-between">
+                            <div className="h-2 w-8 rounded-full bg-muted" />
+                            <div className="h-2 w-6 rounded-full" style={{ background: active.accent }} />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold tracking-tight">{t(active.category)}</p>
+                          {group.length > 1 && (
+                            <div className="mt-1.5 flex flex-wrap items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                              {group.map((variant) => (
+                                <span
+                                  key={variant.id}
+                                  role="button"
+                                  tabIndex={0}
+                                  aria-label={lang === "tr" ? "Varyant seç" : "Select variant"}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelected(variant.id);
+                                  }}
+                                  className={cn(
+                                    "h-2 w-2 rounded-full transition-colors",
+                                    variant.id === active.id ? "bg-primary" : "bg-muted hover:bg-muted-foreground/40",
+                                  )}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
+                          {active.winRate}% {lang === "tr" ? "kazanç" : "win"}
+                        </span>
+                      </div>
+                      <div className="mt-2.5 flex items-center justify-between border-t border-border pt-2.5 text-[11.5px] text-muted-foreground">
+                        <span className="tnum">{active.uses} {lang === "tr" ? "kullanım" : "uses"}</span>
+                        <span className="inline-flex items-center gap-1 font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">
+                          {lang === "tr" ? "Kullan" : "Use"} <ArrowUpRight className="h-3 w-3" />
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Detail rail */}

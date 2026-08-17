@@ -1066,6 +1066,21 @@ export const templates: Template[] = [
   },
 ];
 
+/** Pure design/theme skeletons (t1–t4) — `kind` is unset. Their `sections` text
+ *  is never shown to the AI, only `theme`/`accent` (see resolvedTemplateBlock
+ *  in app/api/draft-proposal/prompts.ts). Use this instead of filtering
+ *  `templates` inline so the "visual vs draft" split stays in one place. */
+export function getVisualTemplates(): Template[] {
+  return templates.filter((t) => t.kind !== "draft");
+}
+
+/** Real, usable starting proposals (kind: "draft") — their introText/aboutText/
+ *  sections/lineItems/contractText are genuine content, fed to the AI and
+ *  copied into the editor via lib/proposal-blocks/convert-legacy.ts. */
+export function getDraftTemplates(): Template[] {
+  return templates.filter((t) => t.kind === "draft");
+}
+
 /* ── Recent activity feed ──────────────────────────────────────────────────── */
 export interface DActivity {
   id: string;

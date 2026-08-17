@@ -87,11 +87,14 @@ function libraryIndexBlock(core: CoreContext): string {
   return `\nKÜTÜPHANE İNDEKSİ (${core.docsIndex.length} doküman): ${list}. Kullanıcı "kütüphanemdeki X'i ekle/kullan" derse önce search_content_library çağırıp güncel içeriği çek — buradaki liste sadece hangi dokümanların VAR OLDUĞUNU gösterir, içerikleri değil.\n`;
 }
 
-function resolvedTemplateBlock(resolved: ResolvedTemplate | undefined): string {
+export function resolvedTemplateBlock(resolved: ResolvedTemplate | undefined): string {
   if (!resolved) return "";
-  if (resolved.source === "company") {
+  // Real content: either a company's own saved template, or a demo "draft
+  // example" (kind: "draft", e.g. sector chips like Tadilat/Yazılım/Muhasebe).
+  if (resolved.source === "company" || resolved.isDraftExample) {
     return `\nKAYITLI TASLAK — "${resolved.name}": kullanıcı bu taslağı seçti. İÇERİĞİNİ DE kullan (placeholder değil, gerçek içerik) — sadece müşteri/fiyat/tarih gibi bu teklife özel ayrıntıları uyarla.\nÖn Yazı: ${resolved.introText}\nHakkımızda: ${resolved.aboutText}\n${resolved.sections.map((s) => `${s.title}: ${s.body}`).join("\n")}\nSözleşme: ${resolved.contractText}\n\n`;
   }
+  // Pure visual/design skeleton (demo t1–t4, kind unset) — content must never leak in.
   return `\nÖZEL ŞABLON — "${resolved.name}": kullanıcı bu şablonu seçti. ŞABLONLAR SADECE GÖRSELDİR — bölüm sırasını/metnini bu şablondan ASLA kopyalama, sadece görsel temasını (varsa) al. İçerik için şirketin kendi verisini ve kullanıcının sohbette verdiği bilgiyi kullan.\n\n`;
 }
 
