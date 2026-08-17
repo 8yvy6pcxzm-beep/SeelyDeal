@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
+import { Resend } from "resend";
 import { createServiceClient } from "@/lib/supabase/server";
+import appConfig from "@/app.config";
 
 /** Public e-sign action: marks the proposal accepted and hands back the agency's payment link. */
 type BillingOption = { key: string; label: { tr: string; en: string }; price: number; paymentLink?: string };
@@ -33,7 +35,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const { data: existing } = await service
     .from("proposals")
-    .select("billing_options, line_items, value, otp_code, otp_expires_at, otp_attempts, companies(plan)")
+    .select(
+      "title, billing_options, line_items, value, otp_code, otp_expires_at, otp_attempts, created_by, companies(plan, name), clients(name)",
+    )
     .eq("id", id)
     .maybeSingle();
 
@@ -84,5 +88,44 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if (error || !proposal) return NextResponse.json({ error: "Teklif bulunamadı." }, { status: 404 });
 
+  await notifyOwnerOfSignature(service, {
+    proposalId: id,
+    title: existing.title,
+    signedByName: signedByName.trim(),
+    companyName: (existing.companies as { name: string } | null)?.name,
+    clientName: (existing.clients as { name: string } | null)?.name,
+    ownerId: existing.created_by as string | null,
+  });
+
   return NextResponse.json({ ok: true, paymentLink: chosen?.paymentLink || proposal.payment_link || null });
+}
+
+/** Best-effort "your proposal was just signed" email to the proposal's owner —
+ *  never blocks or fails the client's accept flow (no RESEND_API_KEY, no
+ *  owner email, or a Resend error all just get swallowed). */
+async function notifyOwnerOfSignature(
+  service: ReturnType<typeof createServiceClient>,
+  info: { proposalId: string; title: string; signedByName: string; companyName?: string; clientName?: string; ownerId: string | null },
+) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey || !info.ownerId) return;
+
+  const { data: owner } = await service.from("profiles").select("email").eq("id", info.ownerId).maybeSingle();
+  if (!owner?.email) return;
+
+  const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const link = `${siteUrl}/proposals/${info.proposalId}`;
+  const companyName = info.companyName ?? appConfig.name;
+
+  try {
+    const resend = new Resend(apiKey);
+    await resend.emails.send({
+      from: `${appConfig.name} <elif@seelynow.info>`,
+      to: owner.email,
+      subject: `"${info.title}" imzalandı 🎉`,
+      text: `Merhaba,\n\n${info.clientName || "Müşterin"} (${info.signedByName}) ${companyName} adına gönderdiğin "${info.title}" teklifini imzaladı.\n\nTeklifi görüntülemek için: ${link}`,
+    });
+  } catch {
+    // best-effort — signature already recorded, don't fail the client's request over an email hiccup
+  }
 }

@@ -5,13 +5,21 @@ import { legacyToBlocks } from "@/lib/proposal-blocks/convert-legacy";
 import { pseudoTools, type PseudoToolName } from "./schema";
 import { contentLibraryTools, contentLibraryToolNames, runContentLibraryTool } from "./tools";
 import type { DraftEvent } from "./stream";
+import { planAllows } from "@/lib/plan";
 
 const MODEL = "claude-sonnet-5";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 type Attachment = { name: string; mediaType: string; base64: string };
 
-const allTools = [...contentLibraryTools, ...Object.values(pseudoTools).map((p) => p.tool)];
+const pseudoToolList = Object.values(pseudoTools).map((p) => p.tool);
+
+/** Content Library tools are Pro+ (document_library gate) — dropped from the
+ *  list offered to the model on Lite so it never attempts (and gets blocked
+ *  by runContentLibraryTool's own check) a call it has no access to. */
+function toolsForPlan(plan: "lite" | "pro" | "custom") {
+  return planAllows(plan, "document_library") ? [...contentLibraryTools, ...pseudoToolList] : pseudoToolList;
+}
 
 function toAnthropicMessages(messages: ChatMessage[], attachments?: Attachment[]) {
   return messages.map((m, i) => {
@@ -70,7 +78,7 @@ export async function* streamDraft(opts: {
         max_tokens: 8192,
         system: opts.systemPrompt,
         messages: loopMessages,
-        tools: allTools,
+        tools: toolsForPlan(opts.plan),
       },
       { signal: opts.signal },
     );

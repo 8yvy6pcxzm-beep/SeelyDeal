@@ -82,6 +82,8 @@ export interface Integration {
   purpose: string;
   /** Shows a "Connect" button in Settings that starts the OAuth2 flow at /api/integrations/[key]/connect. */
   oauth?: boolean;
+  /** Listed but not actually wired up yet — shows "Coming soon" instead of a Connect/Connected state, even if its env vars happen to be set. */
+  comingSoon?: boolean;
 }
 
 export interface AppConfig {
@@ -245,6 +247,7 @@ export const appConfig: AppConfig = {
       required: false,
       docsUrl: "https://app.hellosign.com/home/myAccount#api",
       purpose: "Legally binding e-signatures inside each proposal.",
+      comingSoon: true,
     },
     {
       key: "stripe",
@@ -253,6 +256,7 @@ export const appConfig: AppConfig = {
       required: false,
       docsUrl: "https://dashboard.stripe.com/apikeys",
       purpose: "Charge accepted proposals & deposits the moment a client signs.",
+      comingSoon: true,
     },
     {
       key: "anthropic",

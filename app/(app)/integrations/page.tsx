@@ -7,7 +7,7 @@ export default function IntegrationsPage() {
   const connected: Record<string, boolean> = {};
   const oauthReady: Record<string, boolean> = {};
   for (const it of appConfig.integrations) {
-    connected[it.key] = it.envVars.length > 0 && it.envVars.every((v) => !!process.env[v]);
+    connected[it.key] = !it.comingSoon && it.envVars.length > 0 && it.envVars.every((v) => !!process.env[v]);
     if (it.oauth) oauthReady[it.key] = !!CRM_PROVIDERS[it.key];
   }
 

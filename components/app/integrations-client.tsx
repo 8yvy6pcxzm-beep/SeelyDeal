@@ -76,13 +76,13 @@ export function IntegrationsClient({
                     </Button>
                   </a>
                 ) : null
+              ) : it.comingSoon ? (
+                <span className="text-sm text-muted-foreground/50">
+                  {lang === "tr" ? "Yakında" : "Coming soon"}
+                </span>
               ) : connected[it.key] ? (
                 <span className="inline-flex items-center gap-1.5 text-sm font-medium text-success">
                   <CheckCircle2 className="h-4 w-4" /> {ui.connected}
-                </span>
-              ) : it.key === "stripe" ? (
-                <span className="text-sm text-muted-foreground/50">
-                  {lang === "tr" ? "Yakında" : "Coming soon"}
                 </span>
               ) : null}
             </div>
