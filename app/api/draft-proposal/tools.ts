@@ -22,9 +22,9 @@ export const contentLibraryTools = [
       properties: {
         type: {
           type: "string",
-          enum: ["contract", "proposal_template", "service_description", "other", "content_block"],
+          enum: ["contract", "proposal_template", "service_description", "other", "content_block", "reference", "company_material"],
           description:
-            "Doküman türüne göre filtrele (opsiyonel). Sözleşme/NDA için 'contract'; hizmet açıklaması için 'service_description'; fiyat tablosu/kalem listesi genelde 'proposal_template' ya da 'service_description' içinde metin olarak bulunur (ayrı bir DB tipi yok); serbest içerik parçaları için 'content_block'.",
+            "Doküman türüne göre filtrele (opsiyonel). Sözleşme/NDA için 'contract'; hizmet açıklaması için 'service_description'; fiyat tablosu/kalem listesi genelde 'proposal_template' ya da 'service_description' içinde metin olarak bulunur (ayrı bir DB tipi yok); örnek teklif/varsayılan iskelet için 'proposal_template'; referans/vaka çalışması için 'reference'; genel şirket materyali için 'company_material'; serbest içerik parçaları için 'content_block'.",
         },
         query: { type: "string", description: "Başlık/içerikte aranacak serbest metin (opsiyonel)." },
       },
@@ -63,7 +63,7 @@ export const contentLibraryTools = [
   {
     name: "generate_custom_text_block",
     description:
-      "İçerik Kütüphanesi'nde UYGUN bir doküman YOKSA (search_content_library'de bulunamadıysa ya da kullanıcı açıkça 'sıfırdan yaz' dediyse) kullanılır — SEN kendi yazdığın bir metni, teklife özel bağımsız bir blok olarak ekler. 'legal' tipi bir sözleşme/NDA/hukuki madde bloğu (teklifin sonuna, imzalanabilir), 'text' tipi ise normal bir bölüm metni (Teslim Edilecekler, Stratejimiz vb.) üretir. Bu araçla eklenen içerik HİÇBİR ZAMAN company_documents'a (İçerik Kütüphanesi'ne) yazılmaz — sadece bu tekliften. Kullanıcı 'bunu kütüphaneme de kaydet' derse bunu ayrıca söyle, bu araç onu yapmaz.",
+      "İçerik Kütüphanesi'nde UYGUN bir doküman YOKSA (search_content_library'de bulunamadıysa ya da kullanıcı açıkça 'sıfırdan yaz' dediyse) kullanılır — SEN kendi yazdığın bir metni, teklife özel bağımsız bir blok olarak ekler. 'legal' tipi bir sözleşme/NDA/hukuki madde bloğu (teklifin sonuna, imzalanabilir), 'text' tipi ise normal bir bölüm metni (Teslim Edilecekler, Stratejimiz vb.) üretir. Bu araçla eklenen içerik HİÇBİR ZAMAN company_documents'a (İçerik Kütüphanesi'ne) yazılmaz — sadece bu tekliften. Kullanıcı bunu kütüphaneye de kaydetmek isterse ayrıca save_to_content_library çağır.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -76,11 +76,44 @@ export const contentLibraryTools = [
       required: ["blockType", "title", "content"],
     },
   },
+  {
+    name: "save_to_content_library",
+    description:
+      "Kullanıcı sohbette 'bunu kütüphaneye kaydet', 'bunu şablon olarak sakla', 'ileride tekrar kullanmak üzere ekle' gibi AÇIK bir onay verdiğinde çağrılır — verdiğin metni (bu teklifte az önce ürettiğin bir bölüm, sözleşme maddesi, ya da kullanıcının onayladığı başka bir parça) company_documents'a YENİ bir satır olarak yazar. Kaynağı/mevcut taslağı DEĞİŞTİRMEZ, sadece kütüphaneye bir kopya ekler. Kullanıcı AÇIKÇA istemeden KENDİLİĞİNDEN çağırma.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        title: { type: "string", description: "Kütüphanedeki dokümanın başlığı." },
+        content: { type: "string", description: "Kaydedilecek tam metin — placeholder değil, gerçek içerik." },
+        type: {
+          type: "string",
+          enum: ["content_block", "contract", "proposal_template", "service_description", "other", "reference", "company_material"],
+          description:
+            "Serbest bir metin parçasıysa 'content_block' (varsayılan); tam bir sözleşme maddesiyse 'contract'; tam bir teklif iskeletiyse 'proposal_template'; hizmet/fiyat açıklamasıysa 'service_description'; vaka çalışması/referans ise 'reference'; genel şirket materyali ise 'company_material'.",
+        },
+      },
+      required: ["title", "content"],
+    },
+  },
 ];
 
 export const contentLibraryToolNames = new Set(contentLibraryTools.map((t) => t.name));
 
-const LIBRARY_GATED_TOOLS = new Set(["search_content_library", "add_legal_block_to_proposal", "add_text_block_from_library"]);
+const LIBRARY_GATED_TOOLS = new Set([
+  "search_content_library",
+  "add_legal_block_to_proposal",
+  "add_text_block_from_library",
+  "save_to_content_library",
+]);
+const VALID_LIBRARY_TYPES = new Set([
+  "content_block",
+  "contract",
+  "proposal_template",
+  "service_description",
+  "other",
+  "reference",
+  "company_material",
+]);
 
 export async function runContentLibraryTool(
   name: string,
@@ -177,6 +210,21 @@ export async function runContentLibraryTool(
     };
     pendingContentBlocks.push(block);
     return JSON.stringify({ ok: true, label: title });
+  }
+
+  if (name === "save_to_content_library") {
+    const title = typeof input.title === "string" && input.title.trim() ? input.title.trim() : "Başlıksız blok";
+    const content = typeof input.content === "string" ? input.content.trim() : "";
+    if (!content) return JSON.stringify({ error: "content boş olamaz." });
+    const type = typeof input.type === "string" && VALID_LIBRARY_TYPES.has(input.type) ? input.type : "content_block";
+
+    const { data: doc, error } = await service
+      .from("company_documents")
+      .insert({ company_id: companyId, type, title, content })
+      .select("id, type, title")
+      .single();
+    if (error) return JSON.stringify({ error: "Kütüphaneye kaydedilemedi." });
+    return JSON.stringify({ ok: true, id: doc.id, title: doc.title, type: doc.type });
   }
 
   return JSON.stringify({ error: "Bilinmeyen araç." });

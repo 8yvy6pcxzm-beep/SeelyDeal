@@ -82,9 +82,11 @@ function savedTemplatesBlock(names: string[]): string {
 }
 
 function libraryIndexBlock(core: CoreContext): string {
-  if (core.docsIndex.length === 0) return "\nKÜTÜPHANE İNDEKSİ: henüz doküman eklenmedi.\n";
+  const saveNote =
+    "Kullanıcı sohbette ürettiğin bir metni/bölümü ya da onayladığı bir teklif parçasını AÇIKÇA \"kütüphaneye kaydet/ekle\" derse save_to_content_library çağır — bu şirketin İçerik Kütüphanesi'ne (company_documents) yeni bir satır olarak yazar, mevcut taslağı DEĞİŞTİRMEZ. Kullanıcı istemeden kendiliğinden çağırma.";
+  if (core.docsIndex.length === 0) return `\nKÜTÜPHANE İNDEKSİ: henüz doküman eklenmedi. ${saveNote}\n`;
   const list = core.docsIndex.map((d) => `"${d.title}" (${d.type})`).join(", ");
-  return `\nKÜTÜPHANE İNDEKSİ (${core.docsIndex.length} doküman): ${list}. Kullanıcı "kütüphanemdeki X'i ekle/kullan" derse önce search_content_library çağırıp güncel içeriği çek — buradaki liste sadece hangi dokümanların VAR OLDUĞUNU gösterir, içerikleri değil.\n`;
+  return `\nKÜTÜPHANE İNDEKSİ (${core.docsIndex.length} doküman): ${list}. Kullanıcı "kütüphanemdeki X'i ekle/kullan" derse önce search_content_library çağırıp güncel içeriği çek — buradaki liste sadece hangi dokümanların VAR OLDUĞUNU gösterir, içerikleri değil. ${saveNote}\n`;
 }
 
 export function resolvedTemplateBlock(resolved: ResolvedTemplate | undefined): string {

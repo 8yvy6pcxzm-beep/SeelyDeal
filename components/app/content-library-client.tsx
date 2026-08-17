@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { FileText, Loader2, Plus, Star, Trash2, Upload, X } from "lucide-react";
+import { Download, FileText, Loader2, Plus, Star, Trash2, Upload, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,14 @@ import { PersonalDefaultCard } from "@/components/app/personal-default-card";
 
 type CompanyDocument = {
   id: string;
-  type: "contract" | "proposal_template" | "service_description" | "other" | "content_block";
+  type:
+    | "contract"
+    | "proposal_template"
+    | "service_description"
+    | "other"
+    | "content_block"
+    | "reference"
+    | "company_material";
   title: string;
   content: string;
   is_default_template: boolean;
@@ -20,9 +27,15 @@ type CompanyDocument = {
   file_name?: string | null;
 };
 
+// The library exists mainly so a company can showcase its own example proposals, references,
+// and general materials — "proposal_template" doubles as the AI's default-skeleton source
+// (see makeDefaultTemplate). "contract"/"service_description" are kept selectable only so
+// older rows created before this list changed still render a matching label.
 const DOC_TYPES: { value: Exclude<CompanyDocument["type"], "content_block">; tr: string; en: string }[] = [
+  { value: "proposal_template", tr: "Örnek teklif", en: "Example proposal" },
+  { value: "reference", tr: "Referans / Vaka çalışması", en: "Reference / case study" },
+  { value: "company_material", tr: "Şirket materyali", en: "Company material" },
   { value: "contract", tr: "Sözleşme", en: "Contract" },
-  { value: "proposal_template", tr: "Teklif formatı", en: "Proposal format" },
   { value: "service_description", tr: "Hizmet açıklaması", en: "Service description" },
   { value: "other", tr: "Diğer", en: "Other" },
 ];
@@ -93,7 +106,7 @@ export function ContentLibraryClient() {
     if (!companyId) return;
     const { data } = await supabase
       .from("company_documents")
-      .insert({ company_id: companyId, type: "contract", title: lang === "tr" ? "Yeni doküman" : "New document", content: "" })
+      .insert({ company_id: companyId, type: "other", title: lang === "tr" ? "Yeni doküman" : "New document", content: "" })
       .select("*")
       .single();
     if (data) {
@@ -192,18 +205,18 @@ export function ContentLibraryClient() {
       <Card>
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle>{lang === "tr" ? "Teklif Örnekleriniz" : "Your proposal examples"}</CardTitle>
+            <CardTitle>{lang === "tr" ? "Örnekleriniz ve Materyalleriniz" : "Your examples and materials"}</CardTitle>
             <p className="text-sm text-muted-foreground">
               {lang === "tr"
-                ? "Kendi sözleşmen, teklif formatların ve hizmet açıklaman. Bir \"teklif formatı\"nı varsayılan yaparsan AI teklifleri o iskelete göre yazar."
-                : "Your own contract, proposal formats, and service description. Mark a \"proposal format\" as default and the AI will follow its skeleton."}
+                ? "Kendi örnek tekliflerin, referansların/vaka çalışmaların ve genel şirket materyallerin. Bir \"örnek teklif\"i varsayılan yaparsan AI teklifleri o iskelete göre yazar."
+                : "Your own example proposals, references/case studies, and general company materials. Mark an \"example proposal\" as default and the AI will follow its skeleton."}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              accept=".pdf,.docx,.xlsx,.xls,.png,.jpg,.jpeg,.webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,image/png,image/jpeg,image/webp"
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
@@ -306,6 +319,7 @@ function DocumentPreviewModal({
   }, [doc.id, doc.file_path]);
 
   const isPdf = doc.file_mime === "application/pdf";
+  const isImage = doc.file_mime?.startsWith("image/") ?? false;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
@@ -321,6 +335,13 @@ function DocumentPreviewModal({
             onBlur={(e) => onPersist({ title: e.target.value })}
             placeholder={lang === "tr" ? "Başlık" : "Title"}
           />
+          {previewUrl && (
+            <a href={previewUrl} download={doc.file_name ?? undefined} className="ml-2 shrink-0">
+              <Button variant="outline" size="icon" title={lang === "tr" ? "Orijinal dosyayı indir" : "Download original file"}>
+                <Download className="h-4 w-4" />
+              </Button>
+            </a>
+          )}
           <Button variant="outline" size="icon" onClick={onClose} className="ml-2 shrink-0">
             <X className="h-4 w-4" />
           </Button>
@@ -334,13 +355,16 @@ function DocumentPreviewModal({
               <p className="p-6 text-sm text-muted-foreground">{previewError}</p>
             ) : previewUrl && isPdf ? (
               <iframe src={previewUrl} title={doc.title} className="h-[60vh] w-full" />
+            ) : previewUrl && isImage ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={previewUrl} alt={doc.title} className="max-h-[60vh] w-full object-contain" />
             ) : previewUrl ? (
               <div className="flex flex-col items-center gap-3 p-6 text-center">
                 <FileText className="h-10 w-10 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
                   {lang === "tr"
-                    ? "Word dosyaları tarayıcıda görüntülenemiyor — orijinalini indirip açabilirsin."
-                    : "Word files can't be previewed in the browser — download the original to open it."}
+                    ? "Bu dosya türü tarayıcıda görüntülenemiyor — orijinalini indirip açabilirsin."
+                    : "This file type can't be previewed in the browser — download the original to open it."}
                 </p>
                 <a href={previewUrl} download={doc.file_name ?? undefined}>
                   <Button variant="outline" size="sm">

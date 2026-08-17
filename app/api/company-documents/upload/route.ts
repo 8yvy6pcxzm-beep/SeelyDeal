@@ -4,9 +4,28 @@ import { getAuthedUser } from "@/lib/supabase/auth-user";
 import { planAllows } from "@/lib/plan";
 
 const DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const XLS_MEDIA_TYPE = "application/vnd.ms-excel";
 const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20MB
 
-/** Extracts the exact text of an uploaded PDF/Word file and stores it as a company document (e.g. a proposal template). */
+// Every format the library accepts, mapped to the file extension used when storing the
+// original in Supabase Storage. Text is extracted where possible (PDF/Word/Excel) so the AI
+// can read it; images and other binary formats are stored as-is with no extracted text.
+const EXTENSION_BY_MEDIA_TYPE: Record<string, string> = {
+  "application/pdf": "pdf",
+  [DOCX_MEDIA_TYPE]: "docx",
+  [XLSX_MEDIA_TYPE]: "xlsx",
+  [XLS_MEDIA_TYPE]: "xls",
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+};
+
+// Formats that have no extractable text — an empty `content` is expected and not an error.
+const NO_TEXT_MEDIA_TYPES = new Set(["image/png", "image/jpeg", "image/webp", XLSX_MEDIA_TYPE, XLS_MEDIA_TYPE]);
+
+/** Stores an uploaded file (PDF, Word, Excel, or image) as a company document, extracting
+ *  its text where possible so the AI can read it, and always keeping the original file. */
 export async function POST(req: Request) {
   const user = await getAuthedUser(req);
   if (!user) return NextResponse.json({ error: "Bu özellik için giriş yapmalısın." }, { status: 401 });
@@ -25,7 +44,7 @@ export async function POST(req: Request) {
     mediaType: string;
     base64: string;
     title?: string;
-    type?: "contract" | "proposal_template" | "service_description" | "other";
+    type?: "contract" | "proposal_template" | "service_description" | "other" | "reference" | "company_material";
   };
 
   if (!base64 || !mediaType) {
@@ -37,8 +56,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Dosya çok büyük (en fazla 20MB)." }, { status: 413 });
   }
 
+  const ext = EXTENSION_BY_MEDIA_TYPE[mediaType];
+  if (!ext) {
+    return NextResponse.json({ error: "Bu dosya türü desteklenmiyor." }, { status: 400 });
+  }
+
   const buffer = Buffer.from(base64, "base64");
-  let content: string;
+  let content = "";
 
   try {
     if (mediaType === "application/pdf") {
@@ -50,20 +74,28 @@ export async function POST(req: Request) {
       const mammoth = await import("mammoth");
       const result = await mammoth.extractRawText({ buffer });
       content = result.value.trim();
-    } else {
-      return NextResponse.json({ error: "Sadece PDF veya Word (.docx) dosyaları desteklenir." }, { status: 400 });
+    } else if (mediaType === XLSX_MEDIA_TYPE || mediaType === XLS_MEDIA_TYPE) {
+      const XLSX = await import("xlsx");
+      const workbook = XLSX.read(buffer, { type: "buffer" });
+      content = workbook.SheetNames.map((name) => {
+        const sheet = workbook.Sheets[name];
+        return `# ${name}\n${XLSX.utils.sheet_to_csv(sheet)}`;
+      })
+        .join("\n\n")
+        .trim();
     }
+    // Images and other non-text-extractable formats keep `content` empty — the original
+    // file is still stored and can be previewed/downloaded.
   } catch {
     return NextResponse.json({ error: "Dosyadan metin çıkarılamadı." }, { status: 422 });
   }
 
-  if (!content) {
+  if (!content && !NO_TEXT_MEDIA_TYPES.has(mediaType)) {
     return NextResponse.json({ error: "Dosyada okunabilir metin bulunamadı." }, { status: 422 });
   }
 
   // Keep the original file too (not just the extracted text) so the library can show a real
   // visual preview of what was uploaded, rather than only the AI-readable text summary.
-  const ext = mediaType === "application/pdf" ? "pdf" : "docx";
   const filePath = `${profile.company_id}/${crypto.randomUUID()}.${ext}`;
   const { error: storageError } = await service.storage
     .from("company-documents")
