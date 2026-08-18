@@ -35,6 +35,8 @@ export async function POST(req: Request) {
   }
 
   const numericValue = Number(value);
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const templateIdIsUuid = typeof templateId === "string" && UUID_RE.test(templateId);
 
   const { data: proposal, error } = await service
     .from("proposals")
@@ -59,7 +61,7 @@ export async function POST(req: Request) {
       valid_days: Number.isFinite(Number(validDays)) ? Number(validDays) : 15,
       theme_json: themeJson && typeof themeJson === "object" ? themeJson : null,
       created_by: user.id,
-      template_id: templateId || null,
+      template_id: templateIdIsUuid ? templateId : null,
       format: format === "pdf" || format === "html" ? format : null,
       view_mode: viewMode === "scroll" ? "scroll" : "pages",
     })

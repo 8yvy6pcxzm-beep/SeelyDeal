@@ -183,7 +183,6 @@ export function AiDraftDialog({
   const [sending, setSending] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [paymentLink, setPaymentLink] = useState("");
-  const [showPaymentField, setShowPaymentField] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [overage, setOverage] = useState<{ link: string | null; price: number; drafts: number } | null>(null);
   // Once set, "Teklife ekle" becomes "Değişiklikleri kaydet" and saves PATCH this
@@ -214,6 +213,9 @@ export function AiDraftDialog({
   // Seely's first-chat intro (companies.onboarding_completed === false).
   const [onboardingPending, setOnboardingPending] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  // Mobile-only Chat/Preview tab switch for the split-view layout below —
+  // purely presentational, doesn't affect any drafting logic.
+  const [mobilePanel, setMobilePanel] = useState<"chat" | "preview">("chat");
   const endRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const stoppedRef = useRef(false);
@@ -1149,7 +1151,6 @@ export function AiDraftDialog({
     setMessages([]);
     setDraft(null);
     setPaymentLink("");
-    setShowPaymentField(false);
     setSavedProposalId(null);
     setError(null);
     setOverage(null);
@@ -1205,7 +1206,7 @@ export function AiDraftDialog({
       onDrop={handleDrop}
     >
       <div
-        className="relative my-auto flex max-h-[92dvh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-pop"
+        className="relative my-auto flex max-h-[92dvh] w-[90vw] max-w-6xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-pop"
         onClick={(e) => e.stopPropagation()}
       >
         {showLibraryUpsell && (
@@ -1265,6 +1266,38 @@ export function AiDraftDialog({
           </button>
         </div>
 
+        {/* Mobile-only Chat/Preview tabs — the split view below is side-by-side
+           from md: up, so this toggle only matters on small screens. */}
+        <div className="flex shrink-0 border-b border-border md:hidden">
+          <button
+            type="button"
+            onClick={() => setMobilePanel("chat")}
+            className={cn(
+              "flex-1 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
+              mobilePanel === "chat" ? "border-primary text-primary" : "border-transparent text-muted-foreground",
+            )}
+          >
+            {lang === "tr" ? "Sohbet" : "Chat"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobilePanel("preview")}
+            className={cn(
+              "flex-1 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
+              mobilePanel === "preview" ? "border-primary text-primary" : "border-transparent text-muted-foreground",
+            )}
+          >
+            {lang === "tr" ? "Önizleme" : "Preview"}
+          </button>
+        </div>
+
+        <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-12">
+        <div
+          className={cn(
+            "flex min-h-0 flex-col md:col-span-5 md:border-r md:border-border",
+            mobilePanel === "preview" && "hidden md:flex",
+          )}
+        >
         <div className="flex-1 space-y-3 overflow-y-auto p-5">
           {messages.length === 0 && !onboardingPending && (
             <div className="space-y-3">
@@ -1375,301 +1408,6 @@ export function AiDraftDialog({
               <p className="pt-1 text-xs text-muted-foreground">
                 {lang === "tr" ? "Taslak hazırlanıyor…" : "Preparing the draft…"}
               </p>
-            </div>
-          )}
-
-          {draft && (
-            <div className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
-              <div className="flex items-start justify-between gap-2">
-                <h4 className="font-display text-lg font-semibold">{draft.title}</h4>
-                {mode === "proposal" && !showSaveTemplateField && !templateSaved && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTemplateSaveName(draft.title);
-                      setShowSaveTemplateField(true);
-                    }}
-                    className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border bg-card px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
-                  >
-                    <BookmarkPlus className="h-3.5 w-3.5" />
-                    {lang === "tr" ? "Taslak olarak kaydet" : "Save as template"}
-                  </button>
-                )}
-                {mode === "proposal" && templateSaved && (
-                  <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-success">
-                    <Check className="h-3.5 w-3.5" />
-                    {lang === "tr" ? "Taslak olarak kaydedildi" : "Saved as a template"}
-                  </span>
-                )}
-              </div>
-              {(() => {
-                // Prefer draft.blocks when it's already been populated (e.g. by the
-                // add_legal_block_to_proposal tool — see app/api/draft-proposal/route.ts) so
-                // Legal blocks show up here too; legacyToBlocks alone has no idea they exist.
-                const blocks =
-                  draft.blocks && draft.blocks.length > 0
-                    ? draft.blocks
-                    : legacyToBlocks({
-                        sections: draft.sections,
-                        lineItems: draft.lineItems,
-                        contractText: draft.contractText,
-                      });
-                const blockLabel = (b: (typeof blocks)[number]) =>
-                  b.type === "HeroCover"
-                    ? lang === "tr" ? "Kapak" : "Cover"
-                    : b.type === "PricingTable"
-                      ? lang === "tr" ? "Fiyatlandırma" : "Pricing"
-                      : b.type === "ContractSignOff"
-                        ? lang === "tr" ? "Sözleşme / İmza" : "Contract / Sign"
-                        : b.type === "Legal"
-                          ? b.title
-                          : b.label;
-                return (
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      {lang === "tr" ? `${blocks.length} blok eklendi` : `${blocks.length} blocks added`}
-                    </p>
-                    <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      {blocks.map((b, i) => (
-                        <span
-                          key={b.id}
-                          className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
-                        >
-                          <span className="tnum text-[9px] text-muted-foreground/70">{String(i + 1).padStart(2, "0")}</span>
-                          {blockLabel(b)}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
-              {draft.blocks && draft.blocks.some((b) => b.type === "Legal" || b.type === "ContractSignOff") && (
-                <BlockRenderer
-                  blocks={draft.blocks.filter((b) => b.type === "Legal" || b.type === "ContractSignOff")}
-                  ctx={{
-                    title: draft.title,
-                    client: draft.client,
-                    value: draft.value,
-                    lineItems: [],
-                    lang,
-                    editable: true,
-                    onLegalBlockChange: (blockId, patch) =>
-                      setDraft((prev) => {
-                        if (!prev?.blocks) return prev;
-                        return {
-                          ...prev,
-                          blocks: prev.blocks.map((b) =>
-                            b.id === blockId && b.type === "Legal" ? { ...b, ...patch, settings: { requireSignature: patch.requireSignature } } : b,
-                          ),
-                        };
-                      }),
-                    getCompanySignState,
-                    onSaveToLibrary: saveBlockToLibrary,
-                    savingLibraryBlockId,
-                    savedLibraryBlockIds,
-                  }}
-                />
-              )}
-              {mode === "proposal" && showSaveTemplateField && (
-                <div className="flex items-center gap-1.5">
-                  <Input
-                    value={templateSaveName}
-                    onChange={(e) => setTemplateSaveName(e.target.value)}
-                    placeholder={lang === "tr" ? "Taslak adı" : "Template name"}
-                    className="h-8 flex-1 text-xs"
-                  />
-                  <Button size="sm" className="h-8 gap-1 px-2.5 text-xs" onClick={saveAsTemplate} disabled={savingTemplate}>
-                    {savingTemplate ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                    {lang === "tr" ? "Onayla" : "Confirm"}
-                  </Button>
-                  <button
-                    type="button"
-                    onClick={() => setShowSaveTemplateField(false)}
-                    className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              )}
-              {mode !== "template" && <p className="text-sm text-muted-foreground">{draft.client}</p>}
-              {mode !== "template" && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {lang === "tr" ? "Görünüm" : "View"}
-                  </p>
-                  <div className="mt-1.5 inline-flex rounded-lg border border-border bg-card p-0.5 text-xs">
-                    {(["pages", "scroll"] as const).map((mode2) => (
-                      <button
-                        key={mode2}
-                        type="button"
-                        onClick={() => setDraft((d) => (d ? { ...d, viewMode: mode2 } : d))}
-                        className={cn(
-                          "rounded-md px-2.5 py-1 font-medium transition-colors",
-                          (draft.viewMode ?? "pages") === mode2
-                            ? "bg-primary text-primary-foreground"
-                            : "text-muted-foreground hover:text-foreground",
-                        )}
-                      >
-                        {mode2 === "pages"
-                          ? lang === "tr" ? "Sayfa geçişli" : "Paginated"
-                          : lang === "tr" ? "Tek sayfa (kaydırmalı)" : "Single scroll"}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {draft.sections?.map((s, i) => (
-                <div key={i}>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{s.title}</p>
-                    <button
-                      type="button"
-                      onClick={() => saveSectionToLibrary(i, s.title, s.body)}
-                      disabled={savingSectionIndex === i || savedSectionIndexes[i]}
-                      title={lang === "tr" ? "Kütüphaneme ekle" : "Add to my library"}
-                      className={cn(
-                        "shrink-0 rounded-md p-1 transition-colors",
-                        savedSectionIndexes[i] ? "text-success" : "text-muted-foreground hover:text-primary",
-                      )}
-                    >
-                      {savingSectionIndex === i ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : savedSectionIndexes[i] ? (
-                        <Check className="h-3.5 w-3.5" />
-                      ) : (
-                        <BookmarkPlus className="h-3.5 w-3.5" />
-                      )}
-                    </button>
-                  </div>
-                  <p className="mt-1 text-sm">{s.body}</p>
-                  <Input
-                    value={s.videoUrl ?? ""}
-                    onChange={(e) => {
-                      const url = e.target.value;
-                      setDraft((d) => {
-                        if (!d) return d;
-                        const sections = d.sections.map((sec, j) => (j === i ? { ...sec, videoUrl: url } : sec));
-                        return { ...d, sections };
-                      });
-                    }}
-                    placeholder={lang === "tr" ? "Video linki ekle (YouTube, Vimeo, Loom)…" : "Add a video link (YouTube, Vimeo, Loom)…"}
-                    className="mt-1.5 h-8 text-xs"
-                  />
-                </div>
-              ))}
-              {draft.lineItems?.length > 0 && (
-                <table className="w-full text-sm">
-                  <tbody>
-                    {draft.lineItems.map((li, i) => (
-                      <tr key={i} className="border-t border-border">
-                        <td className="py-1.5">
-                          {li.name} × {li.qty}
-                          {li.optional && (
-                            <span className="ml-1.5 text-[10px] text-muted-foreground">
-                              ({lang === "tr" ? "opsiyonel" : "optional"})
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-1.5 text-right tnum">${(li.unit * li.qty).toLocaleString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-              {draft.billingOptions && draft.billingOptions.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {lang === "tr" ? "Ödeme sıklığı seçenekleri" : "Billing options"}
-                  </p>
-                  {draft.billingOptions.map((o) => (
-                    <div key={o.key} className="rounded-lg border border-border p-2.5">
-                      <p className="mb-1.5 text-xs font-medium">
-                        {lang === "tr" ? o.label.tr : o.label.en} — ${o.price.toLocaleString()}
-                      </p>
-                      <Input
-                        value={o.paymentLink ?? ""}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          setDraft((d) =>
-                            d
-                              ? {
-                                  ...d,
-                                  billingOptions: d.billingOptions?.map((opt) =>
-                                    opt.key === o.key ? { ...opt, paymentLink: value } : opt,
-                                  ),
-                                }
-                              : d,
-                          );
-                        }}
-                        placeholder={
-                          lang === "tr"
-                            ? `${lang === "tr" ? o.label.tr : o.label.en} için ödeme linki`
-                            : `Payment link for ${o.label.en}`
-                        }
-                        className="text-xs"
-                      />
-                    </div>
-                  ))}
-                  <p className="text-xs text-muted-foreground">
-                    {lang === "tr"
-                      ? "Müşteri hangi seçeneği seçip imzalarsa, o seçeneğin linkine yönlendirilir."
-                      : "Whichever option the client picks and signs, they're redirected to that option's link."}
-                  </p>
-                </div>
-              )}
-              {draft.contractText && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {lang === "tr" ? "Sözleşme (revize)" : "Contract (revised)"}
-                  </p>
-                  <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{draft.contractText}</p>
-                </div>
-              )}
-              {(!draft.billingOptions || draft.billingOptions.length === 0) &&
-                (showPaymentField || paymentLink ? (
-                  <div>
-                    <label className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      <CreditCard className="h-3.5 w-3.5" />
-                      {lang === "tr" ? "Ödeme Yöntemi (opsiyonel)" : "Payment Method (optional)"}
-                    </label>
-                    <Input
-                      value={paymentLink}
-                      onChange={(e) => setPaymentLink(e.target.value)}
-                      placeholder={
-                        lang === "tr"
-                          ? "Ödeme linki (Ruul, Stripe, iyzico) ya da IBAN"
-                          : "Payment link (Ruul, Stripe, iyzico) or IBAN"
-                      }
-                      className="text-sm"
-                    />
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {lang === "tr"
-                        ? "Müşteri imzaladığında buraya yönlendirilir."
-                        : "The client is redirected here once they sign."}
-                    </p>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setShowPaymentField(true)}
-                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary"
-                  >
-                    <CreditCard className="h-3.5 w-3.5" />
-                    {lang === "tr" ? "Ödeme linki ekle (opsiyonel)" : "Add a payment link (optional)"}
-                  </button>
-                ))}
-              <Button onClick={() => saveDraft()} disabled={loading} className="w-full gap-2">
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                {mode === "template"
-                  ? lang === "tr" ? "Şablon olarak kaydet" : "Save as template"
-                  : savedProposalId
-                    ? lang === "tr" ? "Değişiklikleri kaydet" : "Save changes"
-                    : lang === "tr" ? "Teklife ekle" : "Add to proposals"}
-              </Button>
-              {savedProposalId && mode !== "template" && (
-                <p className="text-center text-xs text-success">
-                  {lang === "tr" ? "✓ Kaydedildi — düzenlemeye devam edebilirsin." : "✓ Saved — you can keep editing."}
-                </p>
-              )}
             </div>
           )}
 
@@ -1895,6 +1633,266 @@ export function AiDraftDialog({
                 {loading ? <X className="h-4 w-4" /> : <Send className="h-4 w-4" />}
               </Button>
             </div>
+        </div>
+        </div>
+
+        <div
+          className={cn(
+            "min-h-0 flex-col overflow-y-auto p-5 md:col-span-7 md:flex",
+            mobilePanel === "chat" ? "hidden md:flex" : "flex",
+          )}
+        >
+          {draft && (
+            <div className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
+              <div className="flex items-start justify-between gap-2">
+                <h4 className="font-display text-lg font-semibold">{draft.title}</h4>
+                {mode === "proposal" && !showSaveTemplateField && !templateSaved && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTemplateSaveName(draft.title);
+                      setShowSaveTemplateField(true);
+                    }}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border bg-card px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    <BookmarkPlus className="h-3.5 w-3.5" />
+                    {lang === "tr" ? "Taslak olarak kaydet" : "Save as template"}
+                  </button>
+                )}
+                {mode === "proposal" && templateSaved && (
+                  <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-success">
+                    <Check className="h-3.5 w-3.5" />
+                    {lang === "tr" ? "Taslak olarak kaydedildi" : "Saved as a template"}
+                  </span>
+                )}
+              </div>
+              {(() => {
+                // Prefer draft.blocks when it's already been populated (e.g. by the
+                // add_legal_block_to_proposal tool — see app/api/draft-proposal/route.ts) so
+                // Legal blocks show up here too; legacyToBlocks alone has no idea they exist.
+                const blocks =
+                  draft.blocks && draft.blocks.length > 0
+                    ? draft.blocks
+                    : legacyToBlocks({
+                        sections: draft.sections,
+                        lineItems: draft.lineItems,
+                        contractText: draft.contractText,
+                      });
+                const blockLabel = (b: (typeof blocks)[number]) =>
+                  b.type === "HeroCover"
+                    ? lang === "tr" ? "Kapak" : "Cover"
+                    : b.type === "PricingTable"
+                      ? lang === "tr" ? "Fiyatlandırma" : "Pricing"
+                      : b.type === "ContractSignOff"
+                        ? lang === "tr" ? "Sözleşme / İmza" : "Contract / Sign"
+                        : b.type === "Legal"
+                          ? b.title
+                          : b.label;
+                return (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {lang === "tr" ? `${blocks.length} blok eklendi` : `${blocks.length} blocks added`}
+                    </p>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {blocks.map((b, i) => (
+                        <span
+                          key={b.id}
+                          className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+                        >
+                          <span className="tnum text-[9px] text-muted-foreground/70">{String(i + 1).padStart(2, "0")}</span>
+                          {blockLabel(b)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+              {draft.blocks && draft.blocks.some((b) => b.type === "Legal" || b.type === "ContractSignOff") && (
+                <BlockRenderer
+                  blocks={draft.blocks.filter((b) => b.type === "Legal" || b.type === "ContractSignOff")}
+                  ctx={{
+                    title: draft.title,
+                    client: draft.client,
+                    value: draft.value,
+                    lineItems: [],
+                    lang,
+                    editable: true,
+                    onLegalBlockChange: (blockId, patch) =>
+                      setDraft((prev) => {
+                        if (!prev?.blocks) return prev;
+                        return {
+                          ...prev,
+                          blocks: prev.blocks.map((b) =>
+                            b.id === blockId && b.type === "Legal" ? { ...b, ...patch, settings: { requireSignature: patch.requireSignature } } : b,
+                          ),
+                        };
+                      }),
+                    getCompanySignState,
+                    onSaveToLibrary: saveBlockToLibrary,
+                    savingLibraryBlockId,
+                    savedLibraryBlockIds,
+                  }}
+                />
+              )}
+              {mode === "proposal" && showSaveTemplateField && (
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    value={templateSaveName}
+                    onChange={(e) => setTemplateSaveName(e.target.value)}
+                    placeholder={lang === "tr" ? "Taslak adı" : "Template name"}
+                    className="h-8 flex-1 text-xs"
+                  />
+                  <Button size="sm" className="h-8 gap-1 px-2.5 text-xs" onClick={saveAsTemplate} disabled={savingTemplate}>
+                    {savingTemplate ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                    {lang === "tr" ? "Onayla" : "Confirm"}
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => setShowSaveTemplateField(false)}
+                    className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+              {mode !== "template" && <p className="text-sm text-muted-foreground">{draft.client}</p>}
+              {mode !== "template" && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {lang === "tr" ? "Görünüm" : "View"}
+                  </p>
+                  <div className="mt-1.5 inline-flex rounded-lg border border-border bg-card p-0.5 text-xs">
+                    {(["pages", "scroll"] as const).map((mode2) => (
+                      <button
+                        key={mode2}
+                        type="button"
+                        onClick={() => setDraft((d) => (d ? { ...d, viewMode: mode2 } : d))}
+                        className={cn(
+                          "rounded-md px-2.5 py-1 font-medium transition-colors",
+                          (draft.viewMode ?? "pages") === mode2
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {mode2 === "pages"
+                          ? lang === "tr" ? "Sayfa geçişli" : "Paginated"
+                          : lang === "tr" ? "Tek sayfa (kaydırmalı)" : "Single scroll"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {draft.sections?.map((s, i) => (
+                <div key={i}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{s.title}</p>
+                    <button
+                      type="button"
+                      onClick={() => saveSectionToLibrary(i, s.title, s.body)}
+                      disabled={savingSectionIndex === i || savedSectionIndexes[i]}
+                      title={lang === "tr" ? "Kütüphaneme ekle" : "Add to my library"}
+                      className={cn(
+                        "shrink-0 rounded-md p-1 transition-colors",
+                        savedSectionIndexes[i] ? "text-success" : "text-muted-foreground hover:text-primary",
+                      )}
+                    >
+                      {savingSectionIndex === i ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : savedSectionIndexes[i] ? (
+                        <Check className="h-3.5 w-3.5" />
+                      ) : (
+                        <BookmarkPlus className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  </div>
+                  <p className="mt-1 text-sm">{s.body}</p>
+                  {s.videoUrl && (
+                    <p className="mt-1.5 truncate text-xs text-muted-foreground">🎬 {s.videoUrl}</p>
+                  )}
+                </div>
+              ))}
+              {draft.lineItems?.length > 0 && (
+                <table className="w-full text-sm">
+                  <tbody>
+                    {draft.lineItems.map((li, i) => (
+                      <tr key={i} className="border-t border-border">
+                        <td className="py-1.5">
+                          {li.name} × {li.qty}
+                          {li.optional && (
+                            <span className="ml-1.5 text-[10px] text-muted-foreground">
+                              ({lang === "tr" ? "opsiyonel" : "optional"})
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-1.5 text-right tnum">${(li.unit * li.qty).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              {draft.billingOptions && draft.billingOptions.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {lang === "tr" ? "Ödeme sıklığı seçenekleri" : "Billing options"}
+                  </p>
+                  {draft.billingOptions.map((o) => (
+                    <div key={o.key} className="rounded-lg border border-border p-2.5">
+                      <p className="mb-1.5 text-xs font-medium">
+                        {lang === "tr" ? o.label.tr : o.label.en} — ${o.price.toLocaleString()}
+                      </p>
+                      {o.paymentLink && (
+                        <p className="truncate text-xs text-muted-foreground">💳 {o.paymentLink}</p>
+                      )}
+                    </div>
+                  ))}
+                  <p className="text-xs text-muted-foreground">
+                    {lang === "tr"
+                      ? "Müşteri hangi seçeneği seçip imzalarsa, o seçeneğin linkine yönlendirilir."
+                      : "Whichever option the client picks and signs, they're redirected to that option's link."}
+                  </p>
+                </div>
+              )}
+              {draft.contractText && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {lang === "tr" ? "Sözleşme (revize)" : "Contract (revised)"}
+                  </p>
+                  <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{draft.contractText}</p>
+                </div>
+              )}
+              {(!draft.billingOptions || draft.billingOptions.length === 0) && paymentLink && (
+                <div>
+                  <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <CreditCard className="h-3.5 w-3.5" />
+                    {lang === "tr" ? "Ödeme Yöntemi" : "Payment Method"}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">{paymentLink}</p>
+                </div>
+              )}
+              <Button onClick={() => saveDraft()} disabled={loading} className="w-full gap-2">
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                {mode === "template"
+                  ? lang === "tr" ? "Şablon olarak kaydet" : "Save as template"
+                  : savedProposalId
+                    ? lang === "tr" ? "Değişiklikleri kaydet" : "Save changes"
+                    : lang === "tr" ? "Teklife ekle" : "Add to proposals"}
+              </Button>
+              {savedProposalId && mode !== "template" && (
+                <p className="text-center text-xs text-success">
+                  {lang === "tr" ? "✓ Kaydedildi — düzenlemeye devam edebilirsin." : "✓ Saved — you can keep editing."}
+                </p>
+              )}
+            </div>
+          )}
+
+          {!draft && (
+            <div className="grid h-full place-items-center text-center text-sm text-muted-foreground">
+              {lang === "tr"
+                ? "Taslak hazır olduğunda canlı önizleme burada görünecek."
+                : "The live preview will appear here once the draft is ready."}
+            </div>
+          )}
+        </div>
         </div>
       </div>
     </div>,
