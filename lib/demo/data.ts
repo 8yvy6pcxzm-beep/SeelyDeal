@@ -401,6 +401,12 @@ export interface Template {
   /** Optional per-template visual theme, carried into the proposal draft and applied only to
    *  proposals created from this template (see app/p/[id]/page.tsx) — never touches global CSS. */
   theme?: { primaryColor: string; accentColor: string; font?: string };
+  /** Optional static cover image for the gallery card (e.g. "/templates/construction.jpg").
+   *  When unset, the card falls back to a CSS/SVG "Mini Cover" generated from
+   *  `theme.primaryColor` / `theme.accentColor` (or `accent`) — see
+   *  components/app/template-mini-cover.tsx. Keep this unset for most templates;
+   *  it exists for the rare case a designed cover photo is worth shipping. */
+  previewImage?: string;
   /** Unset (default) = a pure visual/design skeleton (Görsel Şablonlar) — the AI
    *  only ever takes its `theme`, never its section text (see "ŞABLONLAR SADECE
    *  GÖRSELDİR" in app/api/draft-proposal/route.ts). "draft" = a real, usable
@@ -1103,6 +1109,143 @@ export const templates: Template[] = [
     accent: "var(--seg-4)",
     sections: GENERIC_SECTIONS,
     theme: { primaryColor: "#1c1917", accentColor: "#b08d57", font: "elegant" },
+  },
+  {
+    id: "t23",
+    name: {
+      tr: "Komple Banyo Tadilatı Teklifi",
+      en: "Complete Bathroom Renovation Proposal",
+    },
+    category: {
+      tr: "İnşaat & Tadilat",
+      en: "Construction & Renovation",
+    },
+    uses: 0,
+    winRate: 0,
+    accent: "var(--seg-1)",
+    kind: "draft",
+    sector: "construction",
+    introText: {
+      tr: "TEKLİF DOSYASI\nTeklif No: [Teklif No]\nTarih: [Tarih]\n\nSayın [Müşteri Adı Soyadı],\nİşin Yapılacağı Adres: [Mersin, Yenişehir, ...]\n\nKonu: Daire İçi Banyo Alanının Anahtar Teslim Komple Tadilatı",
+      en: "PROPOSAL DOCUMENT\nProposal No: [Proposal No]\nDate: [Date]\n\nDear [Customer Name Surname],\nProject Address: [Location Address]\n\nSubject: Turnkey Complete Bathroom Renovation",
+    },
+    aboutText: {
+      tr: "[Firma Adı/Usta Adı] olarak, banyo alanınızın altyapı yenilemesinden montajına kadar tüm tadilat süreçlerini profesyonel işçilik ve kaliteli malzeme garantisiyle anahtar teslim sunuyoruz.",
+      en: "As [Company Name], we provide turnkey services for all bathroom renovation processes, from infrastructure renewal to fixture installation, backed by professional workmanship and quality materials.",
+    },
+    sections: [
+      {
+        title: { tr: "1. İşin Kapsamı", en: "1. Scope of Work" },
+        body: {
+          tr: "• Mevcut tüm vitrifiye, armatür ve banyo dolaplarının sökülmesi ve molozların atılması.\n• Zemin ve duvarlardaki mevcut seramiklerin kırılması ve molozların atılması.\n• Sıhhi tesisat (temiz ve pis su) altyapısının Polipropilen (PPRC) boru ile komple yenilenmesi ve test edilmesi.\n• Zemin ve duvarların tesviyesi ve tamiri.\n• Tüm zemin ve duvarlara çift kat su yalıtım malzemesi uygulanması.\n• Zemin ve duvar seramiklerinin döşenmesi, derz dolgu uygulaması.\n• Asma tavan ve LED spot aydınlatma sisteminin yapılması.\n• Yeni klozet, duşakabin, banyo dolabı ve armatürlerin montajı.\n• Tüm alanın temizlenerek, çalışır vaziyette teslim edilmesi.",
+          en: "• Removal of existing fixtures, armatures, and cabinets, followed by debris disposal.\n• Demolition of floor and wall tiles with debris removal.\n• Complete renewal and testing of plumbing infrastructure with PPRC pipes.\n• Leveling and repair of floor and wall surfaces.\n• Application of double-layer waterproofing on all floor and wall surfaces.\n• Tile laying and grouting for floors and walls.\n• Installation of suspended ceiling and LED spot lighting system.\n• Installation of new toilet, shower cabin, bathroom vanity, and armatures.\n• Final cleaning and complete operational delivery.",
+        },
+      },
+      {
+        title: { tr: "2. Kullanılacak Malzemeler", en: "2. Materials to be Used" },
+        body: {
+          tr: "• Seramik: Kütahya Seramik, \"Nature\" Serisi (Renk Kodu: NT123)\n• Klozet: Vitra, \"S50\" Serisi Asma Klozet\n• Armatürler: ECA, \"Spylos\" Serisi\n• Boya: Jotun, \"Fenomastik\" Serisi, Antibakteriyel",
+          en: "• Ceramics: Kütahya Seramik, \"Nature\" Series (Color Code: NT123)\n• Toilet: Vitra, \"S50\" Series Wall-Hung Toilet\n• Armatures: ECA, \"Spylos\" Series\n• Paint: Jotun, \"Fenomastik\" Series, Antibacterial",
+        },
+      },
+      {
+        title: { tr: "3. İş Süresi", en: "3. Project Timeline" },
+        body: {
+          tr: "İşin süresi, sözleşme imzalandıktan sonraki ilk iş günü başlamak üzere toplam 14 (ondört) iş günüdür.",
+          en: "The duration of the work is a total of 14 (fourteen) business days, starting on the first business day following the signing of the agreement.",
+        },
+      },
+      {
+        title: { tr: "4. Garanti ve Geçerlilik Şartları", en: "4. Warranty & Validity Terms" },
+        body: {
+          tr: "• Garanti: Uygulanan işçilik 2 (iki) yıl, kullanılan malzemeler üretici firma garantisi (5-10 yıl) kapsamındadır.\n• Geçerlilik Süresi: İşbu teklif, düzenleme tarihinden itibaren 15 gün süreyle geçerlidir.",
+          en: "• Warranty: Workmanship is guaranteed for 2 (two) years; materials are covered under manufacturer warranties (5-10 years).\n• Validity: This proposal is valid for 15 days from the date of issuance.",
+        },
+      },
+    ],
+    lineItems: [
+      { name: { tr: "Banyo Tadilat Malzeme Bedeli", en: "Bathroom Renovation Material Cost" }, qty: 1, unit: 45000 },
+      { name: { tr: "Banyo Tadilat İşçilik Bedeli", en: "Bathroom Renovation Labor Cost" }, qty: 1, unit: 30000 },
+    ],
+    contractText: {
+      tr: "ÖDEME PLANINI VE ŞARTLAR:\n• %40 (36.000 TL) - Sözleşme anında (Malzeme siparişi için)\n• %40 (36.000 TL) - Seramik döşeme işlemi bittiğinde\n• %20 (18.000 TL) - İş tamamen bitip, kontrol edilerek teslim alındığında\n\n* Fiyatlara %20 KDV dahil edilerek Genel Toplam 90.000,00 TL olarak hesaplanmıştır.\n\n[Firma Yetkilisi Adı Soyadı / Kaşe / İmza]",
+      en: "PAYMENT SCHEDULE & TERMS:\n• 40% (36,000 TRY) - Upon signing contract (for material orders)\n• 40% (36,000 TRY) - Upon completion of tile installation\n• 20% (18,000 TRY) - Upon final inspection and project delivery\n\n* Prices include 20% VAT, bringing the Grand Total to 90,000.00 TRY.\n\n[Authorized Person Name / Stamp / Signature]",
+    },
+  },
+  {
+    id: "t24",
+    name: {
+      tr: "Apartman Ortak Alanı Tadilat Teklifi",
+      en: "Building Common Area Renovation Proposal",
+    },
+    category: {
+      tr: "İnşaat & Tadilat",
+      en: "Construction & Renovation",
+    },
+    uses: 0,
+    winRate: 0,
+    accent: "var(--seg-2)",
+    kind: "draft",
+    sector: "construction",
+    introText: {
+      tr: "TEKLİF DOSYASI\nTeklif No: [Teklif No]\nTarih: [Tarih]\n\nSayın [Apartman Adı] Apartmanı Yöneticiliği,\nİşin Yapılacağı Adres: [Mersin, Mezitli, ...]\n\nKonu: Apartman Giriş Holü, Posta Kutuları ve Merdiven Boşluğu Zemin Katının Yenilenmesi İşi",
+      en: "PROPOSAL DOCUMENT\nProposal No: [Proposal No]\nDate: [Date]\n\nTo the Board of [Building Name] Apartment Building,\nProject Address: [Location Address]\n\nSubject: Renovation of Building Entrance Hall, Mailboxes, and Ground Floor Stairwell",
+    },
+    aboutText: {
+      tr: "[İnşaat Şirketi Adı] olarak, bina sakinlerinin güvenliğini ve alanın temizliğini ön planda tutarak apartman ortak alan yenileme projelerini eksiksiz iş güvenliği, sigorta teminatı ve 5 yıl garanti ile sunuyoruz.",
+      en: "As [Construction Company Name], we offer common area renovation projects with strict occupational safety, insurance coverage, and a 5-year warranty, prioritizing resident safety and cleanliness throughout the process.",
+    },
+    sections: [
+      {
+        title: { tr: "1. İşin Kapsamı", en: "1. Scope of Work" },
+        body: {
+          tr: "• Giriş holündeki mevcut mermer zeminin ve duvar kaplamalarının sökülmesi.\n• Elektrik tesisatının yenilenmesi ve sensörlü LED aydınlatma sistemine geçilmesi.\n• Duvarların alçı sıva ile tamiri ve saten boya uygulaması.\n• Zemine 60x120 cm ebatlarında granit seramik döşenmesi.\n• Her daire için özel, kilitli posta kutusu montajı.\n• Tüm işlemler sırasında bina sakinlerinin güvenliğinin ve temizliğin sağlanması.",
+          en: "• Removal of existing marble floor and wall claddings in the entrance hall.\n• Renewal of electrical wiring and installation of sensor LED lighting system.\n• Repair of walls with plaster and application of satin paint.\n• Laying 60x120 cm granite ceramics on the floor.\n• Installation of custom lockable mailboxes for each apartment unit.\n• Ensuring resident safety and site cleanliness throughout all operations.",
+        },
+      },
+      {
+        title: { tr: "2. Kullanılacak Malzemeler", en: "2. Materials to be Used" },
+        body: {
+          tr: "• Granit Seramik: Ege Seramik, \"Palazzo\" Serisi (60x120 cm)\n• Boya: DYO, \"Teknotex\" Serisi, Silinebilir\n• Posta Kutusu: Her daire için özel kilitli sistem",
+          en: "• Granite Ceramics: Ege Seramik, \"Palazzo\" Series (60x120 cm)\n• Paint: DYO, \"Teknotex\" Series, Washable\n• Mailboxes: Custom lockable units for each apartment",
+        },
+      },
+      {
+        title: { tr: "3. İş Süresi ve Cezai Şartlar", en: "3. Project Timeline & Penalties" },
+        body: {
+          tr: "İşin süresi, yer tesliminden itibaren 20 (yirmi) iş günüdür. Gecikilen her gün için 1.500 TL cezai şart uygulanacaktır.",
+          en: "The project duration is 20 (twenty) business days from site delivery. A penalty clause of 1,500 TRY will be applied for each day of delay.",
+        },
+      },
+      {
+        title: { tr: "4. İş Güvenliği ve Sigorta Şartları", en: "4. Safety & Insurance Conditions" },
+        body: {
+          tr: "Proje süresince tüm personelin SGK ve İSG sorumlulukları tamamen şirketimize aittir. Şirketimiz, 3. Şahıs Mali Mesuliyet Sigortası'na sahiptir.",
+          en: "All Social Security (SGK) and Occupational Health & Safety (OHS) responsibilities for all personnel belong entirely to our company. Our company holds Third-Party Liability Insurance.",
+        },
+      },
+      {
+        title: { tr: "5. Garanti ve Geçerlilik", en: "5. Warranty & Validity" },
+        body: {
+          tr: "• Garanti: Yapılan tüm işçilik uygulamaları, teslim tarihinden itibaren 5 (beş) yıl süreyle şirketimiz garantisi altındadır.\n• Geçerlilik Süresi: İşbu teklif, düzenleme tarihinden itibaren 30 gün süreyle geçerlidir.",
+          en: "• Warranty: All workmanship applications are under our company guarantee for 5 (five) years from the delivery date.\n• Validity: This proposal is valid for 30 days from the date of issuance.",
+        },
+      },
+    ],
+    lineItems: [
+      {
+        name: {
+          tr: "Apartman Giriş Holü ve Ortak Alan Komple Tadilatı (KDV Dahil)",
+          en: "Building Entrance Hall & Common Area Complete Renovation (VAT Incl.)",
+        },
+        qty: 1,
+        unit: 250000,
+      },
+    ],
+    contractText: {
+      tr: "ÖDEME PLANINI (Hak Ediş Usulü):\n• %20 - Sözleşme ve yer teslimi\n• %30 - Kırım, döküm ve altyapı işleri bitiminde\n• %30 - Zemin ve duvar kaplama işleri bitiminde\n• %20 - Tüm montaj, temizlik işleri bitip, Yönetim Kurulu tarafından \"Kabul Tutanağı\" imzalandığında\n\n* Belirtilen tutar 250.000,00 TL olup KDV dahildir.\n\n[Şirket Yetkilisi Adı Soyadı / Kaşe / İmza]",
+      en: "PAYMENT SCHEDULE (Progressive Billing):\n• 20% - Upon signing contract and site delivery\n• 30% - Upon completion of demolition and infrastructure works\n• 30% - Upon completion of floor and wall cladding works\n• 20% - Upon final assembly, cleaning, and signing of Acceptance Protocol by the Board\n\n* Total amount is 250,000.00 TRY, VAT included.\n\n[Authorized Company Representative Name / Stamp / Signature]",
+    },
   },
 ];
 

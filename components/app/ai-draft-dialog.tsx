@@ -50,6 +50,10 @@ type Draft = {
  * list items onto their own line even when the model runs them together in one paragraph. */
 function renderFormatted(text: string) {
   let withBreaks = text
+    // The model occasionally runs a sentence-ending period straight into the
+    // next word with no space ("...kaydedildi.Teklif artık hazır") — insert
+    // the missing space so it doesn't read as one run-on word.
+    .replace(/([.!?])(?=[A-ZÇĞİÖŞÜ])/g, "$1 ")
     .replace(/([^\n])(\s)(\d+\.\s)/g, "$1\n$3")
     .replace(/([^\n])(\s)([-•]\s)/g, "$1\n$3");
 
@@ -237,26 +241,70 @@ function Editable({
   );
 }
 
-/** Deterministic decorative "photo" panel — a gradient + subtle geometric pattern
- * standing in for client photography, since Seely has no image source yet. Color
- * is derived from the proposal's theme, or falls back to the primary brand gradient. */
-function PhotoBlock({ seed, color, className }: { seed: string; color?: string; className?: string }) {
+/** Sector → English search keyword, used to fetch a real stock photo for the
+ * cover and section image panels below. Falls back to a generic "business
+ * meeting" keyword when the active template has no (or an unmapped) sector. */
+const SECTOR_IMAGE_QUERY: Record<string, string> = {
+  construction: "construction site",
+  software: "software team office",
+  events: "event planning",
+  consulting: "business consulting meeting",
+  general: "business handshake",
+  accounting: "accounting office",
+  audit: "office audit documents",
+  enterprise_software: "enterprise office technology",
+  coaching: "business coaching session",
+  financial_services: "financial services office",
+  hr_consulting: "hr team meeting",
+  market_research: "market research analytics",
+};
+
+/** Cover/section image panel. Renders a real stock photo (via Unsplash Source,
+ * keyed by the proposal's sector) when one can be fetched; otherwise falls back
+ * to a deterministic gradient + geometric pattern derived from the theme. */
+function PhotoBlock({
+  seed,
+  color,
+  className,
+  imageQuery,
+}: {
+  seed: string;
+  color?: string;
+  className?: string;
+  imageQuery?: string;
+}) {
+  const [imgFailed, setImgFailed] = useState(false);
   let hash = 0;
   for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
   const hue = hash % 360;
   const bg = color
     ? `linear-gradient(135deg, ${color}dd, ${color}55)`
     : `linear-gradient(135deg, oklch(62% 0.14 ${hue}), oklch(48% 0.16 ${(hue + 40) % 360}))`;
+  const imageUrl = imageQuery
+    ? `https://source.unsplash.com/800x600/?${encodeURIComponent(imageQuery)}&sig=${hash}`
+    : undefined;
+
   return (
     <div className={cn("relative overflow-hidden", className)} style={{ background: bg }}>
-      <svg className="absolute inset-0 h-full w-full opacity-25" preserveAspectRatio="xMidYMid slice">
-        <defs>
-          <pattern id={`grid-${hash}`} width="28" height="28" patternUnits="userSpaceOnUse">
-            <circle cx="2" cy="2" r="1.4" fill="white" />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill={`url(#grid-${hash})`} />
-      </svg>
+      {imageUrl && !imgFailed ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={imageUrl}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+          aria-hidden
+          onError={() => setImgFailed(true)}
+        />
+      ) : (
+        <svg className="absolute inset-0 h-full w-full opacity-25" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <pattern id={`grid-${hash}`} width="28" height="28" patternUnits="userSpaceOnUse">
+              <circle cx="2" cy="2" r="1.4" fill="white" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill={`url(#grid-${hash})`} />
+        </svg>
+      )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-white/10" />
     </div>
   );
@@ -926,7 +974,17 @@ export function AiDraftDialog({
         // state, which won't have re-rendered yet if the format block arrived in
         // this same response) so a same-turn confirm doesn't save format: undefined.
         if (data.draft.confirmed) {
-          saveDraft(nextDraft, data.format === "pdf" || data.format === "html" ? data.format : undefined);
+          saveDraft(nextDraft, data.format === "pdf" || data.format === "html" ? data.format : undefined).then(
+            ({ ok, id }) => {
+              // Confirmed + saved — nothing left to chat about, so close the dialog
+              // ourselves and drop the user straight onto the real, full-screen
+              // proposal view instead of leaving them staring at the empty composer.
+              if (!ok || mode !== "proposal" || !id) return;
+              onClose();
+              reset();
+              window.open(`/p/${id}`, "_blank", "noopener,noreferrer");
+            },
+          );
         }
       }
       if (data.instruction) {
@@ -1134,9 +1192,9 @@ export function AiDraftDialog({
     }
   }
 
-  async function saveDraft(draftOverride?: Draft, formatOverride?: "pdf" | "html"): Promise<boolean> {
+  async function saveDraft(draftOverride?: Draft, formatOverride?: "pdf" | "html"): Promise<{ ok: boolean; id?: string }> {
     const toSave = draftOverride ?? draft;
-    if (!toSave) return false;
+    if (!toSave) return { ok: false };
     setLoading(true);
     setError(null);
     try {
@@ -1176,7 +1234,7 @@ export function AiDraftDialog({
               ? lang === "tr" ? "Şablon kaydedilemedi." : "Couldn't save the template."
               : lang === "tr" ? "Teklif kaydedilemedi." : "Couldn't save the proposal."),
         );
-        return false;
+        return { ok: false };
       }
       if (mode !== "template" && !savedProposalId && data?.id) {
         setSavedProposalId(data.id);
@@ -1187,10 +1245,10 @@ export function AiDraftDialog({
         });
       }
       onSaved();
-      return true;
+      return { ok: true, id: (mode !== "template" ? data?.id ?? savedProposalId : data?.id) ?? undefined };
     } catch {
       setError(lang === "tr" ? "Bağlantı hatası." : "Connection error.");
-      return false;
+      return { ok: false };
     } finally {
       setLoading(false);
     }
@@ -1318,7 +1376,7 @@ export function AiDraftDialog({
   }
 
   async function confirmCloseAndSave() {
-    const ok = await saveDraft();
+    const { ok } = await saveDraft();
     if (!ok) return; // error is already shown inline — let them retry or discard instead
     onClose();
     reset();
@@ -1863,6 +1921,8 @@ export function AiDraftDialog({
             const primary = theme?.primaryColor || "#0b2545";
             const accent = theme?.accentColor || "#8a6d3b";
             const typing = canvasTyping;
+            const activeSector = demoTemplates.find((t) => t.id === activeTemplateId)?.sector;
+            const sectorImageQuery = activeSector ? SECTOR_IMAGE_QUERY[activeSector] : SECTOR_IMAGE_QUERY.general;
             return (
             <div className="mx-auto w-full max-w-3xl px-4 pb-24 pt-8 md:px-8">
             <div className="overflow-hidden rounded-2xl border border-border/70 bg-white shadow-[0_30px_80px_-30px_rgba(0,0,0,0.35)]">
@@ -1874,7 +1934,7 @@ export function AiDraftDialog({
                       <Sparkles className="h-3 w-3" />
                       {lang === "tr" ? "Teklif" : "Proposal"}
                     </span>
-                    {mode === "proposal" && !showSaveTemplateField && !templateSaved && (
+                    {mode === "proposal" && !savedProposalId && !showSaveTemplateField && !templateSaved && (
                       <button
                         type="button"
                         onClick={() => {
@@ -1891,6 +1951,15 @@ export function AiDraftDialog({
                       <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-white">
                         <Check className="h-3.5 w-3.5" />
                         {lang === "tr" ? "Kaydedildi" : "Saved"}
+                      </span>
+                    )}
+                    {/* Once the proposal itself is actually saved (not just "save as
+                        template"), swap the template-save action for a plain status
+                        badge — offering to save it "as a draft" no longer makes sense. */}
+                    {mode === "proposal" && savedProposalId && !templateSaved && (
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-white/25 bg-white/10 px-2 py-1 text-[11px] font-medium text-white">
+                        <Check className="h-3.5 w-3.5" />
+                        {lang === "tr" ? "Tamamlandı" : "Completed"}
                       </span>
                     )}
                   </div>
@@ -1916,7 +1985,7 @@ export function AiDraftDialog({
                     )}
                   </div>
                 </div>
-                <PhotoBlock seed={draft.title + "cover"} color={accent} className="col-span-2" />
+                <PhotoBlock seed={draft.title + "cover"} color={accent} className="col-span-2" imageQuery={sectorImageQuery} />
               </div>
 
               <div className="space-y-8 p-8 sm:p-10">
@@ -1942,6 +2011,10 @@ export function AiDraftDialog({
                         : b.type === "Legal"
                           ? b.title
                           : b.label;
+                // Once the customer has confirmed, this editing chrome (block count,
+                // per-block index chips) has no place in the preview — the /p/[id]
+                // page it hands off to is already the clean, chrome-free view.
+                if (draft.confirmed) return null;
                 return (
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1953,7 +2026,9 @@ export function AiDraftDialog({
                           key={b.id}
                           className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
                         >
-                          <span className="tnum text-[9px] text-muted-foreground/70">{String(i + 1).padStart(2, "0")}</span>
+                          {/* plain sans digits, not .tnum/mono — JetBrains Mono's slashed
+                              zero glyph reads as a garbled character at 9px here */}
+                          <span className="font-sans text-[9px] text-muted-foreground/70">{String(i + 1).padStart(2, "0")}</span>
                           {blockLabel(b)}
                         </span>
                       ))}
@@ -2102,6 +2177,7 @@ export function AiDraftDialog({
                     seed={s.title + i}
                     color={i % 3 === 0 ? accent : undefined}
                     className={cn("min-h-[140px] sm:col-span-2", i % 2 === 0 ? "sm:order-2" : "sm:order-1")}
+                    imageQuery={sectorImageQuery}
                   />
                 </div>
               ))}
