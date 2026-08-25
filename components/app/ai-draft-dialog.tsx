@@ -1903,10 +1903,13 @@ export function AiDraftDialog({
 
         <div
           className={cn(
-            "relative min-h-0 flex-col overflow-y-auto bg-[radial-gradient(circle_at_1px_1px,theme(colors.border/60)_1px,transparent_0)] [background-size:22px_22px] md:flex md:w-[70%] md:flex-1",
+            "relative min-h-0 flex-col overflow-y-auto bg-gradient-to-br from-slate-50 via-slate-100/60 to-slate-50 md:flex md:w-[70%] md:flex-1",
             mobilePanel === "chat" ? "hidden md:flex" : "flex",
           )}
         >
+          {/* Soft ambient light behind the preview card — no pattern, just a blurred glow. */}
+          <div className="pointer-events-none absolute inset-0 bg-blue-500/5 blur-3xl" aria-hidden />
+
           {/* Floating "Seely is writing" indicator — the canvas equivalent of a live cursor. */}
           {canvasTyping && (
             <div className="pointer-events-none sticky top-4 z-30 mx-auto flex w-fit items-center gap-1.5 self-center rounded-full border border-primary/30 bg-card/95 px-3 py-1.5 text-[11px] font-medium text-primary shadow-pop backdrop-blur animate-in fade-in slide-in-from-top-2">
