@@ -1174,16 +1174,15 @@ export function AiDraftDialog({
         const e = err as Error & { overageLink?: string | null; overagePrice?: number; overageDrafts?: number };
         setError(e.message);
         setOverage({ link: e.overageLink ?? null, price: e.overagePrice ?? 0, drafts: e.overageDrafts ?? 0 });
+      } else if (err instanceof DOMException && err.name === "AbortError") {
+        setError(lang === "tr" ? "Yanıt çok uzun sürdü, lütfen tekrar dene." : "That took too long — please try again.");
+      } else if (err instanceof Error && err.message) {
+        // The server's SSE "error" event carries a real message (e.g. an upstream
+        // Anthropic failure) — show it instead of a generic connection error, which
+        // reads as "nothing works" when the actual cause was something specific.
+        setError(err.message);
       } else {
-        setError(
-          err instanceof DOMException && err.name === "AbortError"
-            ? lang === "tr"
-              ? "Yanıt çok uzun sürdü, lütfen tekrar dene."
-              : "That took too long — please try again."
-            : lang === "tr"
-              ? "Bağlantı hatası."
-              : "Connection error.",
-        );
+        setError(lang === "tr" ? "Bağlantı hatası." : "Connection error.");
       }
     } finally {
       window.clearTimeout(timeoutId);

@@ -42,6 +42,7 @@ export function sseResponse(gen: (signal: AbortSignal) => AsyncGenerator<DraftEv
         }
       } catch (err) {
         if (abortController.signal.aborted) return; // client already gone — nothing to send
+        console.error("[draft-proposal] stream failed:", err);
         const message = err instanceof Error ? err.message : "AI yanıt veremedi.";
         controller.enqueue(encoder.encode(formatEvent({ type: "error", message })));
       } finally {
