@@ -1206,7 +1206,7 @@ export function AiDraftDialog({
       onDrop={handleDrop}
     >
       <div
-        className="relative my-auto flex max-h-[92dvh] w-[90vw] max-w-6xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-pop"
+        className="relative my-auto flex max-h-[92dvh] w-[90vw] max-w-6xl flex-col overflow-hidden rounded-3xl border border-border/70 bg-card shadow-pop"
         onClick={(e) => e.stopPropagation()}
       >
         {showLibraryUpsell && (
@@ -1250,18 +1250,27 @@ export function AiDraftDialog({
             </div>
           </div>
         )}
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <h3 className="font-semibold">
-              {onboardingPending
-                ? lang === "tr" ? "Kurulum" : "Setup"
-                : mode === "template"
-                  ? lang === "tr" ? "AI ile şablon yaz" : "Draft a template with AI"
-                  : lang === "tr" ? "AI ile teklif yaz" : "Draft with AI"}
-            </h3>
+        <div className="flex items-center justify-between border-b border-border/70 bg-gradient-to-r from-primary/[0.06] via-transparent to-transparent px-6 py-4">
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[image:var(--grad-brand)] text-primary-foreground shadow-sm">
+              <Sparkles className="h-4 w-4" />
+            </span>
+            <div>
+              <h3 className="font-display text-base font-semibold leading-tight">
+                {onboardingPending
+                  ? lang === "tr" ? "Kurulum" : "Setup"
+                  : mode === "template"
+                    ? lang === "tr" ? "AI ile şablon yaz" : "Draft a template with AI"
+                    : lang === "tr" ? "AI ile teklif yaz" : "Draft with AI"}
+              </h3>
+              {!onboardingPending && (
+                <p className="text-[11px] text-muted-foreground">
+                  {lang === "tr" ? "Seely — birkaç saniyede taslak hazırlar" : "Seely — drafts in seconds"}
+                </p>
+              )}
+            </div>
           </div>
-          <button onClick={requestClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted">
+          <button onClick={requestClose} className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -1300,22 +1309,30 @@ export function AiDraftDialog({
         >
         <div className="flex-1 space-y-3 overflow-y-auto p-5">
           {messages.length === 0 && !onboardingPending && (
-            <div className="space-y-3">
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <p className="font-display text-lg font-semibold leading-snug">
+                  {lang === "tr" ? "Bugün ne hazırlayalım?" : "What should we draft today?"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {lang === "tr"
+                    ? "Bir komut yaz, bir örneği seç ya da doğrudan dosya sürükle."
+                    : "Type a command, pick an example, or just drop a file in."}
+                </p>
+              </div>
+
               {mode === "proposal" && !initialTemplateId && !resumeProposalId && (
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    {lang === "tr" ? "Sektör:" : "Sector:"}
-                  </span>
+                <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {SECTOR_CHIPS.map((chip) => (
                     <button
                       key={chip.tr}
                       type="button"
                       onClick={() => setActiveTemplateId(chip.templateId)}
                       className={cn(
-                        "shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                        "shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                         activeTemplateId === chip.templateId
                           ? "border-primary bg-primary/10 text-primary"
-                          : "border-border bg-muted/40 text-muted-foreground hover:bg-muted",
+                          : "border-border/70 bg-muted/30 text-muted-foreground hover:bg-muted",
                       )}
                     >
                       {chip.emoji} {lang === "tr" ? chip.tr : chip.en}
@@ -1323,11 +1340,32 @@ export function AiDraftDialog({
                   ))}
                 </div>
               )}
-              <p className="text-sm text-muted-foreground">
-                {lang === "tr"
-                  ? "Örn: \"ABC Lojistik için operasyonel dönüşüm danışmanlığı teklifi hazırla, 3 aylık proje, toplam 45.000$ civarı.\""
-                  : "E.g. \"Draft an operational transformation consulting proposal for ABC Logistics, 3-month project, around $45,000 total.\""}
-              </p>
+
+              <div className="grid grid-cols-1 gap-1.5">
+                {(lang === "tr"
+                  ? [
+                      "ABC Lojistik için operasyonel dönüşüm danışmanlığı teklifi hazırla, 3 aylık proje, toplam 45.000$ civarı.",
+                      "Yeni bir web sitesi projesi için 15.000$'lık bir yazılım teklifi yaz.",
+                      "Ofis tadilatı için malzeme + işçilik dahil kapsamlı bir teklif oluştur.",
+                    ]
+                  : [
+                      "Draft an operational transformation consulting proposal for ABC Logistics, 3-month project, around $45,000 total.",
+                      "Write a $15,000 software proposal for a new website project.",
+                      "Create a comprehensive office renovation proposal including materials and labor.",
+                    ]
+                ).map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    onClick={() => send(prompt)}
+                    className="group flex items-start gap-2 rounded-xl border border-border/70 bg-muted/20 px-3.5 py-2.5 text-left text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
+                  >
+                    <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/60 transition-colors group-hover:text-primary" />
+                    <span>{prompt}</span>
+                  </button>
+                ))}
+              </div>
+
               {!showChecklist ? (
                 <button
                   onClick={() => setShowChecklist(true)}
@@ -1400,16 +1438,6 @@ export function AiDraftDialog({
             </div>
           )}
 
-          {sending && !draft && (
-            <div className="animate-pulse space-y-2 rounded-xl border border-border bg-muted/30 p-4">
-              <div className="h-4 w-2/5 rounded bg-muted" />
-              <div className="h-3 w-4/5 rounded bg-muted" />
-              <div className="h-3 w-3/5 rounded bg-muted" />
-              <p className="pt-1 text-xs text-muted-foreground">
-                {lang === "tr" ? "Taslak hazırlanıyor…" : "Preparing the draft…"}
-              </p>
-            </div>
-          )}
 
           {clarify && !loading && (
             <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border bg-muted/30 p-3">
@@ -1491,55 +1519,7 @@ export function AiDraftDialog({
           <div ref={endRef} />
         </div>
 
-        <div className="space-y-2 border-t border-border p-4">
-            {recentTemplates.length > 0 && messages.length === 0 && (
-              <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {lang === "tr" ? "Son kullanılan:" : "Recently used:"}
-                </span>
-                {recentTemplates.map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => useRecentTemplate(t.id, t.name)}
-                    disabled={loading}
-                    className="shrink-0 rounded-lg border border-border bg-muted/40 px-2.5 py-1 text-xs font-medium hover:bg-muted disabled:opacity-50"
-                  >
-                    {t.name}
-                  </button>
-                ))}
-              </div>
-            )}
-            {showWebsiteField ? (
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowWebsiteField(false);
-                    setWebsiteUrl("");
-                  }}
-                  className="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                  aria-label={lang === "tr" ? "Geri" : "Back"}
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" />
-                </button>
-                <Input
-                  value={websiteUrl}
-                  onChange={(e) => setWebsiteUrl(e.target.value)}
-                  placeholder={lang === "tr" ? "https://musteri-sitesi.com/iletisim" : "https://client-site.com/contact"}
-                  className="text-sm"
-                />
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowWebsiteField(true)}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary"
-              >
-                <Link2 className="h-3.5 w-3.5" />
-                {lang === "tr"
-                  ? "Müşterinin iletişim/hakkımızda sayfasını paylaş (opsiyonel)"
-                  : "Share client's contact/about page (optional)"}
-              </button>
-            )}
+        <div className="space-y-2 border-t border-border/70 bg-muted/10 p-4">
             {attachments.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {attachments.map((a, i) => (
@@ -1558,7 +1538,36 @@ export function AiDraftDialog({
             )}
             {attachError && <p className="text-xs text-destructive">{attachError}</p>}
             {voiceError && <p className="text-xs text-destructive">{voiceError}</p>}
-            <div className="flex items-end gap-2">
+            {showWebsiteField && (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowWebsiteField(false);
+                    setWebsiteUrl("");
+                  }}
+                  className="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  aria-label={lang === "tr" ? "Geri" : "Back"}
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                </button>
+                <Input
+                  value={websiteUrl}
+                  onChange={(e) => setWebsiteUrl(e.target.value)}
+                  placeholder={lang === "tr" ? "https://musteri-sitesi.com/iletisim" : "https://client-site.com/contact"}
+                  className="h-8 text-xs"
+                  autoFocus
+                />
+              </div>
+            )}
+
+            {/* Command bar — full-width composer with inline actions on both ends. */}
+            <div
+              className={cn(
+                "flex items-end gap-2 rounded-2xl border border-input bg-card px-2 py-2 shadow-sm transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40",
+                loading && "opacity-70",
+              )}
+            >
               <input
                 ref={fileInputRef}
                 type="file"
@@ -1571,33 +1580,10 @@ export function AiDraftDialog({
                 onClick={() => fileInputRef.current?.click()}
                 disabled={loading}
                 title={lang === "tr" ? "Dosya ekle (PDF, resim)" : "Attach a file (PDF, image)"}
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted disabled:opacity-50"
               >
                 <Paperclip className="h-4 w-4" />
               </button>
-              {planAllows(plan, "voice_input") && speechSupported && (
-                <button
-                  onClick={toggleRecording}
-                  disabled={loading}
-                  title={
-                    recording
-                      ? lang === "tr"
-                        ? "Kaydı durdur"
-                        : "Stop recording"
-                      : lang === "tr"
-                        ? "Sesli mesaj: 'Ali Bey'e 10 bin liralık sosyal medya danışmanlığı teklifi hazırla' de"
-                        : "Voice input: say what proposal to draft"
-                  }
-                  className={cn(
-                    "grid h-10 w-10 shrink-0 place-items-center rounded-lg border transition-colors disabled:opacity-50",
-                    recording
-                      ? "animate-pulse border-destructive bg-destructive/10 text-destructive"
-                      : "border-border text-muted-foreground hover:bg-muted",
-                  )}
-                >
-                  {recording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                </button>
-              )}
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -1618,20 +1604,75 @@ export function AiDraftDialog({
                       : "Type a message… (you can paste an image, Shift+Enter for a new line)"
                 }
                 disabled={loading}
-                rows={2}
-                className={cn(
-                  "flex w-full resize-none rounded-3xl border border-input px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring transition-colors",
-                  loading ? "bg-muted opacity-70 cursor-not-allowed" : "bg-card",
-                )}
+                rows={1}
+                className="flex max-h-32 min-h-9 w-full resize-none bg-transparent px-1 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/70 focus-visible:outline-none disabled:cursor-not-allowed"
               />
+              {planAllows(plan, "voice_input") && speechSupported && (
+                <button
+                  onClick={toggleRecording}
+                  disabled={loading}
+                  title={
+                    recording
+                      ? lang === "tr"
+                        ? "Kaydı durdur"
+                        : "Stop recording"
+                      : lang === "tr"
+                        ? "Sesli mesaj: 'Ali Bey'e 10 bin liralık sosyal medya danışmanlığı teklifi hazırla' de"
+                        : "Voice input: say what proposal to draft"
+                  }
+                  className={cn(
+                    "grid h-9 w-9 shrink-0 place-items-center rounded-full transition-colors disabled:opacity-50",
+                    recording
+                      ? "animate-pulse bg-destructive/10 text-destructive"
+                      : "text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  {recording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                </button>
+              )}
               <Button
                 size="icon"
+                className="h-9 w-9 shrink-0 rounded-full"
                 onClick={loading ? stopGeneration : () => send()}
                 disabled={false}
                 title={loading ? (lang === "tr" ? "Durdur (Esc)" : "Stop (Esc)") : undefined}
               >
                 {loading ? <X className="h-4 w-4" /> : <Send className="h-4 w-4" />}
               </Button>
+            </div>
+
+            {/* Secondary utility row — recent templates + optional client link, kept
+               out of the way of the composer itself. */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1">
+              {!showWebsiteField && (
+                <button
+                  onClick={() => setShowWebsiteField(true)}
+                  className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary"
+                >
+                  <Link2 className="h-3 w-3" />
+                  {lang === "tr" ? "Müşteri linki ekle" : "Add client link"}
+                </button>
+              )}
+              {recentTemplates.length > 0 && messages.length === 0 && (
+                <>
+                  <span className="text-[11px] text-muted-foreground/50">•</span>
+                  <div className="flex min-w-0 items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    <span className="shrink-0 text-[11px] text-muted-foreground">
+                      {lang === "tr" ? "Son kullanılan:" : "Recent:"}
+                    </span>
+                    {recentTemplates.map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => useRecentTemplate(t.id, t.name)}
+                        disabled={loading}
+                        className="shrink-0 rounded-full border border-border/70 bg-muted/30 px-2 py-0.5 text-[11px] font-medium hover:bg-muted disabled:opacity-50"
+                      >
+                        {t.name}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
         </div>
         </div>
@@ -1885,11 +1926,52 @@ export function AiDraftDialog({
             </div>
           )}
 
-          {!draft && (
-            <div className="grid h-full place-items-center text-center text-sm text-muted-foreground">
-              {lang === "tr"
-                ? "Taslak hazır olduğunda canlı önizleme burada görünecek."
-                : "The live preview will appear here once the draft is ready."}
+          {!draft && sending && (
+            <div className="flex h-full flex-col justify-center gap-4">
+              <div className="animate-pulse space-y-4 rounded-2xl border border-border/70 bg-muted/20 p-5">
+                <div className="flex items-center justify-between">
+                  <div className="h-5 w-2/5 rounded-md bg-muted" />
+                  <div className="h-5 w-14 rounded-full bg-muted" />
+                </div>
+                <div className="space-y-2">
+                  <div className="h-3 w-full rounded bg-muted" />
+                  <div className="h-3 w-11/12 rounded bg-muted" />
+                  <div className="h-3 w-3/5 rounded bg-muted" />
+                </div>
+                <div className="space-y-2 pt-1">
+                  <div className="h-3 w-1/3 rounded bg-muted" />
+                  <div className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2">
+                    <div className="h-3 w-1/2 rounded bg-muted" />
+                    <div className="h-3 w-10 rounded bg-muted" />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2">
+                    <div className="h-3 w-2/5 rounded bg-muted" />
+                    <div className="h-3 w-10 rounded bg-muted" />
+                  </div>
+                </div>
+              </div>
+              <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                {lang === "tr" ? "Seely taslağı hazırlıyor…" : "Seely is preparing the draft…"}
+              </p>
+            </div>
+          )}
+
+          {!draft && !sending && (
+            <div className="grid h-full place-items-center text-center">
+              <div className="max-w-xs space-y-3">
+                <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[image:var(--grad-brand)]/10 text-primary">
+                  <Sparkles className="h-5 w-5" />
+                </span>
+                <p className="text-sm font-medium text-foreground">
+                  {lang === "tr" ? "Canlı önizleme burada belirecek" : "Your live preview will appear here"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {lang === "tr"
+                    ? "Sol taraftan bir komut gönder, Seely taslağı saniyeler içinde bu alanda oluştursun."
+                    : "Send a command on the left and Seely will build the draft here in seconds."}
+                </p>
+              </div>
             </div>
           )}
         </div>
