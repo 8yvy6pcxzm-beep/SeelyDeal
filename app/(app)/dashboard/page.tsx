@@ -21,12 +21,14 @@ import {
   Minus,
   Clock,
   Loader2,
+  Download,
   TrendingUp,
   TrendingDown,
 } from "lucide-react";
 import { Sparkline, AcceptanceChart, WinGauge } from "@/components/app/charts";
 import { StatusPill, ClientAvatar, Checkbox, STATUS_META } from "@/components/app/proposal-bits";
 import { AiDraftDialog } from "@/components/app/ai-draft-dialog";
+import { FollowUpDialog } from "@/components/app/follow-up-dialog";
 import { useLang } from "@/components/i18n/language-provider";
 import { usePlan } from "@/components/app/plan-provider";
 import { planAllows } from "@/lib/plan";
@@ -121,6 +123,7 @@ export default function DashboardPage() {
   const [selected, setSelected] = useState<string | null>("p1");
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [aiOpen, setAiOpen] = useState(false);
+  const [followUpOpen, setFollowUpOpen] = useState(false);
   // The pricing table in the builder preview is live: toggling optional line
   // items + changing quantities recomputes the total.
   const [items, setItems] = useState(() => proposals[0].lineItems.map((l) => ({ ...l })));
@@ -432,20 +435,18 @@ export default function DashboardPage() {
                 {lang === "tr" ? "Aşamaya tıkla, listeyi filtrele" : "Click a stage to filter the list"}
               </span>
             </div>
-            <div className="mt-4 flex items-stretch gap-1.5">
+            <div className="mt-4 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
               {computedPipeline.map((col) => {
                 const I = STATUS_ICON[col.status];
                 const m = STATUS_META[col.status];
-                const share = Math.max(8, (col.value / maxPipeline) * 100);
                 const active = filter === col.status;
                 return (
                   <button
                     key={col.status}
                     onClick={() => setFilter((prev) => (prev === col.status ? "all" : col.status))}
                     aria-pressed={active}
-                    style={{ flexGrow: share }}
                     className={cn(
-                      "group relative min-w-0 flex-1 overflow-hidden rounded-xl border p-3.5 text-left transition-all duration-300",
+                      "group relative min-w-0 overflow-hidden rounded-xl border p-3.5 text-left transition-all duration-300",
                       active ? "border-primary/40 bg-primary/[0.05] shadow-pill" : "border-border bg-muted/30 hover:bg-muted/60",
                     )}
                   >
@@ -508,7 +509,7 @@ export default function DashboardPage() {
                   ))}
                   {remindersAllowed ? (
                     <button
-                      onClick={() => viewedUnsigned.forEach((p) => sendReminder(p.id))}
+                      onClick={() => setFollowUpOpen(true)}
                       disabled={viewedUnsigned.every((p) => reminded.has(p.id) || reminding.has(p.id))}
                       className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold text-white shadow-glow transition-transform hover:-translate-y-px disabled:translate-y-0 disabled:opacity-60"
                       style={{ backgroundImage: "var(--grad-brand)" }}
@@ -933,7 +934,14 @@ export default function DashboardPage() {
                       {visibleTimeline.map((ev, i) => (
                         <div key={i} className="flex items-start gap-2.5">
                           <span className="relative mt-0.5 flex flex-col items-center">
-                            <span className="grid h-5 w-5 place-items-center rounded-full bg-primary/10 text-primary">
+                            <span
+                              className="grid h-5 w-5 place-items-center rounded-full bg-primary/10 text-primary"
+                              title={
+                                i === visibleTimeline.length - 1 && current.signed
+                                  ? lang === "tr" ? "İmzalandı" : "Signed"
+                                  : lang === "tr" ? "Görüntüleme zamanı" : "Viewed at this time"
+                              }
+                            >
                               {i === visibleTimeline.length - 1 && current.signed ? <Check className="h-3 w-3" strokeWidth={3} /> : <Clock className="h-3 w-3" />}
                             </span>
                             {i < visibleTimeline.length - 1 && <span className="mt-0.5 h-5 w-px bg-border" />}
@@ -997,8 +1005,9 @@ export default function DashboardPage() {
                 )}
               </div>
 
-              {/* actions */}
-              <div className="grid grid-cols-2 gap-2">
+              {/* actions — stacked on narrow phones, 3-up from sm and up so the
+                  Turkish labels ("Hatırlat" etc.) never get squeezed/clipped */}
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 <button
                   onClick={() => sendReminder(current.id)}
                   disabled={!remindersAllowed || reminding.has(current.id) || reminded.has(current.id)}
@@ -1019,6 +1028,25 @@ export default function DashboardPage() {
                     <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">Pro</span>
                   )}
                 </button>
+                {realIds.has(current.id) ? (
+                  <a
+                    href={`/api/proposals/${current.id}/pdf`}
+                    title={lang === "tr" ? "PDF olarak indir / önizle" : "Download / preview as PDF"}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-card py-2.5 text-[13px] font-semibold transition-colors hover:bg-muted"
+                  >
+                    <Download className="h-4 w-4 text-muted-foreground" />
+                    {lang === "tr" ? "PDF" : "PDF"}
+                  </a>
+                ) : (
+                  <button
+                    disabled
+                    title={lang === "tr" ? "Bu bir demo kaydı — gerçek PDF çıktısı yok." : "This is a demo row — no real PDF output."}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-card py-2.5 text-[13px] font-semibold text-muted-foreground opacity-50"
+                  >
+                    <Download className="h-4 w-4" />
+                    {lang === "tr" ? "PDF" : "PDF"}
+                  </button>
+                )}
                 {realIds.has(current.id) ? (
                   <a
                     href={`/p/${current.id}`}
@@ -1078,6 +1106,20 @@ export default function DashboardPage() {
       </div>
 
       <AiDraftDialog open={aiOpen} onClose={() => setAiOpen(false)} onSaved={() => {}} />
+      <FollowUpDialog
+        open={followUpOpen}
+        proposals={viewedUnsigned.map((p) => ({ id: p.id, number: p.number, client: p.client, title: t(p.title) }))}
+        lang={lang}
+        onSelect={(id) => {
+          setSelected(id);
+          setDrawerOpen(true);
+          setFollowUpOpen(false);
+        }}
+        onSend={async (ids) => {
+          for (const id of ids) await sendReminder(id);
+        }}
+        onClose={() => setFollowUpOpen(false)}
+      />
     </div>
   );
 }

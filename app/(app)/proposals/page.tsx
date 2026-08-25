@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Search, Sparkles, PenLine, Eye, ArrowUpDown, Download, Link2, Settings2, Clock } from "lucide-react";
+import { Plus, Search, Sparkles, PenLine, Eye, ArrowUpDown, Download, Link2, Check, Settings2, Clock, Trash2, Loader2 } from "lucide-react";
 import { Sparkline } from "@/components/app/charts";
 import { StatusPill, ClientAvatar } from "@/components/app/proposal-bits";
 import { AiDraftDialog } from "@/components/app/ai-draft-dialog";
@@ -53,6 +53,8 @@ function ProposalsPageInner() {
   const [sectionTimesId, setSectionTimesId] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [realRows, setRealRows] = useState<typeof proposals>([]);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [liveIds, setLiveIds] = useState<Set<string>>(new Set());
   const [liveSelections, setLiveSelections] = useState<Map<string, { lineItems: { name: string; included?: boolean }[]; billingKey: string | null }>>(new Map());
 
@@ -119,6 +121,43 @@ function ProposalsPageInner() {
     const interval = setInterval(loadReal, 20000);
     return () => clearInterval(interval);
   }, []);
+
+  /** Copies the client link to the clipboard instead of opening it — a draft
+   *  still flips to "sent" on first copy, since sharing the link is the real
+   *  "this proposal is out the door" moment, same as opening it used to be. */
+  async function copyClientLink(row: (typeof allProposals)[number]) {
+    const url = `${window.location.origin}/p/${row.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      // Clipboard API unavailable (very old browser, insecure context) — the
+      // link is still on screen in the row, so this fails quietly.
+      return;
+    }
+    setCopiedId(row.id);
+    window.setTimeout(() => setCopiedId((id) => (id === row.id ? null : id)), 1800);
+    if (row.status === "draft") {
+      fetch(`/api/proposals/${row.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "sent" }),
+      }).then(loadReal);
+    }
+  }
+
+  async function deleteProposal(id: string) {
+    if (!window.confirm(lang === "tr" ? "Bu teklifi kalıcı olarak silmek istediğine emin misin?" : "Permanently delete this proposal?")) return;
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/proposals/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        if (previewId === id) setPreviewId(null);
+        loadReal();
+      }
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   // Coming from Templates → "Bu şablonla yaz": pick up the chosen template's id and
   // open the AI dialog — the AI resolves and drafts real content from it server-side.
@@ -317,6 +356,27 @@ function ProposalsPageInner() {
                             <Sparkles className="h-3.5 w-3.5" />
                           </button>
                         )}
+                        <a
+                          href={`/api/proposals/${row.id}/pdf`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                          title={lang === "tr" ? "PDF olarak indir" : "Download as PDF"}
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </a>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            copyClientLink(row);
+                          }}
+                          className={cn(
+                            "inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-muted",
+                            copiedId === row.id ? "text-success" : "text-muted-foreground hover:text-foreground",
+                          )}
+                          title={copiedId === row.id ? (lang === "tr" ? "Kopyalandı" : "Copied") : lang === "tr" ? "Linki kopyala" : "Copy link"}
+                        >
+                          {copiedId === row.id ? <Check className="h-3.5 w-3.5" /> : <Link2 className="h-3.5 w-3.5" />}
+                        </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -327,33 +387,6 @@ function ProposalsPageInner() {
                         >
                           <Settings2 className="h-3.5 w-3.5" />
                         </button>
-                        <a
-                          href={`/p/${row.id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (row.status === "draft") {
-                              fetch(`/api/proposals/${row.id}`, {
-                                method: "PATCH",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ status: "sent" }),
-                              }).then(loadReal);
-                            }
-                          }}
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                          title={lang === "tr" ? "Müşteri linkini aç" : "Open client link"}
-                        >
-                          <Link2 className="h-3.5 w-3.5" />
-                        </a>
-                        <a
-                          href={`/api/proposals/${row.id}/pdf`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                          title={lang === "tr" ? "PDF olarak indir" : "Download as PDF"}
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                        </a>
                         {documentAnalyticsAllowed && (
                           <button
                             onClick={(e) => {
@@ -366,6 +399,17 @@ function ProposalsPageInner() {
                             <Clock className="h-3.5 w-3.5" />
                           </button>
                         )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteProposal(row.id);
+                          }}
+                          disabled={deletingId === row.id}
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-60"
+                          title={lang === "tr" ? "Sil" : "Delete"}
+                        >
+                          {deletingId === row.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                        </button>
                       </div>
                     )}
                   </td>
