@@ -40,7 +40,7 @@ export function Sidebar({
   const settingsAllowed = !allowedHrefs || allowedHrefs.includes("/settings");
 
   return (
-    <aside className="hidden w-[260px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex">
+    <aside className="hidden w-[260px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar/95 text-sidebar-foreground backdrop-blur-sm md:flex">
       {/* Brand */}
       <div className="flex h-16 items-center px-5">
         <Link href={basePath + "/dashboard"} className="inline-flex">

@@ -6,11 +6,11 @@ type Size = "sm" | "md" | "lg" | "icon";
 
 const variants: Record<Variant, string> = {
   primary:
-    "bg-primary text-primary-foreground hover:opacity-90 shadow-sm shadow-primary/20",
+    "bg-[image:var(--grad-brand)] text-primary-foreground shadow-[0_4px_16px_oklch(55%_0.2_290/0.22)] hover:shadow-[0_8px_26px_oklch(55%_0.2_290/0.35)]",
   secondary:
     "bg-secondary text-secondary-foreground hover:bg-secondary/70",
   outline:
-    "border border-border bg-card hover:bg-muted text-foreground",
+    "border border-border bg-card/80 backdrop-blur-sm hover:border-primary/40 hover:bg-card text-foreground",
   ghost: "hover:bg-muted text-foreground",
   destructive:
     "bg-destructive text-destructive-foreground hover:opacity-90",
@@ -37,7 +37,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
+        "inline-flex items-center justify-center font-medium transition-all duration-150 hover:scale-[1.015] active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 disabled:hover:scale-100 cursor-pointer",
         variants[variant],
         sizes[size],
         className,
