@@ -13,7 +13,7 @@ export default function MarketingLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const { ui, lang } = useLang();
   return (
-    <div className="flex min-h-dvh flex-col bg-background">
+    <div className="flex min-h-dvh flex-col overflow-x-clip bg-background">
       <header className="sticky top-0 z-30 border-b border-border bg-background/75 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center px-5">
           <Link href="/">
