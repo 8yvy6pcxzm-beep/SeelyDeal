@@ -21,6 +21,8 @@ import {
   Minus,
   Clock,
   Loader2,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 import { Sparkline, AcceptanceChart, WinGauge } from "@/components/app/charts";
 import { StatusPill, ClientAvatar, Checkbox, STATUS_META } from "@/components/app/proposal-bits";
@@ -277,6 +279,28 @@ export default function DashboardPage() {
   const winRatePct = decided.length ? Math.round((accepted.length / decided.length) * 100) : 0;
   const avgDealSize = accepted.length ? Math.round(accepted.reduce((sum, p) => sum + p.value, 0) / accepted.length) : 0;
 
+  // Prior-month baselines, so the stat row can show a small "+12%"-style trend
+  // instead of a made-up number.
+  const prevMonthDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+  const prevMonthSent = allProposals.filter((p) => {
+    if (p.status === "draft" || !p.sentDate) return false;
+    const d = new Date(p.sentDate);
+    return d.getUTCFullYear() === prevMonthDate.getUTCFullYear() && d.getUTCMonth() === prevMonthDate.getUTCMonth();
+  });
+  const sentDeltaPct = prevMonthSent.length
+    ? Math.round(((thisMonthSent.length - prevMonthSent.length) / prevMonthSent.length) * 100)
+    : thisMonthSent.length > 0
+      ? 100
+      : 0;
+  const decidedBeforeThisMonth = decided.filter((p) => {
+    const d = p.sentDate ? new Date(p.sentDate) : null;
+    return !d || d.getUTCFullYear() !== now.getUTCFullYear() || d.getUTCMonth() !== now.getUTCMonth();
+  });
+  const priorWinRatePct = decidedBeforeThisMonth.length
+    ? Math.round((decidedBeforeThisMonth.filter((p) => p.status === "accepted").length / decidedBeforeThisMonth.length) * 100)
+    : winRatePct;
+  const winRateDeltaPts = winRatePct - priorWinRatePct;
+
   const computedStats: typeof stats = [
     {
       key: "open",
@@ -284,13 +308,19 @@ export default function DashboardPage() {
       value: String(openProposals.length),
       hint: { tr: `${formatUsd(openProposals.reduce((s, p) => s + p.value, 0))} boru hattı`, en: `${formatUsd(openProposals.reduce((s, p) => s + p.value, 0))} in pipeline` },
     },
-    { key: "winrate", label: { tr: "Kazanma oranı", en: "Win rate" }, value: `${winRatePct}%` },
+    {
+      key: "winrate",
+      label: { tr: "Kazanma oranı", en: "Win rate" },
+      value: `${winRatePct}%`,
+      delta: winRateDeltaPts,
+    },
     { key: "avg", label: { tr: "Ort. anlaşma", en: "Avg deal size" }, value: formatUsd(avgDealSize) },
     {
       key: "sent",
       label: { tr: "Bu ay gönderilen", en: "Sent this month" },
       value: String(thisMonthSent.length),
       hint: { tr: `${thisMonthSent.filter((p) => p.status === "viewed" || p.status === "accepted").length} görüntülendi`, en: `${thisMonthSent.filter((p) => p.status === "viewed" || p.status === "accepted").length} viewed` },
+      delta: sentDeltaPct,
     },
   ];
 
@@ -358,7 +388,8 @@ export default function DashboardPage() {
               </button>
               <button
                 onClick={() => setAiOpen(true)}
-                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3.5 text-[13px] font-semibold text-primary-foreground shadow-glow transition-transform hover:-translate-y-px active:translate-y-0"
+                style={{ backgroundImage: "var(--grad-brand)" }}
               >
                 <Plus className="h-4 w-4" />
                 {lang === "tr" ? "Yeni teklif" : "New proposal"}
@@ -366,75 +397,96 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Stat row */}
+          {/* KPI bento row — sade, tek satırda odaklı okunur */}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {computedStats.map((s) => {
               const up = (s.delta ?? 0) >= 0;
-              const isWin = s.key === "winrate";
+              const isPts = s.key === "winrate";
               return (
-                <div key={s.key} className="rounded-2xl border border-border bg-card p-4 shadow-soft">
-                  <p className="text-[12.5px] font-medium text-muted-foreground">{t(s.label)}</p>
-                  <div className="mt-2 flex items-end justify-between gap-2">
-                    <p className={cn("text-xl font-bold leading-none", isWin ? "tnum" : "tnum")}>{s.value}</p>
-                    {s.delta !== undefined && (
-                      <span className={cn("inline-flex items-center gap-0.5 text-[11px] font-semibold", up ? "text-success" : "text-destructive")}>
-                        {up ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                        {Math.abs(s.delta).toFixed(1)}%
+                <div
+                  key={s.key}
+                  className="card-hover rounded-2xl border border-border bg-card p-4 shadow-soft"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-[12.5px] font-medium text-muted-foreground">{t(s.label)}</p>
+                    {s.delta !== undefined && Math.abs(s.delta) > 0.05 && (
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10.5px] font-semibold",
+                          up ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive",
+                        )}
+                      >
+                        {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                        {up ? "+" : ""}
+                        {isPts ? `${s.delta.toFixed(0)}pt` : `${s.delta.toFixed(0)}%`}
                       </span>
                     )}
                   </div>
+                  <p className="tnum mt-2 text-2xl font-bold leading-none">{s.value}</p>
                   {s.hint && <p className="mt-1.5 line-clamp-1 text-[11px] text-muted-foreground">{t(s.hint)}</p>}
                 </div>
               );
             })}
           </div>
 
-          {/* Pipeline status strip */}
+          {/* Pipeline funnel — tek bakışta oranlı, tıklanınca aşağıdaki tabloyu filtreler */}
           <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
             <div className="flex items-center justify-between">
               <h2 className="font-display text-[15px] font-semibold tracking-tight">
                 {lang === "tr" ? "Boru hattı" : "Pipeline"}
               </h2>
               <span className="text-xs text-muted-foreground">
-                {lang === "tr" ? "Taslak → Gönderildi → Görüntülendi → Kabul" : "Draft → Sent → Viewed → Accepted"}
+                {lang === "tr" ? "Aşamaya tıkla, listeyi filtrele" : "Click a stage to filter the list"}
               </span>
             </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {computedPipeline.map((col, i) => {
+            <div className="mt-4 flex items-stretch gap-1.5">
+              {computedPipeline.map((col) => {
                 const I = STATUS_ICON[col.status];
                 const m = STATUS_META[col.status];
+                const share = Math.max(8, (col.value / maxPipeline) * 100);
+                const active = filter === col.status;
                 return (
-                  <div key={col.status} className="relative rounded-xl border border-border bg-muted/30 p-3.5">
-                    <div className="flex items-center justify-between">
-                      <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold">
-                        <span className="grid h-6 w-6 place-items-center rounded-md text-white" style={{ background: m.dot }}>
+                  <button
+                    key={col.status}
+                    onClick={() => setFilter((prev) => (prev === col.status ? "all" : col.status))}
+                    aria-pressed={active}
+                    style={{ flexGrow: share }}
+                    className={cn(
+                      "group relative min-w-0 flex-1 overflow-hidden rounded-xl border p-3.5 text-left transition-all duration-300",
+                      active ? "border-primary/40 bg-primary/[0.05] shadow-pill" : "border-border bg-muted/30 hover:bg-muted/60",
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex min-w-0 items-center gap-1.5 text-[13px] font-semibold">
+                        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-white" style={{ background: m.dot }}>
                           <I className="h-3.5 w-3.5" />
                         </span>
-                        {t(col.label)}
+                        <span className="truncate">{t(col.label)}</span>
                       </span>
-                      <span className="tnum text-sm font-bold">{col.count}</span>
+                      <span className="tnum shrink-0 text-sm font-bold">{col.count}</span>
                     </div>
-                    <p className="tnum mt-2.5 text-[13px] font-semibold text-muted-foreground">{formatUsd(col.value)}</p>
+                    <p className="tnum mt-2.5 truncate text-[13px] font-semibold text-muted-foreground">{formatUsd(col.value)}</p>
                     <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-border">
-                      <div className="h-full rounded-full" style={{ width: `${(col.value / maxPipeline) * 100}%`, background: m.dot }} />
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{ width: `${(col.value / maxPipeline) * 100}%`, background: m.dot }}
+                      />
                     </div>
-                    {i < computedPipeline.length - 1 && (
-                      <span className="absolute -right-[11px] top-1/2 z-10 hidden h-5 w-5 -translate-y-1/2 place-items-center rounded-full border border-border bg-card text-muted-foreground lg:grid">
-                        <ArrowUpRight className="h-3 w-3 rotate-45" />
-                      </span>
-                    )}
-                  </div>
+                  </button>
                 );
               })}
             </div>
           </div>
 
-          {/* Viewed-but-not-signed alert panel */}
+          {/* Smart Nudge — AI destekli, aksiyon odaklı takip alanı */}
           {viewedUnsigned.length > 0 && (
-            <div className="rounded-2xl border border-accent/30 bg-accent/[0.05] p-4 shadow-soft">
+            <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-primary/[0.04] p-4 shadow-soft">
               <div className="flex flex-wrap items-center gap-3">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent/15 text-accent">
-                  <Eye className="h-[18px] w-[18px]" />
+                <span
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-white"
+                  style={{ backgroundImage: "var(--grad-brand)" }}
+                >
+                  <Sparkles className="h-[18px] w-[18px]" />
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-[13.5px] font-semibold">
@@ -443,7 +495,7 @@ export default function DashboardPage() {
                       : `${viewedUnsigned.length} proposals viewed but not signed`}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {lang === "tr" ? "Tam doğru anda bir hatırlatma gönder." : "Send a reminder at the perfect moment."}
+                    {lang === "tr" ? "Tam doğru anda AI ile kişiselleştirilmiş bir takip gönder." : "Let AI send a personalized follow-up at the perfect moment."}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -465,26 +517,27 @@ export default function DashboardPage() {
                     <button
                       onClick={() => viewedUnsigned.forEach((p) => sendReminder(p.id))}
                       disabled={viewedUnsigned.every((p) => reminded.has(p.id) || reminding.has(p.id))}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[12px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+                      className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold text-white shadow-glow transition-transform hover:-translate-y-px disabled:translate-y-0 disabled:opacity-60"
+                      style={{ backgroundImage: "var(--grad-brand)" }}
                     >
                       {viewedUnsigned.some((p) => reminding.has(p.id)) ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : viewedUnsigned.every((p) => reminded.has(p.id)) ? (
                         <Check className="h-3.5 w-3.5" />
                       ) : (
-                        <Bell className="h-3.5 w-3.5" />
+                        <Sparkles className="h-3.5 w-3.5" />
                       )}
                       {viewedUnsigned.every((p) => reminded.has(p.id))
                         ? lang === "tr" ? "Gönderildi" : "Sent"
-                        : lang === "tr" ? "Hepsini hatırlat" : "Remind all"}
+                        : lang === "tr" ? "AI ile Takip Et" : "Follow up with AI"}
                     </button>
                   ) : (
                     <Link
                       href="/settings"
                       className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-[12px] font-semibold text-muted-foreground transition-colors hover:bg-muted"
                     >
-                      <Bell className="h-3.5 w-3.5" />
-                      {lang === "tr" ? "Hepsini hatırlat" : "Remind all"}
+                      <Sparkles className="h-3.5 w-3.5" />
+                      {lang === "tr" ? "AI ile Takip Et" : "Follow up with AI"}
                       <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">Pro</span>
                     </Link>
                   )}
