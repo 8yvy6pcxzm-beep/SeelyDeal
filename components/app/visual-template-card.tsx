@@ -30,8 +30,8 @@ export function VisualTemplateCard({
     <button
       onClick={() => onSelect(active.id)}
       className={cn(
-        "group rounded-2xl border bg-card p-4 text-left shadow-soft transition-all hover:shadow-pop",
-        isSel ? "border-primary/40 ring-1 ring-primary/20" : "border-border",
+        "glass-card group p-4 text-left",
+        isSel && "border-primary/40 ring-1 ring-primary/20",
       )}
     >
       {/* preview — a static cover image when set, otherwise a theme-driven mini

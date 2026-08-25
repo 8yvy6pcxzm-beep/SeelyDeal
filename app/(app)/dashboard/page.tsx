@@ -458,7 +458,15 @@ export default function DashboardPage() {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="inline-flex min-w-0 items-center gap-1.5 text-[13px] font-semibold">
-                        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-white" style={{ background: m.dot }}>
+                        <span
+                          className={cn(
+                            "badge-icon h-6 w-6 shrink-0",
+                            col.status === "draft" && "tone-neutral",
+                            col.status === "sent" && "tone-info",
+                            col.status === "viewed" && "tone-accent",
+                            col.status === "accepted" && "tone-success",
+                          )}
+                        >
                           <I className="h-3.5 w-3.5" />
                         </span>
                         <span className="truncate">{t(col.label)}</span>

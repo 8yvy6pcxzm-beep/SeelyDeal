@@ -13,8 +13,8 @@ export default function MarketingLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const { ui, lang } = useLang();
   return (
-    <div className="flex min-h-dvh flex-col overflow-x-clip bg-background">
-      <header className="sticky top-0 z-30 border-b border-border bg-background/75 backdrop-blur">
+    <div className="flex min-h-dvh flex-col overflow-x-clip">
+      <header className="sticky top-0 z-30 border-b border-white/60 bg-white/70 shadow-[0_1px_0_rgba(15,23,42,0.03)] backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center px-5">
           <Link href="/">
             <Logo />
@@ -32,7 +32,7 @@ export default function MarketingLayout({
             </Link>
             <Link
               href="/signup"
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-4 text-[13px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[image:var(--grad-brand)] px-4 text-[13px] font-semibold text-primary-foreground shadow-[0_4px_16px_oklch(55%_0.2_290/0.25)] transition-all duration-150 hover:scale-[1.03] hover:shadow-[0_8px_22px_oklch(55%_0.2_290/0.38)]"
             >
               {ui.getStarted}
             </Link>
