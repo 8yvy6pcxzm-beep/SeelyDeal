@@ -816,7 +816,7 @@ export default function PublicProposalPage({ params }: { params: Promise<{ id: s
         }}
         className="px-4 py-16 sm:px-8 sm:py-20"
       >
-        <div className="mx-auto max-w-xl rounded-2xl border border-border bg-card p-6 shadow-pop sm:p-8">
+        <div className="glass-card mx-auto max-w-xl p-6 sm:p-8">
           {signed ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2 rounded-xl border border-success/30 bg-success/10 p-4 text-sm text-success">

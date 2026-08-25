@@ -52,7 +52,7 @@ export function SignDemo() {
   };
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-pop">
+    <div className="glass-card overflow-hidden">
       {/* gradient cover */}
       <div className="relative overflow-hidden px-5 py-4" style={{ backgroundImage: "var(--grad-brand)" }}>
         <span className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-white/15 blur-2xl" aria-hidden />

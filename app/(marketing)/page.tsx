@@ -26,7 +26,8 @@ import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
 import { SignDemo } from "@/components/marketing/sign-demo";
 import { DemoRequestDialog } from "@/components/marketing/demo-request-dialog";
-import { ProductPreview, CompanyMark, AppWindowFrame } from "@/components/marketing/marks";
+import { ProductPreview, CompanyMark, AppWindowFrame, Reveal, GlassCard } from "@/components/marketing/marks";
+import { motion } from "framer-motion";
 import { useLang } from "@/components/i18n/language-provider";
 import { cn } from "@/lib/utils";
 import type { L } from "@/lib/i18n/config";
@@ -256,10 +257,17 @@ export default function LandingPage() {
             </p>
           </div>
 
-          {/* Right floating product preview */}
+          {/* Right floating product preview — clean off-white ground, a soft
+              micro-grid, and a blurred color aura behind the document instead
+              of a flat dot-grid backdrop. */}
           <div className="relative animate-float-up lg:pl-4">
-            <div className="absolute -left-6 -top-6 -z-10 h-40 w-40 rounded-full bg-primary/15 blur-3xl drift" aria-hidden />
-            <div className="absolute -bottom-8 -right-4 -z-10 h-44 w-44 rounded-full bg-accent/15 blur-3xl" aria-hidden />
+            <div
+              className="pointer-events-none absolute -inset-10 -z-20 rounded-[2.5rem] bg-gradient-to-br from-slate-50 via-white to-slate-100/50"
+              aria-hidden
+            />
+            <div className="pointer-events-none absolute -inset-10 -z-10 micro-grid" aria-hidden />
+            <div className="absolute -left-8 -top-10 -z-10 h-56 w-56 rounded-full bg-primary/15 blur-3xl drift" aria-hidden />
+            <div className="absolute -bottom-10 -right-6 -z-10 h-60 w-60 rounded-full bg-accent/15 blur-3xl" aria-hidden />
             <ProductPreview />
           </div>
         </div>
@@ -305,7 +313,7 @@ export default function LandingPage() {
             <p className="mt-3 max-w-md text-muted-foreground">{tt(sectionCopy.demoSub)}</p>
             <div className="mt-6 grid grid-cols-3 gap-3">
               {m.stats.slice(0, 3).map((s) => (
-                <div key={s.value} className="rounded-xl border border-border bg-card p-3 shadow-soft">
+                <div key={s.value} className="glass-card p-3">
                   <p className="tnum text-xl font-bold leading-none">{s.value}</p>
                   <p className="mt-1 text-[11px] text-muted-foreground">{t(s.label)}</p>
                 </div>
@@ -341,14 +349,16 @@ export default function LandingPage() {
             <p className="mt-3 text-muted-foreground">{tt(sectionCopy.featuresSub)}</p>
           </div>
           <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {m.features.map((f) => (
-              <div key={tt(f.title)} className="group card-hover rounded-2xl border border-border bg-card p-6 shadow-soft">
-                <span className="grid h-11 w-11 place-items-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                  <Icon name={f.icon} className="h-5 w-5" />
-                </span>
-                <h3 className="mt-4 font-semibold tracking-tight">{t(f.title)}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{t(f.body)}</p>
-              </div>
+            {m.features.map((f, i) => (
+              <Reveal key={tt(f.title)} delay={(i % 3) * 0.06}>
+                <GlassCard className="group h-full p-6">
+                  <span className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 text-primary ring-4 ring-primary/10 transition-colors group-hover:from-primary group-hover:to-accent group-hover:text-primary-foreground group-hover:ring-primary/20">
+                    <Icon name={f.icon} className="h-5 w-5" />
+                  </span>
+                  <h3 className="mt-4 font-semibold tracking-tight">{t(f.title)}</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{t(f.body)}</p>
+                </GlassCard>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -382,6 +392,7 @@ export default function LandingPage() {
                 </ul>
               </div>
               {/* illustrative panel */}
+              <Reveal>
               <AppWindowFrame label={lang === "tr" ? "seelydeal.app" : "seelydeal.app"}>
               <div className="p-5">
                 {d.panel === "ai" && (
@@ -453,6 +464,7 @@ export default function LandingPage() {
                 )}
               </div>
               </AppWindowFrame>
+              </Reveal>
             </div>
           ))}
         </div>
@@ -475,10 +487,13 @@ export default function LandingPage() {
             {HOW_STEPS.map((s, i) => (
               <div
                 key={s.n}
-                className={cn("relative rounded-2xl border border-border bg-card p-5 shadow-soft", !howVisible && "opacity-0")}
+                className={cn(
+                  "relative rounded-2xl border border-white/60 bg-white/80 p-5 shadow-[0_10px_30px_rgba(15,23,42,0.05)] ring-1 ring-black/5 backdrop-blur-md transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_20px_40px_rgba(15,23,42,0.08)]",
+                  !howVisible && "opacity-0",
+                )}
               >
                 <div className="flex items-center justify-between">
-                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 text-primary ring-4 ring-primary/10">
                     <Icon name={s.icon} className="h-[18px] w-[18px]" />
                   </span>
                   <span className="font-display text-2xl font-bold text-primary/15">{s.n}</span>
@@ -514,7 +529,7 @@ export default function LandingPage() {
                 { value: "4m", label: { tr: "fiyatlandırmada", en: "on pricing" } as L },
                 { value: "2", label: { tr: "görüntüleyen", en: "viewers" } as L },
               ].map((s) => (
-                <div key={s.value} className="rounded-xl border border-border bg-card p-3 shadow-soft">
+                <div key={s.value} className="glass-card p-3">
                   <p className="tnum text-xl font-bold leading-none">{s.value}</p>
                   <p className="mt-1 text-[11px] text-muted-foreground">{tt(s.label)}</p>
                 </div>
@@ -522,6 +537,7 @@ export default function LandingPage() {
             </div>
           </div>
           {/* tracking dashboard preview */}
+          <Reveal>
           <AppWindowFrame label="PRO-2048 · Northwind">
           <div className="p-5">
             <div className="flex items-center justify-between">
@@ -546,14 +562,21 @@ export default function LandingPage() {
                 { l: lang === "tr" ? "Kapsam" : "Scope", pct: 62, time: "1:36" },
                 { l: lang === "tr" ? "Fiyatlandırma" : "Pricing", pct: 100, time: "4:04" },
                 { l: lang === "tr" ? "Şartlar" : "Terms", pct: 28, time: "0:24" },
-              ].map((row) => (
+              ].map((row, i) => (
                 <div key={row.l}>
                   <div className="mb-1 flex items-center justify-between text-[12.5px]">
                     <span className="font-medium">{row.l}</span>
                     <span className="tnum text-muted-foreground">{row.time}</span>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-muted">
-                    <div className="h-full rounded-full" style={{ width: `${row.pct}%`, background: "var(--grad-brand)" }} />
+                    <motion.div
+                      className="h-full rounded-full"
+                      style={{ background: "var(--grad-brand)" }}
+                      initial={{ width: "0%" }}
+                      whileInView={{ width: `${row.pct}%` }}
+                      viewport={{ once: true, margin: "-40px" }}
+                      transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: i * 0.1 }}
+                    />
                   </div>
                 </div>
               ))}
@@ -568,6 +591,7 @@ export default function LandingPage() {
             </div>
           </div>
           </AppWindowFrame>
+          </Reveal>
         </div>
       </section>
 
@@ -579,14 +603,16 @@ export default function LandingPage() {
             <p className="mt-3 text-muted-foreground">{tt(sectionCopy.useCasesSub)}</p>
           </div>
           <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {USE_CASES.map((u) => (
-              <div key={tt(u.title)} className="card-hover rounded-2xl border border-border bg-card p-6 shadow-soft">
-                <span className="grid h-11 w-11 place-items-center rounded-xl bg-primary/10 text-primary">
-                  <Icon name={u.icon} className="h-5 w-5" />
-                </span>
-                <h3 className="mt-4 font-semibold tracking-tight">{tt(u.title)}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{tt(u.body)}</p>
-              </div>
+            {USE_CASES.map((u, i) => (
+              <Reveal key={tt(u.title)} delay={(i % 4) * 0.06}>
+                <GlassCard className="h-full p-6">
+                  <span className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 text-primary ring-4 ring-primary/10">
+                    <Icon name={u.icon} className="h-5 w-5" />
+                  </span>
+                  <h3 className="mt-4 font-semibold tracking-tight">{tt(u.title)}</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{tt(u.body)}</p>
+                </GlassCard>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -598,7 +624,7 @@ export default function LandingPage() {
           <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">{tt(sectionCopy.compareTitle)}</h2>
           <p className="mt-3 text-muted-foreground">{tt(sectionCopy.compareSub)}</p>
         </div>
-        <div className="mt-12 overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+        <Reveal className="mt-12 overflow-hidden rounded-2xl border border-white/60 bg-white/80 shadow-[0_10px_30px_rgba(15,23,42,0.05)] ring-1 ring-black/5 backdrop-blur-md">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -626,7 +652,7 @@ export default function LandingPage() {
               </tbody>
             </table>
           </div>
-        </div>
+        </Reveal>
       </section>
 
       {/* ── INTEGRATIONS STRIP ────────────────────────────────────── */}
@@ -636,25 +662,27 @@ export default function LandingPage() {
           <p className="mt-2 text-muted-foreground">{tt(sectionCopy.integrationsSub)}</p>
         </div>
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {INTEGRATIONS.map((it) => (
-            <div key={it.name} className="card-hover flex items-center gap-3 rounded-2xl border border-border bg-card p-5 shadow-soft">
-              <IntegrationGlyph glyph={it.glyph} />
-              <div>
-                <p className="font-semibold tracking-tight">{it.name}</p>
-                <p className="text-xs text-muted-foreground">{it.subtitle[lang]}</p>
-              </div>
-              {it.ready ? (
-                <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
-                  <span className="h-1.5 w-1.5 rounded-full bg-success" />
-                  {lang === "tr" ? "Hazır" : "Ready"}
-                </span>
-              ) : (
-                <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
-                  <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
-                  {lang === "tr" ? "İhtiyaca özel" : "Custom setup"}
-                </span>
-              )}
-            </div>
+          {INTEGRATIONS.map((it, i) => (
+            <Reveal key={it.name} delay={(i % 4) * 0.05}>
+              <GlassCard className="flex items-center gap-3 p-5">
+                <IntegrationGlyph glyph={it.glyph} />
+                <div>
+                  <p className="font-semibold tracking-tight">{it.name}</p>
+                  <p className="text-xs text-muted-foreground">{it.subtitle[lang]}</p>
+                </div>
+                {it.ready ? (
+                  <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
+                    <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                    {lang === "tr" ? "Hazır" : "Ready"}
+                  </span>
+                ) : (
+                  <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
+                    {lang === "tr" ? "İhtiyaca özel" : "Custom setup"}
+                  </span>
+                )}
+              </GlassCard>
+            </Reveal>
           ))}
         </div>
       </section>
@@ -670,16 +698,21 @@ export default function LandingPage() {
                 { icon: Clock, value: "11dk", label: { tr: "ortalama gönderim süresi", en: "avg time to send" } as L, tone: "var(--seg-2)" },
                 { icon: PenLine, value: "1 tık", label: { tr: "ile imzalama", en: "to a signature" } as L, tone: "var(--seg-3)" },
                 { icon: FileSignature, value: "+22%", label: { tr: "ortalama anlaşma büyüklüğü", en: "avg deal size" } as L, tone: "var(--seg-4)" },
-              ].map((s) => {
+              ].map((s, i) => {
                 const I = s.icon;
                 return (
-                  <div key={s.value} className="card-hover rounded-2xl border border-border bg-card p-6 shadow-soft">
-                    <span className="grid h-10 w-10 place-items-center rounded-xl text-white" style={{ background: s.tone }}>
-                      <I className="h-[18px] w-[18px]" />
-                    </span>
-                    <p className="mt-4 font-display text-3xl font-bold tracking-tight">{s.value}</p>
-                    <p className="mt-1 text-[13px] text-muted-foreground">{tt(s.label)}</p>
-                  </div>
+                  <Reveal key={s.value} delay={(i % 4) * 0.06}>
+                    <GlassCard className="p-6">
+                      <span
+                        className="grid h-10 w-10 place-items-center rounded-xl text-white"
+                        style={{ background: s.tone, boxShadow: `0 4px 16px color-mix(in oklch, ${s.tone} 45%, transparent)` }}
+                      >
+                        <I className="h-[18px] w-[18px]" />
+                      </span>
+                      <p className="mt-4 font-display text-3xl font-bold tracking-tight">{s.value}</p>
+                      <p className="mt-1 text-[13px] text-muted-foreground">{tt(s.label)}</p>
+                    </GlassCard>
+                  </Reveal>
                 );
               })}
             </div>
@@ -729,12 +762,12 @@ export default function LandingPage() {
           </div>
 
           <div className="mt-10 grid gap-5 lg:grid-cols-3">
-            {m.pricing.map((tier) => (
+            {m.pricing.map((tier, i) => (
+              <Reveal key={tier.name} delay={i * 0.08} className="h-full">
               <div
-                key={tier.name}
                 className={cn(
-                  "card-hover flex flex-col rounded-2xl border bg-card p-7 shadow-soft",
-                  tier.featured ? "border-primary/40 shadow-pop ring-1 ring-primary/20" : "border-border",
+                  "flex h-full flex-col rounded-2xl border bg-white/80 p-7 shadow-[0_10px_30px_rgba(15,23,42,0.05)] ring-1 ring-black/5 backdrop-blur-md transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_20px_40px_rgba(15,23,42,0.08)]",
+                  tier.featured ? "border-primary/40 shadow-pop ring-primary/20" : "border-white/60",
                 )}
               >
                 {tier.featured && (
@@ -820,6 +853,7 @@ export default function LandingPage() {
                   </Link>
                 )}
               </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -838,7 +872,7 @@ export default function LandingPage() {
         </div>
         <div className="mt-10 space-y-3">
           {m.faq.map((f) => (
-            <details key={t(f.q)} className="group rounded-xl border border-border bg-card px-5 py-4 shadow-soft">
+            <details key={t(f.q)} className="glass-card group px-5 py-4">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium">
                 {t(f.q)}
                 <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-border text-muted-foreground transition-colors group-open:border-primary group-open:bg-primary group-open:text-primary-foreground">
@@ -854,7 +888,7 @@ export default function LandingPage() {
 
       {/* ── FINAL CTA ─────────────────────────────────────────────── */}
       <section className="mx-auto max-w-6xl px-5 pb-24">
-        <div className="relative overflow-hidden rounded-3xl border border-border bg-card px-8 py-16 text-center shadow-pop">
+        <div className="glass-card relative overflow-hidden px-8 py-16 text-center">
           <div className="pointer-events-none absolute inset-0 -z-10" style={{ background: "var(--grad-hero)" }} aria-hidden />
           <div className="pointer-events-none absolute inset-0 -z-10 aurora" style={{ background: "var(--grad-mesh)" }} aria-hidden />
           <span className="pointer-events-none absolute -left-10 top-0 -z-10 h-48 w-48 rounded-full bg-primary/15 blur-3xl drift" aria-hidden />

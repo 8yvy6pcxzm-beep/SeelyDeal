@@ -227,7 +227,7 @@ function ProposalsPageInner() {
       {/* Pipeline summary cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {pipeline.map((col) => (
-          <div key={col.status} className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+          <div key={col.status} className="glass-card p-4">
             <div className="flex items-center justify-between">
               <StatusPill status={col.status} lang={lang} />
               <span className="tnum text-lg font-bold">{col.count}</span>
@@ -238,7 +238,7 @@ function ProposalsPageInner() {
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+      <div className="glass-card overflow-hidden">
         <div className="flex flex-wrap items-center gap-2.5 border-b border-border p-4">
           <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/40 p-0.5">
             {FILTERS.map((f) => (

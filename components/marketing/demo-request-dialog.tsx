@@ -43,7 +43,7 @@ export function DemoRequestDialog({ tier, onClose }: { tier: string; onClose: ()
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-pop"
+        className="glass-card w-full max-w-md p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">

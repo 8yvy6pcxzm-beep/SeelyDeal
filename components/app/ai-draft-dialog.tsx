@@ -1435,7 +1435,7 @@ export function AiDraftDialog({
       >
         {showLibraryUpsell && (
           <div className="absolute inset-0 z-20 flex items-center justify-center rounded-2xl bg-black/40 p-6" onClick={() => setShowLibraryUpsell(false)}>
-            <div className="w-full max-w-sm space-y-3 rounded-xl border border-border bg-card p-5 shadow-pop" onClick={(e) => e.stopPropagation()}>
+            <div className="glass-card w-full max-w-sm space-y-3 p-5" onClick={(e) => e.stopPropagation()}>
               <p className="text-sm font-medium">{lang === "tr" ? "İçerik Kütüphanesi Pro'da" : "Content Library is a Pro feature"}</p>
               <p className="text-xs text-muted-foreground">
                 {lang === "tr"
@@ -1452,7 +1452,7 @@ export function AiDraftDialog({
         )}
         {showCloseConfirm && (
           <div className="absolute inset-0 z-20 flex items-center justify-center rounded-2xl bg-black/40 p-6">
-            <div className="w-full max-w-sm space-y-3 rounded-xl border border-border bg-card p-5 shadow-pop">
+            <div className="glass-card w-full max-w-sm space-y-3 p-5">
               <p className="text-sm font-medium">
                 {lang === "tr" ? "Bu teklifi taslak olarak kaydetmek ister misin?" : "Save this proposal as a draft?"}
               </p>

@@ -31,7 +31,7 @@ export function SectionTimesDialog({ proposalId, onClose }: { proposalId: string
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-sm rounded-2xl border border-border bg-card p-5 shadow-pop"
+        className="glass-card w-full max-w-sm p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">

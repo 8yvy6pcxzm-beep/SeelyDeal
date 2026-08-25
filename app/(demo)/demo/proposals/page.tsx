@@ -71,7 +71,7 @@ export default function DemoProposalsPage() {
       {open && (
         <>
           <div className="fixed inset-0 z-30 bg-black/30" onClick={() => setOpenId(null)} />
-          <div className="fixed inset-y-0 right-0 z-40 w-full max-w-md overflow-y-auto border-l border-border bg-card p-6 shadow-pop">
+          <div className="glass-card fixed inset-y-0 right-0 z-40 w-full max-w-md overflow-y-auto border-l p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <ClientAvatar initials={open.clientInitials} size={40} />

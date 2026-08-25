@@ -1,8 +1,58 @@
 "use client";
 
+import { motion, type Variants } from "framer-motion";
 import { Check, Eye, PenLine } from "lucide-react";
 import { useLang } from "@/components/i18n/language-provider";
-import { formatUsd } from "@/lib/utils";
+import { cn, formatUsd } from "@/lib/utils";
+
+/* ── Scroll reveal — 3D "settle into place" entrance used across the landing
+   page for cards and panels. One shared spec so every section moves the same
+   way (Apple/macOS Sonoma-style restraint, not a demo-reel bounce). ────────── */
+const revealVariants: Variants = {
+  hidden: { opacity: 0, y: 28, rotateX: -8 },
+  visible: { opacity: 1, y: 0, rotateX: 0 },
+};
+
+export function Reveal({
+  children,
+  className,
+  delay = 0,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+}) {
+  return (
+    <motion.div
+      className={cn("[transform-style:preserve-3d]", className)}
+      style={{ perspective: 800 }}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: "-60px" }}
+      variants={revealVariants}
+      transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1], delay }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/* ── Glass card — the Apple/Sonoma-style floating surface used for feature,
+   pricing, use-case and metric cards on the landing page. ─────────────────── */
+export function GlassCard({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border border-white/60 bg-white/80 shadow-[0_10px_30px_rgba(15,23,42,0.05)] ring-1 ring-black/5 backdrop-blur-md",
+        "transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_20px_40px_rgba(15,23,42,0.08)]",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
 
 /* ── Inline-SVG fake-company wordmarks for the trusted-by row ───────────────── */
 export function CompanyMark({ name }: { name: string }) {
@@ -107,7 +157,7 @@ export function ProductPreview() {
       </AppWindowFrame>
 
       {/* floating "opened" chip */}
-      <div className="absolute -bottom-3 left-5 hidden items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-[10px] font-semibold shadow-pop sm:inline-flex">
+      <div className="glass-card absolute -bottom-3 left-5 hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold sm:inline-flex">
         <PenLine className="h-3 w-3 text-primary" />
         {lang === "tr" ? "tek tıkla imza" : "one-click sign"}
       </div>

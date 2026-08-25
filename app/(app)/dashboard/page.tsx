@@ -398,13 +398,18 @@ export default function DashboardPage() {
             {computedStats.map((s) => {
               const up = (s.delta ?? 0) >= 0;
               const isPts = s.key === "winrate";
+              const KPI_ICON: Record<string, typeof Send> = { open: Clock, winrate: TrendingUp, avg: FileText, sent: Send };
+              const KPI_TONE: Record<string, string> = { open: "tone-info", winrate: "tone-violet", avg: "tone-success", sent: "tone-warning" };
+              const KIcon = KPI_ICON[s.key] ?? Clock;
               return (
                 <div
                   key={s.key}
-                  className="card-hover rounded-2xl border border-border bg-card p-4 shadow-soft"
+                  className="glass-card card-hover p-4"
                 >
                   <div className="flex items-center justify-between">
-                    <p className="text-[12.5px] font-medium text-muted-foreground">{t(s.label)}</p>
+                    <span className={cn("badge-icon h-8 w-8", KPI_TONE[s.key])}>
+                      <KIcon className="h-4 w-4" />
+                    </span>
                     {s.delta !== undefined && Math.abs(s.delta) > 0.05 && (
                       <span
                         className={cn(
@@ -418,7 +423,8 @@ export default function DashboardPage() {
                       </span>
                     )}
                   </div>
-                  <p className="tnum mt-2 text-2xl font-bold leading-none">{s.value}</p>
+                  <p className="mt-3 text-[12.5px] font-medium text-muted-foreground">{t(s.label)}</p>
+                  <p className="tnum mt-1 text-2xl font-bold leading-none">{s.value}</p>
                   {s.hint && <p className="mt-1.5 line-clamp-1 text-[11px] text-muted-foreground">{t(s.hint)}</p>}
                 </div>
               );
@@ -426,7 +432,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Pipeline funnel — tek bakışta oranlı, tıklanınca aşağıdaki tabloyu filtreler */}
-          <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+          <div className="glass-card p-5">
             <div className="flex items-center justify-between">
               <h2 className="font-display text-[15px] font-semibold tracking-tight">
                 {lang === "tr" ? "Boru hattı" : "Pipeline"}
@@ -541,7 +547,7 @@ export default function DashboardPage() {
           )}
 
           {/* Proposals table */}
-          <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+          <div className="glass-card overflow-hidden">
             <div className="flex flex-wrap items-center gap-2.5 border-b border-border p-4">
               <h2 className="font-display text-[15px] font-semibold tracking-tight">
                 {lang === "tr" ? "Teklifler" : "Proposals"}
@@ -664,7 +670,7 @@ export default function DashboardPage() {
 
           {/* Acceptance chart + win gauge */}
           <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+            <div className="glass-card p-5">
               <div className="flex items-start justify-between">
                 <div>
                   <h3 className="font-display text-[15px] font-semibold tracking-tight">{t(acceptanceMeta.title)}</h3>
@@ -696,7 +702,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+            <div className="glass-card p-5">
               <h3 className="font-display text-[15px] font-semibold tracking-tight">
                 {lang === "tr" ? "Kazanma oranı" : "Win rate"}
               </h3>
@@ -724,7 +730,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Proposal-builder preview */}
-          <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+          <div className="glass-card overflow-hidden">
             <div className="flex items-center justify-between border-b border-border p-4">
               <div className="flex items-center gap-2.5">
                 <span className="grid h-8 w-8 place-items-center rounded-lg text-white" style={{ backgroundImage: "var(--grad-brand)" }}>
@@ -835,7 +841,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Templates strip */}
-          <div className="relative rounded-2xl border border-border bg-card p-5 shadow-soft opacity-60">
+          <div className="glass-card relative p-5 opacity-60">
             <span className="absolute right-4 top-4 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
               {lang === "tr" ? "Yakında" : "Soon"}
             </span>
@@ -870,7 +876,7 @@ export default function DashboardPage() {
         {/* ── Right detail drawer ──────────────────────────────────── */}
         {drawerOpen && (
           <aside className="animate-float-up xl:sticky xl:top-2 xl:self-start">
-            <div className="space-y-5 rounded-2xl border border-border bg-card p-5 shadow-soft">
+            <div className="glass-card space-y-5 p-5">
               <div className="flex items-center justify-between">
                 <h2 className="font-display text-[15px] font-semibold tracking-tight">
                   {lang === "tr" ? "Teklif detayı" : "Proposal details"}
@@ -1074,7 +1080,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Activity feed */}
-            <div className="mt-5 rounded-2xl border border-border bg-card p-5 shadow-soft">
+            <div className="glass-card mt-5 p-5">
               <h3 className="font-display text-[15px] font-semibold tracking-tight">
                 {lang === "tr" ? "Son hareketler" : "Recent activity"}
               </h3>

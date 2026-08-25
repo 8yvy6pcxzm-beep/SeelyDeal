@@ -158,14 +158,14 @@ export default function AnalyticsPage() {
       ) : (
         <>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+            <div className="glass-card p-4">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <FileText className="h-4 w-4" />
                 <p className="text-[12.5px] font-medium">{lang === "tr" ? "Toplam teklif" : "Total proposals"}</p>
               </div>
               <p className="tnum mt-2 text-2xl font-bold">{stats.total}</p>
             </div>
-            <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+            <div className="glass-card p-4">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Target className="h-4 w-4" />
                 <p className="text-[12.5px] font-medium">{lang === "tr" ? "Kazanma oranı" : "Win rate"}</p>
@@ -177,14 +177,14 @@ export default function AnalyticsPage() {
                 </p>
               )}
             </div>
-            <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+            <div className="glass-card p-4">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <DollarSign className="h-4 w-4" />
                 <p className="text-[12.5px] font-medium">{lang === "tr" ? "Kabul edilen değer" : "Accepted value"}</p>
               </div>
               <p className="tnum mt-2 text-2xl font-bold">{formatUsd(stats.acceptedValue)}</p>
             </div>
-            <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+            <div className="glass-card p-4">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <TrendingUp className="h-4 w-4" />
                 <p className="text-[12.5px] font-medium">{lang === "tr" ? "Ortalama anlaşma" : "Avg. deal size"}</p>
@@ -194,7 +194,7 @@ export default function AnalyticsPage() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+            <div className="glass-card p-5">
               <h3 className="font-display text-[15px] font-semibold tracking-tight">{lang === "tr" ? "Kazanma oranı" : "Win rate"}</h3>
               <div className="mt-4 flex items-center gap-5">
                 <WinGauge pct={stats.winRate} />
@@ -213,7 +213,7 @@ export default function AnalyticsPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+            <div className="glass-card p-5">
               <h3 className="font-display text-[15px] font-semibold tracking-tight">{lang === "tr" ? "Durum dağılımı" : "Status breakdown"}</h3>
               <div className="mt-4 space-y-3">
                 {Object.entries(stats.byStatus).map(([key, count]) => (
@@ -233,7 +233,7 @@ export default function AnalyticsPage() {
           </div>
 
           {reportingAllowed && monthlyTrend.length > 0 && (
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+            <div className="glass-card p-5">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-display text-[15px] font-semibold tracking-tight">

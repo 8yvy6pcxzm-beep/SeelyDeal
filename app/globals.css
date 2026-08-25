@@ -94,9 +94,9 @@
   --seg-3: oklch(62% 0.14 245);
   --seg-4: oklch(64% 0.16 158);
 
-  /* Soft shadows. */
-  --shadow-soft: 0 1px 2px oklch(40% 0.04 285 / 0.04), 0 4px 14px oklch(40% 0.04 285 / 0.05);
-  --shadow-pop: 0 1px 2px oklch(40% 0.04 285 / 0.05), 0 12px 34px oklch(40% 0.04 285 / 0.10);
+  /* Soft shadows — layered, floating (Apple/macOS Sonoma depth), not a single hard drop. */
+  --shadow-soft: 0 1px 1px oklch(40% 0.04 285 / 0.03), 0 3px 8px oklch(40% 0.04 285 / 0.04), 0 12px 28px oklch(40% 0.04 285 / 0.06);
+  --shadow-pop: 0 2px 4px oklch(40% 0.04 285 / 0.05), 0 8px 20px oklch(40% 0.04 285 / 0.08), 0 24px 48px oklch(40% 0.04 285 / 0.12);
   --shadow-pill: 0 1px 1px oklch(40% 0.04 285 / 0.04), 0 1px 3px oklch(40% 0.04 285 / 0.08);
   --shadow-glow: 0 8px 30px oklch(55% 0.2 290 / 0.22);
 }
@@ -131,7 +131,8 @@ html {
 }
 
 body {
-  background: var(--color-background);
+  background: var(--grad-mesh), var(--color-background);
+  background-attachment: fixed, fixed;
   color: var(--color-foreground);
   -webkit-font-smoothing: antialiased;
   font-feature-settings: "ss01", "cv01", "cv11";
@@ -226,6 +227,53 @@ body {
   box-shadow: var(--shadow-pop);
   border-color: oklch(55% 0.05 285 / 0.2);
 }
+
+/* ── Glass card — Apple/macOS Sonoma-style floating surface: translucent
+   frosted glass, hairline highlight border, layered depth shadow, and a
+   smooth lift + deepen on hover. This is the default card treatment across
+   the whole app now (landing + dashboard). ─────────────────────────────── */
+.glass-card {
+  border-radius: 1.25rem;
+  background: color-mix(in oklch, var(--color-card) 82%, transparent);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid color-mix(in oklch, white 70%, transparent);
+  box-shadow: var(--shadow-soft), inset 0 1px 0 color-mix(in oklch, white 60%, transparent);
+  outline: 1px solid oklch(20% 0.02 285 / 0.04);
+  outline-offset: -1px;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.glass-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-pop), inset 0 1px 0 color-mix(in oklch, white 70%, transparent);
+}
+
+/* Soft micro-grid — a barely-there structural texture behind hero/panel art,
+   replacing flat dot-grid backdrops. Off-white/slate ground with a faint
+   linear grid, meant to be layered under a blurred color aura. */
+.micro-grid {
+  background-image:
+    linear-gradient(to right, oklch(90% 0.01 285 / 0.5) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(90% 0.01 285 / 0.5) 1px, transparent 1px);
+  background-size: 28px 28px;
+  -webkit-mask-image: radial-gradient(70% 70% at 50% 42%, black 30%, transparent 78%);
+  mask-image: radial-gradient(70% 70% at 50% 42%, black 30%, transparent 78%);
+}
+
+/* Circular gradient icon badge with a soft matching glow ring — used for KPI
+   and status icons instead of flat pastel fills. Pair with a tone: */
+.badge-icon {
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: white;
+  box-shadow: 0 4px 12px oklch(40% 0.06 285 / 0.16), inset 0 1px 0 color-mix(in oklch, white 35%, transparent);
+}
+.badge-icon.tone-info { background: linear-gradient(135deg, oklch(70% 0.13 245) 0%, oklch(58% 0.16 245) 100%); box-shadow: 0 4px 16px oklch(62% 0.14 245 / 0.35), inset 0 1px 0 color-mix(in oklch, white 35%, transparent); }
+.badge-icon.tone-violet { background: linear-gradient(135deg, oklch(66% 0.19 292) 0%, oklch(54% 0.2 280) 100%); box-shadow: 0 4px 16px oklch(55% 0.2 280 / 0.35), inset 0 1px 0 color-mix(in oklch, white 35%, transparent); }
+.badge-icon.tone-success { background: linear-gradient(135deg, oklch(74% 0.15 158) 0%, oklch(58% 0.16 158) 100%); box-shadow: 0 4px 16px oklch(64% 0.16 158 / 0.35), inset 0 1px 0 color-mix(in oklch, white 35%, transparent); }
+.badge-icon.tone-warning { background: linear-gradient(135deg, oklch(84% 0.14 78) 0%, oklch(68% 0.17 60) 100%); box-shadow: 0 4px 16px oklch(78% 0.15 78 / 0.4), inset 0 1px 0 color-mix(in oklch, white 35%, transparent); }
+.badge-icon.tone-destructive { background: linear-gradient(135deg, oklch(68% 0.18 26) 0%, oklch(56% 0.21 20) 100%); box-shadow: 0 4px 16px oklch(60% 0.2 22 / 0.35), inset 0 1px 0 color-mix(in oklch, white 35%, transparent); }
 
 /* ── Restrained, tasteful motion ──────────────────────────────────────────── */
 @keyframes floatUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }

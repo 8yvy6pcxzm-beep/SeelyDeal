@@ -12,7 +12,7 @@ export function TrialExpiredScreen() {
 
   return (
     <div className="flex min-h-dvh items-center justify-center bg-background p-6">
-      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-soft">
+      <div className="glass-card w-full max-w-md p-8 text-center">
         <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-primary/10 text-primary">
           <Clock className="h-6 w-6" />
         </span>

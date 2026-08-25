@@ -94,7 +94,7 @@ export function Topbar({ userName, userEmail }: { userName: string | null; userE
           {notifOpen && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setNotifOpen(false)} />
-              <div className="absolute right-0 top-11 z-20 w-80 rounded-xl border border-border bg-card shadow-pop">
+              <div className="glass-card absolute right-0 top-11 z-20 w-80">
                 <div className="border-b border-border px-4 py-3 text-[13px] font-semibold">
                   {lang === "tr" ? "Bildirimler" : "Notifications"}
                 </div>

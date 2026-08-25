@@ -73,7 +73,7 @@ export function DemoRequestsClient() {
       ) : (
         <div className="space-y-3">
           {requests.map((r) => (
-            <div key={r.id} className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+            <div key={r.id} className="glass-card p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="font-medium">{r.name}</p>

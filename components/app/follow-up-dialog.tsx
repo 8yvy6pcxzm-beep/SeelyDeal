@@ -68,7 +68,7 @@ export function FollowUpDialog({
   return createPortal(
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card shadow-pop"
+        className="glass-card w-full max-w-md overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-4">

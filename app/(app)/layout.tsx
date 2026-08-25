@@ -69,7 +69,7 @@ export default async function AppLayout({
   return (
     <PlanProvider plan={plan} trialDaysLeft={daysLeft}>
       <AiDraftProvider>
-        <div className="flex h-dvh overflow-hidden bg-background">
+        <div className="flex h-dvh overflow-hidden">
           <Sidebar userName={name} userEmail={email} aiUsed={aiUsed} aiLimit={aiLimit} />
           <div className="relative flex flex-1 flex-col overflow-hidden">
             {/* faint aurora wash at the very top of the app */}

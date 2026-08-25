@@ -54,7 +54,7 @@ export function TemplatePreviewPanel({
 
   return (
     <aside className="space-y-5 lg:sticky lg:top-2 lg:self-start">
-      <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+      <div className="glass-card p-5">
         <div className="flex items-center gap-3">
           <span className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: current.theme?.primaryColor || current.accent }}>
             <FileText className="h-5 w-5" />
