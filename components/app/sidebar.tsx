@@ -6,7 +6,6 @@ import { Sparkles, Settings, LifeBuoy, LogOut } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { useLang } from "@/components/i18n/language-provider";
 import { cn } from "@/lib/utils";
-import { useOpenAiDraft } from "@/components/app/ai-draft-provider";
 import { NavGroups } from "@/components/app/nav-groups";
 import appConfig from "@/app.config";
 
@@ -27,7 +26,6 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const { lang } = useLang();
-  const openAiDraft = useOpenAiDraft();
 
   const displayName = userName ?? userEmail?.split("@")[0] ?? (lang === "tr" ? "Kullanıcı" : "User");
   const initials = displayName
@@ -48,18 +46,6 @@ export function Sidebar({
         <Link href={basePath + "/dashboard"} className="inline-flex">
           <Logo withChevron />
         </Link>
-      </div>
-
-      {/* AI draft pill */}
-      <div className="px-3 pb-2">
-        <button
-          onClick={openAiDraft}
-          className="flex w-full items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <Sparkles className="h-4 w-4 text-primary" />
-          <span>{lang === "tr" ? "AI ile teklif yaz" : "Draft with AI"}</span>
-          <kbd className="ml-auto rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">⌘K</kbd>
-        </button>
       </div>
 
       {/* Grouped nav */}

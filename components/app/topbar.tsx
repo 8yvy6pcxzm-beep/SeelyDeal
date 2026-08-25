@@ -3,12 +3,11 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Bell, Plus, Clock, Eye, PenLine } from "lucide-react";
+import { Bell, Clock, Eye, PenLine } from "lucide-react";
 import appConfig from "@/app.config";
 import { LanguageToggle } from "@/components/ui/language-toggle";
 import { useLang } from "@/components/i18n/language-provider";
 import { useTrialDaysLeft } from "@/components/app/plan-provider";
-import { useOpenAiDraft } from "@/components/app/ai-draft-provider";
 import { MobileNav } from "@/components/app/mobile-nav";
 import { cn, formatRelative } from "@/lib/utils";
 import type { NotificationItem } from "@/app/api/notifications/route";
@@ -19,7 +18,6 @@ export function Topbar({ userName, userEmail }: { userName: string | null; userE
   const pathname = usePathname();
   const { t, lang } = useLang();
   const trialDaysLeft = useTrialDaysLeft();
-  const openAiDraft = useOpenAiDraft();
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [lastSeen, setLastSeen] = useState(0);
@@ -81,13 +79,6 @@ export function Topbar({ userName, userEmail }: { userName: string | null; userE
       )}
 
       <div className="ml-auto flex items-center gap-1.5">
-        <button
-          onClick={openAiDraft}
-          className="hidden h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90 sm:inline-flex"
-        >
-          <Plus className="h-4 w-4" />
-          {lang === "tr" ? "Yeni teklif" : "New proposal"}
-        </button>
         <LanguageToggle className="mr-1" />
         <div className="relative">
           <button

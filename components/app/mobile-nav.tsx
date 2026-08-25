@@ -4,11 +4,10 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, Sparkles, Settings, LifeBuoy, LogOut } from "lucide-react";
+import { Menu, X, Settings, LifeBuoy, LogOut } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { useLang } from "@/components/i18n/language-provider";
 import { cn } from "@/lib/utils";
-import { useOpenAiDraft } from "@/components/app/ai-draft-provider";
 import { NavGroups } from "@/components/app/nav-groups";
 import appConfig from "@/app.config";
 
@@ -17,7 +16,6 @@ export function MobileNav({ userName, userEmail }: { userName: string | null; us
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const { lang } = useLang();
-  const openAiDraft = useOpenAiDraft();
 
   const displayName = userName ?? userEmail?.split("@")[0] ?? (lang === "tr" ? "Kullanıcı" : "User");
   const initials = displayName
@@ -54,19 +52,6 @@ export function MobileNav({ userName, userEmail }: { userName: string | null; us
                   className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
                 >
                   <X className="h-4.5 w-4.5" />
-                </button>
-              </div>
-
-              <div className="px-3 pb-2">
-                <button
-                  onClick={() => {
-                    setOpen(false);
-                    openAiDraft();
-                  }}
-                  className="flex w-full items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  <span>{lang === "tr" ? "AI ile teklif yaz" : "Draft with AI"}</span>
                 </button>
               </div>
 

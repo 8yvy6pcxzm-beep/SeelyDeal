@@ -177,13 +177,6 @@ function ProposalsPageInner() {
         <div className="ml-auto flex items-center gap-2">
           <button
             onClick={() => setAiOpen(true)}
-            className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-card px-3.5 text-[13px] font-medium text-foreground shadow-pill transition-colors hover:bg-muted"
-          >
-            <Sparkles className="h-4 w-4 text-primary" />
-            {lang === "tr" ? "AI ile yaz" : "Draft with AI"}
-          </button>
-          <button
-            onClick={() => setAiOpen(true)}
             className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
           >
             <Plus className="h-4 w-4" />
