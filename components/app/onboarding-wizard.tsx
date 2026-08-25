@@ -3,6 +3,7 @@
 import { useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
 import { Hanken_Grotesk, Playfair_Display } from "next/font/google";
 import { Check, FileText, Loader2, Sparkles, Upload } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -77,8 +78,9 @@ const SECTION_OPTIONS: { key: string; tr: string; en: string; core: boolean }[] 
 
 function fieldClass(hasError?: boolean) {
   return cn(
-    "flex h-11 w-full rounded-xl border bg-card px-3.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring transition-colors",
-    hasError ? "border-destructive" : "border-input",
+    "flex h-11 w-full rounded-xl border bg-white/70 px-3.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 backdrop-blur-sm transition-all duration-200",
+    "focus-visible:outline-none focus-visible:bg-white focus-visible:shadow-[0_0_0_4px_oklch(55%_0.2_280/0.12),0_8px_24px_oklch(55%_0.2_290/0.15)]",
+    hasError ? "border-destructive" : "border-input focus-visible:border-primary/50",
   );
 }
 
@@ -447,8 +449,11 @@ export function OnboardingWizard({ initialName, userEmail }: { initialName: stri
       </section>
 
       {/* Right — form */}
-      <section className="flex flex-col items-center justify-center px-6 py-10">
-        <div className="w-full max-w-md">
+      <section
+        className="relative flex flex-col items-center justify-center overflow-hidden px-6 py-10"
+        style={{ backgroundImage: "var(--grad-mesh)" }}
+      >
+        <div className="relative w-full max-w-md">
           <Link href="/" className="mb-5 inline-flex lg:hidden">
             <Logo />
           </Link>
@@ -463,14 +468,22 @@ export function OnboardingWizard({ initialName, userEmail }: { initialName: stri
               <span
                 key={i}
                 className={cn(
-                  "h-1.5 flex-1 rounded-full transition-colors",
-                  i < step ? "bg-primary" : "bg-muted",
+                  "h-1.5 flex-1 rounded-full transition-all duration-500",
+                  i < step ? "bg-[image:var(--grad-brand)] shadow-[0_0_10px_oklch(55%_0.2_290/0.5)]" : "bg-muted",
                 )}
               />
             ))}
           </div>
 
-          <div className="mt-6 rounded-2xl border border-border bg-card p-6 shadow-soft sm:p-7">
+          <div className="mt-6 rounded-3xl border border-white/60 bg-white/70 p-6 shadow-[0_20px_60px_oklch(40%_0.04_285/0.10)] backdrop-blur-xl sm:p-7">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={step}
+                initial={{ opacity: 0, x: 14 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -14 }}
+                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+              >
             {step === 1 && (
               <div className="space-y-5">
                 <div>
@@ -927,6 +940,8 @@ export function OnboardingWizard({ initialName, userEmail }: { initialName: stri
                 </div>
               </div>
             )}
+              </motion.div>
+            </AnimatePresence>
 
             {error && (
               <p className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-[13px] text-destructive">{error}</p>
@@ -941,14 +956,28 @@ export function OnboardingWizard({ initialName, userEmail }: { initialName: stri
                 <span />
               )}
               {step < TOTAL_STEPS ? (
-                <Button type="button" onClick={goNext} disabled={analyzing} className="ml-auto">
-                  {lang === "tr" ? "Devam et" : "Continue"}
-                </Button>
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="ml-auto">
+                  <Button
+                    type="button"
+                    onClick={goNext}
+                    disabled={analyzing}
+                    className="bg-[image:var(--grad-brand)] shadow-[0_8px_24px_oklch(55%_0.2_290/0.28)] hover:opacity-100 hover:shadow-[0_10px_32px_oklch(55%_0.2_290/0.4)]"
+                  >
+                    {lang === "tr" ? "Devam et" : "Continue"}
+                  </Button>
+                </motion.div>
               ) : (
-                <Button type="button" onClick={finish} disabled={saving} className="ml-auto">
-                  {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {lang === "tr" ? "Kurulumu tamamla" : "Complete setup"}
-                </Button>
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="ml-auto">
+                  <Button
+                    type="button"
+                    onClick={finish}
+                    disabled={saving}
+                    className="bg-[image:var(--grad-brand)] shadow-[0_8px_24px_oklch(55%_0.2_290/0.28)] hover:opacity-100 hover:shadow-[0_10px_32px_oklch(55%_0.2_290/0.4)]"
+                  >
+                    {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {lang === "tr" ? "Kurulumu tamamla" : "Complete setup"}
+                  </Button>
+                </motion.div>
               )}
             </div>
           </div>

@@ -3,14 +3,54 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import { ArrowRight, Loader2 } from "lucide-react";
 import appConfig from "@/app.config";
 import { useLang } from "@/components/i18n/language-provider";
 import { Logo } from "@/components/ui/logo";
-import { Button } from "@/components/ui/button";
-import { Input, Label } from "@/components/ui/input";
+import { Label } from "@/components/ui/input";
 import { LanguageToggle } from "@/components/ui/language-toggle";
 import { createClient } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
+
+/** Glow-on-focus input — local to auth/onboarding, doesn't touch the shared <Input>. */
+function GlowInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      className={cn(
+        "flex h-11 w-full rounded-xl border border-input bg-white/70 px-3.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 backdrop-blur-sm transition-all duration-200",
+        "focus-visible:outline-none focus-visible:border-primary/50 focus-visible:bg-white focus-visible:shadow-[0_0_0_4px_oklch(55%_0.2_280/0.12),0_8px_24px_oklch(55%_0.2_290/0.15)]",
+        props.className,
+      )}
+    />
+  );
+}
+
+function GlowButton({
+  className,
+  variant = "primary",
+  children,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "outline" }) {
+  return (
+    <motion.button
+      whileHover={{ scale: 1.015 }}
+      whileTap={{ scale: 0.985 }}
+      transition={{ type: "spring", stiffness: 400, damping: 28 }}
+      className={cn(
+        "inline-flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-medium transition-shadow duration-200 disabled:pointer-events-none disabled:opacity-50",
+        variant === "primary"
+          ? "bg-[image:var(--grad-brand)] text-white shadow-[0_8px_24px_oklch(55%_0.2_290/0.28)] hover:shadow-[0_10px_32px_oklch(55%_0.2_290/0.4)]"
+          : "border border-border bg-white/70 text-foreground backdrop-blur-sm hover:border-primary/40 hover:bg-white hover:shadow-[0_6px_20px_oklch(55%_0.2_290/0.12)]",
+        className,
+      )}
+      {...(props as any)}
+    >
+      {children}
+    </motion.button>
+  );
+}
 
 /**
  * Login / signup with real Supabase Auth, including Google/GitHub OAuth.
@@ -204,12 +244,20 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
       </section>
 
       {/* Right — form */}
-      <section className="relative flex flex-col items-center justify-center px-6 py-12">
-        <div className="absolute right-5 top-5">
+      <section
+        className="relative flex flex-col items-center justify-center overflow-hidden px-6 py-12"
+        style={{ backgroundImage: "var(--grad-mesh)" }}
+      >
+        <div className="absolute right-5 top-5 z-10">
           <LanguageToggle />
         </div>
 
-        <div className="w-full max-w-sm space-y-7">
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          className="relative w-full max-w-sm space-y-7 rounded-3xl border border-white/60 bg-white/70 p-7 shadow-[0_20px_60px_oklch(40%_0.04_285/0.10)] backdrop-blur-xl sm:p-8"
+        >
           <Link href="/" className="inline-flex lg:hidden">
             <Logo />
           </Link>
@@ -230,14 +278,14 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
                   {lang === "tr" ? "Son kullanılan" : "Last used"}
                 </span>
               )}
-              <Button
+              <GlowButton
                 variant="outline"
                 disabled={loading}
                 onClick={() => signInWithProvider("google")}
-                className={`w-full gap-2 ${lastUsed === "google" ? "border-primary/40 ring-2 ring-primary/25" : ""}`}
+                className={`w-full ${lastUsed === "google" ? "border-primary/40 ring-2 ring-primary/25" : ""}`}
               >
                 <GoogleGlyph /> Google
-              </Button>
+              </GlowButton>
             </div>
             <div className="relative">
               {lastUsed === "github" && (
@@ -245,14 +293,14 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
                   {lang === "tr" ? "Son kullanılan" : "Last used"}
                 </span>
               )}
-              <Button
+              <GlowButton
                 variant="outline"
                 disabled={loading}
                 onClick={() => signInWithProvider("github")}
-                className={`w-full gap-2 ${lastUsed === "github" ? "border-primary/40 ring-2 ring-primary/25" : ""}`}
+                className={`w-full ${lastUsed === "github" ? "border-primary/40 ring-2 ring-primary/25" : ""}`}
               >
                 <GithubGlyph /> GitHub
-              </Button>
+              </GlowButton>
             </div>
           </div>
 
@@ -281,15 +329,15 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
           {isLogin &&
             (ssoOpen ? (
               <form onSubmit={signInWithSsoDomain} className="flex gap-2">
-                <Input
+                <GlowInput
                   value={ssoDomain}
                   onChange={(e) => setSsoDomain(e.target.value)}
                   placeholder="sirket-domaini.com"
                   className="flex-1"
                 />
-                <Button type="submit" variant="outline" disabled={loading || !ssoDomain.trim()}>
+                <GlowButton type="submit" variant="outline" disabled={loading || !ssoDomain.trim()} className="px-4">
                   {lang === "tr" ? "Devam et" : "Continue"}
-                </Button>
+                </GlowButton>
               </form>
             ) : (
               <button
@@ -311,16 +359,16 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
             {!isLogin && (
               <div className="space-y-1.5">
                 <Label htmlFor="name">{lang === "tr" ? "Şirket adı" : "Company name"}</Label>
-                <Input id="name" name="name" placeholder={lang === "tr" ? "İşletmenin adı" : "Your business name"} />
+                <GlowInput id="name" name="name" placeholder={lang === "tr" ? "İşletmenin adı" : "Your business name"} />
               </div>
             )}
             <div className="space-y-1.5">
               <Label htmlFor="email">{ui.email}</Label>
-              <Input id="email" name="email" type="email" placeholder="you@company.com" required />
+              <GlowInput id="email" name="email" type="email" placeholder="you@company.com" required />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="password">{ui.password}</Label>
-              <Input id="password" name="password" type="password" placeholder="••••••••" required minLength={6} />
+              <GlowInput id="password" name="password" type="password" placeholder="••••••••" required minLength={6} />
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             {notice && <p className="text-sm text-success">{notice}</p>}
@@ -357,11 +405,11 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
                 </span>
               </label>
             )}
-            <Button type="submit" disabled={loading} className="w-full gap-2">
+            <GlowButton type="submit" disabled={loading} className="w-full">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {isLogin ? ui.signIn : ui.getStarted}
               {!loading && <ArrowRight className="h-4 w-4" />}
-            </Button>
+            </GlowButton>
           </form>
 
           <p className="text-center text-sm text-muted-foreground">
@@ -373,7 +421,7 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
               {isLogin ? ui.getStarted : ui.signIn}
             </Link>
           </p>
-        </div>
+        </motion.div>
       </section>
     </div>
   );
