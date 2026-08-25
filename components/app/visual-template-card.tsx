@@ -3,6 +3,7 @@
 import { Palette } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Template } from "@/lib/demo/data";
+import { TemplateMiniCover } from "@/components/app/template-mini-cover";
 
 /** Card for a "Görsel Şablon" group (kind unset — a pure design/theme skeleton,
  *  see Template.kind in lib/demo/data.ts). Deliberately shows no text preview:
@@ -33,29 +34,25 @@ export function VisualTemplateCard({
         isSel ? "border-primary/40 ring-1 ring-primary/20" : "border-border",
       )}
     >
-      {/* wireframe/skeleton preview — theme/accent only, never section text */}
-      <div
-        className="relative flex h-32 items-center justify-center overflow-hidden rounded-xl"
-        style={{ background: `color-mix(in oklch, ${active.accent} 12%, white)` }}
-      >
-        <span
-          className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full opacity-30 blur-xl"
-          style={{ background: active.accent }}
-          aria-hidden
-        />
-        <div className="w-28 rounded-lg border border-border bg-card p-2.5 shadow-pill">
-          <div className="h-2 w-12 rounded-full" style={{ background: active.accent }} />
-          <div className="mt-2 space-y-1">
-            <div className="h-1.5 w-full rounded-full bg-muted" />
-            <div className="h-1.5 w-3/4 rounded-full bg-muted" />
-            <div className="h-1.5 w-5/6 rounded-full bg-muted" />
-          </div>
-          <div className="mt-2 flex items-center justify-between">
-            <div className="h-2 w-8 rounded-full bg-muted" />
-            <div className="h-2 w-6 rounded-full" style={{ background: active.accent }} />
-          </div>
+      {/* preview — a static cover image when set, otherwise a theme-driven mini
+          cover generated from the template's colors; never section text (the
+          AI never reads a visual template's section copy, only its theme/accent) */}
+      {active.previewImage ? (
+        <div className="relative h-32 w-full overflow-hidden rounded-xl">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={active.previewImage}
+            alt=""
+            className="h-full w-full object-cover"
+            aria-hidden
+          />
         </div>
-      </div>
+      ) : (
+        <TemplateMiniCover
+          primaryColor={active.theme?.primaryColor ?? active.accent}
+          accentColor={active.theme?.accentColor ?? active.accent}
+        />
+      )}
 
       <div className="mt-3 flex items-start justify-between gap-2">
         <div className="min-w-0">
