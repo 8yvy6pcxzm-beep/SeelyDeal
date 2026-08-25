@@ -26,6 +26,21 @@ export function CompanyMark({ name }: { name: string }) {
   );
 }
 
+/* ── App-window frame: gives static preview cards a live-product feel ──────── */
+export function AppWindowFrame({ label, children }: { label?: string; children: React.ReactNode }) {
+  return (
+    <div className="app-window">
+      <div className="app-window-bar">
+        <span className="app-window-dot" />
+        <span className="app-window-dot" />
+        <span className="app-window-dot" />
+        {label && <span className="ml-2 truncate text-[11px] font-medium text-muted-foreground">{label}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 /* ── Hero product-preview card: a beautiful proposal + pricing table ───────── */
 export function ProductPreview() {
   const { lang } = useLang();
@@ -37,9 +52,10 @@ export function ProductPreview() {
   const total = items.reduce((s, i) => s + i.amount, 0);
 
   return (
-    <div className="relative w-full rounded-2xl border border-border bg-card shadow-pop">
+    <div className="relative w-full">
+      <AppWindowFrame label={lang === "tr" ? "seelydeal.app · teklif önizleme" : "seelydeal.app · proposal preview"}>
       {/* proposal cover band with gradient */}
-      <div className="relative overflow-hidden rounded-t-2xl px-5 pb-4 pt-5" style={{ backgroundImage: "var(--grad-brand)" }}>
+      <div className="relative overflow-hidden px-5 pb-4 pt-5" style={{ backgroundImage: "var(--grad-brand)" }}>
         <span className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-white/15 blur-2xl" aria-hidden />
         <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-white/70">
           {lang === "tr" ? "Northwind için teklif" : "Proposal for Northwind"}
@@ -49,6 +65,7 @@ export function ProductPreview() {
         </p>
         <div className="mt-3 flex items-center gap-2">
           <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-medium text-white">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#c9f56b] pulse-dot" />
             <Eye className="h-3 w-3" /> {lang === "tr" ? "3× görüntülendi" : "Viewed 3×"}
           </span>
           <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-medium text-white">
@@ -87,6 +104,7 @@ export function ProductPreview() {
           </svg>
         </div>
       </div>
+      </AppWindowFrame>
 
       {/* floating "opened" chip */}
       <div className="absolute -bottom-3 left-5 hidden items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-[10px] font-semibold shadow-pop sm:inline-flex">

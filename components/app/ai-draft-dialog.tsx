@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { Sparkles, X, Send, Loader2, Check, Link2, CreditCard, Paperclip, FileText, Mic, MicOff, ArrowLeft, BookmarkPlus } from "lucide-react";
+import { Sparkles, X, Send, Loader2, Check, Link2, CreditCard, Paperclip, FileText, Mic, MicOff, ArrowLeft, BookmarkPlus, PenLine, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLang } from "@/components/i18n/language-provider";
@@ -143,6 +143,125 @@ function splitIntoSentenceBubbles(text: string): string[] {
   return bubbles;
 }
 
+/** Reveals `text` character-by-character with a trailing blinking pencil cursor
+ * while `typing` is true (simulates Seely "writing" the block live on the
+ * canvas). Once `typing` flips false, or the text has already been fully
+ * revealed once for this `revealKey`, it just renders the plain text — so a
+ * user editing the field afterwards never fights the animation. */
+function TypeReveal({
+  text,
+  typing,
+  revealKey,
+  speed = 14,
+  className,
+}: {
+  text: string;
+  typing: boolean;
+  revealKey: string | number;
+  speed?: number;
+  className?: string;
+}) {
+  const [shown, setShown] = useState(typing ? "" : text);
+  const doneKeysRef = useRef<Set<string | number>>(new Set());
+
+  useEffect(() => {
+    if (!typing || doneKeysRef.current.has(revealKey)) {
+      setShown(text);
+      return;
+    }
+    let i = 0;
+    setShown("");
+    const step = Math.max(1, Math.round(text.length / 90));
+    const id = window.setInterval(() => {
+      i += step;
+      setShown(text.slice(0, i));
+      if (i >= text.length) {
+        window.clearInterval(id);
+        doneKeysRef.current.add(revealKey);
+        setShown(text);
+      }
+    }, speed);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealKey, text]);
+
+  const finished = shown.length >= text.length;
+  return (
+    <span className={className}>
+      {shown}
+      {typing && !finished && (
+        <span className="relative ml-0.5 inline-block h-[1em] w-[2px] -translate-y-[1px] animate-pulse bg-current align-middle" />
+      )}
+    </span>
+  );
+}
+
+/** contentEditable span used across the canvas for inline WYSIWYG edits — click
+ * to place a caret, edits commit onBlur. Disabled while Seely is still writing
+ * (typing=true) so the user can't fight the reveal animation mid-stream. */
+function Editable({
+  value,
+  onChange,
+  className,
+  as: Tag = "div",
+  disabled,
+  placeholder,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  className?: string;
+  as?: "div" | "span" | "h1" | "h2" | "h3" | "p";
+  disabled?: boolean;
+  placeholder?: string;
+}) {
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (ref.current && ref.current.innerText !== value) ref.current.innerText = value;
+  }, [value]);
+  return (
+    <Tag
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ref={ref as any}
+      contentEditable={!disabled}
+      suppressContentEditableWarning
+      onBlur={(e) => onChange((e.target as HTMLElement).innerText)}
+      data-placeholder={placeholder}
+      className={cn(
+        "outline-none transition-colors empty:before:text-current/30 empty:before:content-[attr(data-placeholder)]",
+        !disabled && "cursor-text rounded-sm hover:bg-black/[0.03] focus:bg-black/[0.04] focus:ring-1 focus:ring-inset focus:ring-current/20",
+        className,
+      )}
+    >
+      {value}
+    </Tag>
+  );
+}
+
+/** Deterministic decorative "photo" panel — a gradient + subtle geometric pattern
+ * standing in for client photography, since Seely has no image source yet. Color
+ * is derived from the proposal's theme, or falls back to the primary brand gradient. */
+function PhotoBlock({ seed, color, className }: { seed: string; color?: string; className?: string }) {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  const hue = hash % 360;
+  const bg = color
+    ? `linear-gradient(135deg, ${color}dd, ${color}55)`
+    : `linear-gradient(135deg, oklch(62% 0.14 ${hue}), oklch(48% 0.16 ${(hue + 40) % 360}))`;
+  return (
+    <div className={cn("relative overflow-hidden", className)} style={{ background: bg }}>
+      <svg className="absolute inset-0 h-full w-full opacity-25" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <pattern id={`grid-${hash}`} width="28" height="28" patternUnits="userSpaceOnUse">
+            <circle cx="2" cy="2" r="1.4" fill="white" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill={`url(#grid-${hash})`} />
+      </svg>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-white/10" />
+    </div>
+  );
+}
+
 export function AiDraftDialog({
   open,
   onClose,
@@ -216,6 +335,12 @@ export function AiDraftDialog({
   // Mobile-only Chat/Preview tab switch for the split-view layout below —
   // purely presentational, doesn't affect any drafting logic.
   const [mobilePanel, setMobilePanel] = useState<"chat" | "preview">("chat");
+  // Bumped every time a fresh draft lands from the AI (not on local edits) — used
+  // as the TypeReveal `revealKey` so the "live writing" animation only plays once
+  // per generation, never replays when the user just clicks around afterwards.
+  const [draftGen, setDraftGen] = useState(0);
+  const [canvasTyping, setCanvasTyping] = useState(false);
+  const canvasTypingTimeoutRef = useRef<number | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const stoppedRef = useRef(false);
@@ -481,6 +606,17 @@ export function AiDraftDialog({
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Full-screen focus mode: hide the dashboard behind it entirely rather than
+  // dimming it, so the composer/canvas is the only thing on screen.
+  useEffect(() => {
+    if (!open) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [open]);
 
   useEffect(() => {
     // Feature-detect rather than sniff the UA — iOS (Safari and every other
@@ -780,6 +916,10 @@ export function AiDraftDialog({
           viewMode: data.draft.viewMode ?? draft?.viewMode ?? "pages",
         };
         setDraft(nextDraft);
+        setDraftGen((g) => g + 1);
+        setCanvasTyping(true);
+        if (canvasTypingTimeoutRef.current) window.clearTimeout(canvasTypingTimeoutRef.current);
+        canvasTypingTimeoutRef.current = window.setTimeout(() => setCanvasTyping(false), 3200);
         // The model only sets this after the user explicitly confirmed the final
         // proposal in chat — save it immediately instead of waiting for a manual click.
         // Pass this turn's format directly (rather than relying on selectedFormat
@@ -1191,22 +1331,49 @@ export function AiDraftDialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:items-center"
-      onMouseDown={(e) => {
-        backdropMouseDownRef.current = e.target === e.currentTarget;
-      }}
-      onClick={(e) => {
-        // Only close if the click started AND ended on the backdrop itself —
-        // otherwise selecting a message's text and releasing the mouse past
-        // the dialog's edge (a normal thing to do) closes the whole chat.
-        if (e.target === e.currentTarget && backdropMouseDownRef.current) requestClose();
-        backdropMouseDownRef.current = false;
-      }}
+      className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-[#0b0d12]"
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
+      {/* Top-dropping toast strip — the only thing allowed to interrupt the
+         full-screen focus mode. Never blocks the canvas or composer below it. */}
+      <div className="pointer-events-none fixed inset-x-0 top-0 z-[130] flex flex-col items-center gap-2 p-3">
+        {error && (
+          <div className="pointer-events-auto flex w-full max-w-md items-start gap-2.5 rounded-xl border border-destructive/30 bg-card/95 px-4 py-3 shadow-pop backdrop-blur animate-in fade-in slide-in-from-top-4 duration-300">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <p className="text-xs text-foreground">{error}</p>
+              {overage && (
+                overage.link ? (
+                  <a
+                    href={overage.link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-primary px-2.5 text-[11px] font-semibold text-primary-foreground hover:opacity-90"
+                  >
+                    <CreditCard className="h-3 w-3" />
+                    {lang === "tr" ? `$${overage.price} öde, +${overage.drafts} teklif hakkı al` : `Pay $${overage.price} for +${overage.drafts} more drafts`}
+                  </a>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">{lang === "tr" ? "Devam etmek için bizimle iletişime geç." : "Contact us to continue."}</p>
+                )
+              )}
+            </div>
+            <button onClick={() => { setError(null); setOverage(null); }} className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+        {attachError && (
+          <div className="pointer-events-auto flex w-full max-w-md items-center gap-2.5 rounded-xl border border-destructive/30 bg-card/95 px-4 py-2.5 text-xs text-destructive shadow-pop backdrop-blur animate-in fade-in slide-in-from-top-4 duration-300">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+            {attachError}
+          </div>
+        )}
+      </div>
+
       <div
-        className="relative my-auto flex max-h-[92dvh] w-[90vw] max-w-6xl flex-col overflow-hidden rounded-3xl border border-border/70 bg-card shadow-pop"
+        className="relative flex min-h-0 flex-1 flex-col bg-card"
         onClick={(e) => e.stopPropagation()}
       >
         {showLibraryUpsell && (
@@ -1300,10 +1467,10 @@ export function AiDraftDialog({
           </button>
         </div>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-12">
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         <div
           className={cn(
-            "flex min-h-0 flex-col md:col-span-5 md:border-r md:border-border",
+            "flex min-h-0 flex-col bg-card md:w-[30%] md:min-w-[340px] md:max-w-[460px] md:flex-none md:border-r md:border-border",
             mobilePanel === "preview" && "hidden md:flex",
           )}
         >
@@ -1679,34 +1846,80 @@ export function AiDraftDialog({
 
         <div
           className={cn(
-            "min-h-0 flex-col overflow-y-auto p-5 md:col-span-7 md:flex",
+            "relative min-h-0 flex-col overflow-y-auto bg-[radial-gradient(circle_at_1px_1px,theme(colors.border/60)_1px,transparent_0)] [background-size:22px_22px] md:flex md:w-[70%] md:flex-1",
             mobilePanel === "chat" ? "hidden md:flex" : "flex",
           )}
         >
-          {draft && (
-            <div className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
-              <div className="flex items-start justify-between gap-2">
-                <h4 className="font-display text-lg font-semibold">{draft.title}</h4>
-                {mode === "proposal" && !showSaveTemplateField && !templateSaved && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTemplateSaveName(draft.title);
-                      setShowSaveTemplateField(true);
-                    }}
-                    className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border bg-card px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
-                  >
-                    <BookmarkPlus className="h-3.5 w-3.5" />
-                    {lang === "tr" ? "Taslak olarak kaydet" : "Save as template"}
-                  </button>
-                )}
-                {mode === "proposal" && templateSaved && (
-                  <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-success">
-                    <Check className="h-3.5 w-3.5" />
-                    {lang === "tr" ? "Taslak olarak kaydedildi" : "Saved as a template"}
-                  </span>
-                )}
+          {/* Floating "Seely is writing" indicator — the canvas equivalent of a live cursor. */}
+          {canvasTyping && (
+            <div className="pointer-events-none sticky top-4 z-30 mx-auto flex w-fit items-center gap-1.5 self-center rounded-full border border-primary/30 bg-card/95 px-3 py-1.5 text-[11px] font-medium text-primary shadow-pop backdrop-blur animate-in fade-in slide-in-from-top-2">
+              <PenLine className="h-3.5 w-3.5 animate-pulse" />
+              {lang === "tr" ? "Seely canlı olarak yazıyor…" : "Seely is writing live…"}
+            </div>
+          )}
+
+          {draft && (() => {
+            const theme = draft.themeJson;
+            const primary = theme?.primaryColor || "#0b2545";
+            const accent = theme?.accentColor || "#8a6d3b";
+            const typing = canvasTyping;
+            return (
+            <div className="mx-auto w-full max-w-3xl px-4 pb-24 pt-8 md:px-8">
+            <div className="overflow-hidden rounded-2xl border border-border/70 bg-white shadow-[0_30px_80px_-30px_rgba(0,0,0,0.35)]">
+              {/* ── Magazine cover: color block + photo panel + typed title ── */}
+              <div className="relative grid grid-cols-5 overflow-hidden" style={{ background: primary }}>
+                <div className="col-span-3 flex flex-col justify-between p-8 text-white/95 sm:p-10">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider">
+                      <Sparkles className="h-3 w-3" />
+                      {lang === "tr" ? "Teklif" : "Proposal"}
+                    </span>
+                    {mode === "proposal" && !showSaveTemplateField && !templateSaved && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTemplateSaveName(draft.title);
+                          setShowSaveTemplateField(true);
+                        }}
+                        className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-white/25 bg-white/10 px-2 py-1 text-[11px] font-medium text-white/90 hover:bg-white/20"
+                      >
+                        <BookmarkPlus className="h-3.5 w-3.5" />
+                        {lang === "tr" ? "Taslak olarak kaydet" : "Save as template"}
+                      </button>
+                    )}
+                    {mode === "proposal" && templateSaved && (
+                      <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-white">
+                        <Check className="h-3.5 w-3.5" />
+                        {lang === "tr" ? "Kaydedildi" : "Saved"}
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-2 pt-10">
+                    {typing ? (
+                      <h1 className="font-display text-3xl font-semibold leading-tight sm:text-4xl">
+                        <TypeReveal text={draft.title} typing={typing} revealKey={`title-${draftGen}`} />
+                      </h1>
+                    ) : (
+                      <Editable
+                        as="h1"
+                        value={draft.title}
+                        onChange={(v) => setDraft((d) => (d ? { ...d, title: v } : d))}
+                        className="font-display text-3xl font-semibold leading-tight sm:text-4xl"
+                        placeholder={lang === "tr" ? "Teklif başlığı" : "Proposal title"}
+                      />
+                    )}
+                    {mode !== "template" && (
+                      <p className="text-sm font-medium text-white/70">
+                        {lang === "tr" ? "Hazırlanan:" : "Prepared for:"}{" "}
+                        <TypeReveal text={draft.client} typing={typing} revealKey={`client-${draftGen}`} speed={22} />
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <PhotoBlock seed={draft.title + "cover"} color={accent} className="col-span-2" />
               </div>
+
+              <div className="space-y-8 p-8 sm:p-10">
               {(() => {
                 // Prefer draft.blocks when it's already been populated (e.g. by the
                 // add_legal_block_to_proposal tool — see app/api/draft-proposal/route.ts) so
@@ -1796,13 +2009,9 @@ export function AiDraftDialog({
                   </button>
                 </div>
               )}
-              {mode !== "template" && <p className="text-sm text-muted-foreground">{draft.client}</p>}
               {mode !== "template" && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {lang === "tr" ? "Görünüm" : "View"}
-                  </p>
-                  <div className="mt-1.5 inline-flex rounded-lg border border-border bg-card p-0.5 text-xs">
+                <div className="flex items-center justify-end">
+                  <div className="inline-flex rounded-lg border border-border bg-muted/30 p-0.5 text-xs">
                     {(["pages", "scroll"] as const).map((mode2) => (
                       <button
                         key={mode2}
@@ -1823,53 +2032,107 @@ export function AiDraftDialog({
                   </div>
                 </div>
               )}
+              {/* Magazine-style content sections — alternating text/photo blocks,
+                 each editable in place once Seely's done writing it. */}
               {draft.sections?.map((s, i) => (
-                <div key={i}>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{s.title}</p>
-                    <button
-                      type="button"
-                      onClick={() => saveSectionToLibrary(i, s.title, s.body)}
-                      disabled={savingSectionIndex === i || savedSectionIndexes[i]}
-                      title={lang === "tr" ? "Kütüphaneme ekle" : "Add to my library"}
-                      className={cn(
-                        "shrink-0 rounded-md p-1 transition-colors",
-                        savedSectionIndexes[i] ? "text-success" : "text-muted-foreground hover:text-primary",
-                      )}
-                    >
-                      {savingSectionIndex === i ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : savedSectionIndexes[i] ? (
-                        <Check className="h-3.5 w-3.5" />
-                      ) : (
-                        <BookmarkPlus className="h-3.5 w-3.5" />
-                      )}
-                    </button>
-                  </div>
-                  <p className="mt-1 text-sm">{s.body}</p>
-                  {s.videoUrl && (
-                    <p className="mt-1.5 truncate text-xs text-muted-foreground">🎬 {s.videoUrl}</p>
+                <div
+                  key={i}
+                  className={cn(
+                    "grid items-stretch gap-0 overflow-hidden rounded-xl border border-border/70",
+                    i % 2 === 0 ? "grid-cols-1 sm:grid-cols-5" : "grid-cols-1 sm:grid-cols-5",
                   )}
+                >
+                  <div
+                    className={cn(
+                      "flex flex-col justify-center gap-2 p-6 sm:p-7",
+                      i % 2 === 0 ? "sm:order-1 sm:col-span-3" : "sm:order-2 sm:col-span-3",
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: accent }}>
+                        <TypeReveal text={s.title} typing={typing} revealKey={`sec-t-${i}-${draftGen}`} speed={20} />
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => saveSectionToLibrary(i, s.title, s.body)}
+                        disabled={savingSectionIndex === i || savedSectionIndexes[i]}
+                        title={lang === "tr" ? "Kütüphaneme ekle" : "Add to my library"}
+                        className={cn(
+                          "shrink-0 rounded-md p-1 transition-colors",
+                          savedSectionIndexes[i] ? "text-success" : "text-muted-foreground hover:text-primary",
+                        )}
+                      >
+                        {savingSectionIndex === i ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : savedSectionIndexes[i] ? (
+                          <Check className="h-3.5 w-3.5" />
+                        ) : (
+                          <BookmarkPlus className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    </div>
+                    <Editable
+                      as="h3"
+                      value={s.title}
+                      disabled={typing}
+                      onChange={(v) =>
+                        setDraft((d) => (d ? { ...d, sections: d.sections.map((x, j) => (j === i ? { ...x, title: v } : x)) } : d))
+                      }
+                      className="font-display text-xl font-semibold text-foreground"
+                      placeholder={lang === "tr" ? "Bölüm başlığı" : "Section title"}
+                    />
+                    {typing ? (
+                      <p className="text-sm leading-relaxed text-muted-foreground">
+                        <TypeReveal text={s.body} typing={typing} revealKey={`sec-b-${i}-${draftGen}`} speed={6} />
+                      </p>
+                    ) : (
+                      <Editable
+                        as="p"
+                        value={s.body}
+                        onChange={(v) =>
+                          setDraft((d) => (d ? { ...d, sections: d.sections.map((x, j) => (j === i ? { ...x, body: v } : x)) } : d))
+                        }
+                        className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground"
+                        placeholder={lang === "tr" ? "Bölüm metni…" : "Section text…"}
+                      />
+                    )}
+                    {s.videoUrl && <p className="truncate text-xs text-muted-foreground">🎬 {s.videoUrl}</p>}
+                  </div>
+                  <PhotoBlock
+                    seed={s.title + i}
+                    color={i % 3 === 0 ? accent : undefined}
+                    className={cn("min-h-[140px] sm:col-span-2", i % 2 === 0 ? "sm:order-2" : "sm:order-1")}
+                  />
                 </div>
               ))}
               {draft.lineItems?.length > 0 && (
-                <table className="w-full text-sm">
-                  <tbody>
-                    {draft.lineItems.map((li, i) => (
-                      <tr key={i} className="border-t border-border">
-                        <td className="py-1.5">
-                          {li.name} × {li.qty}
-                          {li.optional && (
-                            <span className="ml-1.5 text-[10px] text-muted-foreground">
-                              ({lang === "tr" ? "opsiyonel" : "optional"})
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-1.5 text-right tnum">${(li.unit * li.qty).toLocaleString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div className="overflow-hidden rounded-xl border border-border/70">
+                  <div className="px-5 py-3 text-white" style={{ background: primary }}>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/80">
+                      {lang === "tr" ? "Yatırım" : "Investment"}
+                    </p>
+                    <p className="font-display text-lg font-semibold">
+                      ${draft.value.toLocaleString()}
+                    </p>
+                  </div>
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {draft.lineItems.map((li, i) => (
+                        <tr key={i} className="border-t border-border/60">
+                          <td className="px-5 py-2.5">
+                            {li.name} × {li.qty}
+                            {li.optional && (
+                              <span className="ml-1.5 text-[10px] text-muted-foreground">
+                                ({lang === "tr" ? "opsiyonel" : "optional"})
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-5 py-2.5 text-right tnum">${(li.unit * li.qty).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
               {draft.billingOptions && draft.billingOptions.length > 0 && (
                 <div className="space-y-2">
@@ -1923,54 +2186,92 @@ export function AiDraftDialog({
                   {lang === "tr" ? "✓ Kaydedildi — düzenlemeye devam edebilirsin." : "✓ Saved — you can keep editing."}
                 </p>
               )}
+              </div>
             </div>
-          )}
+            </div>
+            );
+          })()}
 
           {!draft && sending && (
-            <div className="flex h-full flex-col justify-center gap-4">
-              <div className="animate-pulse space-y-4 rounded-2xl border border-border/70 bg-muted/20 p-5">
-                <div className="flex items-center justify-between">
-                  <div className="h-5 w-2/5 rounded-md bg-muted" />
-                  <div className="h-5 w-14 rounded-full bg-muted" />
-                </div>
-                <div className="space-y-2">
-                  <div className="h-3 w-full rounded bg-muted" />
-                  <div className="h-3 w-11/12 rounded bg-muted" />
-                  <div className="h-3 w-3/5 rounded bg-muted" />
-                </div>
-                <div className="space-y-2 pt-1">
-                  <div className="h-3 w-1/3 rounded bg-muted" />
-                  <div className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2">
-                    <div className="h-3 w-1/2 rounded bg-muted" />
-                    <div className="h-3 w-10 rounded bg-muted" />
+            <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-4 px-4 py-8 md:px-8">
+              <div className="overflow-hidden rounded-2xl border border-border/70 bg-white shadow-[0_30px_80px_-30px_rgba(0,0,0,0.35)]">
+                <div className="grid grid-cols-5 animate-pulse gap-0" style={{ background: "linear-gradient(135deg,#0b2545,#1c3a63)" }}>
+                  <div className="col-span-3 space-y-3 p-8">
+                    <div className="h-4 w-24 rounded-full bg-white/15" />
+                    <div className="h-8 w-4/5 rounded-md bg-white/20" />
+                    <div className="h-3 w-1/2 rounded bg-white/15" />
                   </div>
-                  <div className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2">
-                    <div className="h-3 w-2/5 rounded bg-muted" />
-                    <div className="h-3 w-10 rounded bg-muted" />
+                  <div className="col-span-2 bg-white/10" />
+                </div>
+                <div className="animate-pulse space-y-4 p-8">
+                  <div className="space-y-2">
+                    <div className="h-3 w-full rounded bg-muted" />
+                    <div className="h-3 w-11/12 rounded bg-muted" />
+                    <div className="h-3 w-3/5 rounded bg-muted" />
+                  </div>
+                  <div className="space-y-2 pt-1">
+                    <div className="h-3 w-1/3 rounded bg-muted" />
+                    <div className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2">
+                      <div className="h-3 w-1/2 rounded bg-muted" />
+                      <div className="h-3 w-10 rounded bg-muted" />
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2">
+                      <div className="h-3 w-2/5 rounded bg-muted" />
+                      <div className="h-3 w-10 rounded bg-muted" />
+                    </div>
                   </div>
                 </div>
               </div>
               <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                <PenLine className="h-3.5 w-3.5 animate-pulse text-primary" />
                 {lang === "tr" ? "Seely taslağı hazırlıyor…" : "Seely is preparing the draft…"}
               </p>
             </div>
           )}
 
           {!draft && !sending && (
-            <div className="grid h-full place-items-center text-center">
-              <div className="max-w-xs space-y-3">
-                <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[image:var(--grad-brand)]/10 text-primary">
-                  <Sparkles className="h-5 w-5" />
-                </span>
-                <p className="text-sm font-medium text-foreground">
-                  {lang === "tr" ? "Canlı önizleme burada belirecek" : "Your live preview will appear here"}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {lang === "tr"
-                    ? "Sol taraftan bir komut gönder, Seely taslağı saniyeler içinde bu alanda oluştursun."
-                    : "Send a command on the left and Seely will build the draft here in seconds."}
-                </p>
+            <div className="mx-auto w-full max-w-3xl px-4 pb-24 pt-8 md:px-8">
+              <div className="overflow-hidden rounded-2xl border border-border/70 bg-white shadow-[0_30px_80px_-30px_rgba(0,0,0,0.35)]">
+                {/* Blank document shell — a cover band + skeleton copy so the canvas
+                   reads as an empty A4 proposal waiting to be written, never as a
+                   bare message box. */}
+                <div
+                  className="relative grid grid-cols-5 overflow-hidden"
+                  style={{ background: "#0b2545" }}
+                >
+                  <div className="col-span-3 flex flex-col justify-between p-8 text-white/95 sm:p-10">
+                    <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider">
+                      <Sparkles className="h-3 w-3" />
+                      {lang === "tr" ? "Teklif" : "Proposal"}
+                    </span>
+                    <div className="space-y-2 pt-10">
+                      <div className="h-8 w-2/3 rounded bg-white/15" />
+                      <div className="h-3.5 w-1/3 rounded bg-white/10" />
+                    </div>
+                  </div>
+                  <PhotoBlock seed="empty-cover" className="col-span-2" />
+                </div>
+                <div className="space-y-6 p-8 sm:p-10">
+                  <div className="space-y-2.5">
+                    <div className="h-3.5 w-1/4 rounded bg-muted" />
+                    <div className="h-3 w-full rounded bg-muted/70" />
+                    <div className="h-3 w-5/6 rounded bg-muted/70" />
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[0, 1, 2].map((i) => (
+                      <div key={i} className="space-y-2 rounded-xl border border-border/60 p-3">
+                        <div className="h-3 w-1/2 rounded bg-muted" />
+                        <div className="h-6 w-2/3 rounded bg-muted/70" />
+                      </div>
+                    ))}
+                  </div>
+                  <p className="flex items-center justify-center gap-1.5 pt-2 text-center text-xs text-muted-foreground">
+                    <Sparkles className="h-3.5 w-3.5 text-primary/60" />
+                    {lang === "tr"
+                      ? "Sol taraftan bir komut gönder, Seely taslağı saniyeler içinde bu dokümanın üzerine canlı olarak yazsın."
+                      : "Send a command on the left and Seely will write the draft live onto this document in seconds."}
+                  </p>
+                </div>
               </div>
             </div>
           )}

@@ -23,9 +23,10 @@ import {
 } from "lucide-react";
 import appConfig from "@/app.config";
 import { Icon } from "@/components/ui/icon";
+import { Badge } from "@/components/ui/badge";
 import { SignDemo } from "@/components/marketing/sign-demo";
 import { DemoRequestDialog } from "@/components/marketing/demo-request-dialog";
-import { ProductPreview, CompanyMark } from "@/components/marketing/marks";
+import { ProductPreview, CompanyMark, AppWindowFrame } from "@/components/marketing/marks";
 import { useLang } from "@/components/i18n/language-provider";
 import { cn } from "@/lib/utils";
 import type { L } from "@/lib/i18n/config";
@@ -341,7 +342,7 @@ export default function LandingPage() {
           </div>
           <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {m.features.map((f) => (
-              <div key={tt(f.title)} className="group rounded-2xl border border-border bg-card p-6 shadow-soft transition-shadow hover:shadow-pop">
+              <div key={tt(f.title)} className="group card-hover rounded-2xl border border-border bg-card p-6 shadow-soft">
                 <span className="grid h-11 w-11 place-items-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                   <Icon name={f.icon} className="h-5 w-5" />
                 </span>
@@ -381,7 +382,8 @@ export default function LandingPage() {
                 </ul>
               </div>
               {/* illustrative panel */}
-              <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+              <AppWindowFrame label={lang === "tr" ? "seelydeal.app" : "seelydeal.app"}>
+              <div className="p-5">
                 {d.panel === "ai" && (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 p-3">
@@ -442,6 +444,7 @@ export default function LandingPage() {
                             <I className="h-3.5 w-3.5" />
                           </span>
                           <span className="flex-1 text-[13px] font-medium">{r.l}</span>
+                          {i === 3 && <span className="h-1.5 w-1.5 rounded-full bg-accent pulse-dot" />}
                           <span className="tnum text-[11px] text-muted-foreground">{r.t}</span>
                         </div>
                       );
@@ -449,6 +452,7 @@ export default function LandingPage() {
                   </div>
                 )}
               </div>
+              </AppWindowFrame>
             </div>
           ))}
         </div>
@@ -518,7 +522,8 @@ export default function LandingPage() {
             </div>
           </div>
           {/* tracking dashboard preview */}
-          <div className="rounded-2xl border border-border bg-card p-5 shadow-pop">
+          <AppWindowFrame label="PRO-2048 · Northwind">
+          <div className="p-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <span className="grid h-9 w-9 place-items-center rounded-lg text-white" style={{ backgroundImage: "var(--grad-brand)" }}>
@@ -562,6 +567,7 @@ export default function LandingPage() {
               </button>
             </div>
           </div>
+          </AppWindowFrame>
         </div>
       </section>
 
@@ -574,7 +580,7 @@ export default function LandingPage() {
           </div>
           <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {USE_CASES.map((u) => (
-              <div key={tt(u.title)} className="rounded-2xl border border-border bg-card p-6 shadow-soft">
+              <div key={tt(u.title)} className="card-hover rounded-2xl border border-border bg-card p-6 shadow-soft">
                 <span className="grid h-11 w-11 place-items-center rounded-xl bg-primary/10 text-primary">
                   <Icon name={u.icon} className="h-5 w-5" />
                 </span>
@@ -631,7 +637,7 @@ export default function LandingPage() {
         </div>
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {INTEGRATIONS.map((it) => (
-            <div key={it.name} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-5 shadow-soft">
+            <div key={it.name} className="card-hover flex items-center gap-3 rounded-2xl border border-border bg-card p-5 shadow-soft">
               <IntegrationGlyph glyph={it.glyph} />
               <div>
                 <p className="font-semibold tracking-tight">{it.name}</p>
@@ -667,7 +673,7 @@ export default function LandingPage() {
               ].map((s) => {
                 const I = s.icon;
                 return (
-                  <div key={s.value} className="rounded-2xl border border-border bg-card p-6 shadow-soft">
+                  <div key={s.value} className="card-hover rounded-2xl border border-border bg-card p-6 shadow-soft">
                     <span className="grid h-10 w-10 place-items-center rounded-xl text-white" style={{ background: s.tone }}>
                       <I className="h-[18px] w-[18px]" />
                     </span>
@@ -727,7 +733,7 @@ export default function LandingPage() {
               <div
                 key={tier.name}
                 className={cn(
-                  "flex flex-col rounded-2xl border bg-card p-7 shadow-soft",
+                  "card-hover flex flex-col rounded-2xl border bg-card p-7 shadow-soft",
                   tier.featured ? "border-primary/40 shadow-pop ring-1 ring-primary/20" : "border-border",
                 )}
               >
@@ -910,20 +916,26 @@ function CompareCell({
   highlight?: boolean;
 }) {
   const text = typeof value === "string" ? value : typeof value === "object" ? value[lang] : null;
+  const included = lang === "tr" ? "Dahil" : "Included";
+  const missing = lang === "tr" ? "Yok" : "None";
   return (
     <td className={cn("px-5 py-3.5 text-center", highlight && "bg-primary/[0.05]")}>
       {typeof value === "boolean" ? (
         value ? (
-          <span className={cn("mx-auto grid h-5 w-5 place-items-center rounded-full", highlight ? "bg-primary text-primary-foreground" : "bg-success/12 text-success")}>
+          <Badge tone={highlight ? "primary" : "success"} className={cn("mx-auto", highlight && "bg-primary/15")}>
             <Check className="h-3 w-3" strokeWidth={3} />
-          </span>
+            {included}
+          </Badge>
         ) : (
-          <span className="mx-auto grid h-5 w-5 place-items-center rounded-full bg-muted text-muted-foreground">
+          <Badge tone="neutral" className="mx-auto">
             <Minus className="h-3 w-3" />
-          </span>
+            {missing}
+          </Badge>
         )
       ) : (
-        <span className={cn("text-[13px] font-medium", highlight ? "text-primary" : "text-muted-foreground")}>{text}</span>
+        <Badge tone={highlight ? "primary" : "neutral"} className="mx-auto">
+          {text}
+        </Badge>
       )}
     </td>
   );

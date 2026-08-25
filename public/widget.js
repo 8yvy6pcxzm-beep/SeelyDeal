@@ -13,36 +13,33 @@
   style.textContent =
     ":host{all:initial}" +
     "*{box-sizing:border-box;font-family:'Hanken Grotesk',system-ui,-apple-system,sans-serif}" +
-    ".fab{position:fixed;bottom:22px;right:22px;width:48px;height:48px;border-radius:50%;" +
-    "background:linear-gradient(155deg,#8b7bf7 0%,#6d4de0 45%,#5334c9 100%);" +
-    "color:#fff;border:none;cursor:pointer;" +
-    "box-shadow:0 10px 24px -6px rgba(83,52,201,.55),0 2px 6px rgba(83,52,201,.35),inset 0 1px 0 rgba(255,255,255,.4),inset 0 -6px 10px rgba(0,0,0,.12);" +
+    ".fab{position:fixed;bottom:22px;right:22px;width:52px;height:52px;border-radius:16px;" +
+    "background:#fff;color:#5334c9;border:1px solid #e6e2f0;cursor:pointer;" +
+    "box-shadow:0 1px 2px rgba(30,20,60,.04),0 12px 28px -8px rgba(30,20,60,.16);" +
     "z-index:2147483000;display:flex;align-items:center;justify-content:center;" +
-    "transition:transform .25s cubic-bezier(.34,1.56,.64,1),box-shadow .25s ease;}" +
-    ".fab:hover{transform:scale(1.08) translateY(-2px);" +
-    "box-shadow:0 14px 28px -6px rgba(83,52,201,.6),0 4px 10px rgba(83,52,201,.4),inset 0 1px 0 rgba(255,255,255,.45),inset 0 -6px 10px rgba(0,0,0,.12);}" +
-    ".fab:active{transform:scale(.96)}" +
-    ".fab svg{width:26px;height:26px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.15))}" +
-    ".fabglow{position:fixed;bottom:22px;right:22px;width:48px;height:48px;border-radius:50%;" +
-    "background:radial-gradient(circle,rgba(201,245,107,.55) 0%,rgba(201,245,107,0) 70%);" +
-    "animation:fabpulse 2s infinite;z-index:2147482999;pointer-events:none;}" +
-    "@keyframes fabpulse{0%,100%{opacity:.5;transform:scale(.9)}50%{opacity:1;transform:scale(1.4)}}" +
-    /* "we're online" ring — a visible pulsing green border around the bubble, distinct from
-       the softer glow above, so the widget reads as actively staffed even before it's opened. */
-    ".fabring{position:fixed;bottom:18px;right:18px;width:56px;height:56px;border-radius:50%;" +
-    "border:2px solid #a9e23d;animation:fabring 1.8s ease-in-out infinite;z-index:2147482998;pointer-events:none;}" +
-    "@keyframes fabring{0%,100%{opacity:.9;box-shadow:0 0 0 0 rgba(169,226,61,.5)}50%{opacity:.35;box-shadow:0 0 0 5px rgba(169,226,61,0)}}" +
+    "transition:transform .22s cubic-bezier(.22,1,.36,1),box-shadow .22s ease,border-color .22s ease;}" +
+    ".fab:hover{transform:translateY(-2px);border-color:#c9c0f0;" +
+    "box-shadow:0 1px 2px rgba(30,20,60,.05),0 16px 32px -8px rgba(30,20,60,.2);}" +
+    ".fab:active{transform:translateY(0) scale(.97)}" +
+    ".fab svg{width:22px;height:22px}" +
+    /* small live status dot, top-right of the bubble — quiet "we're online" signal
+       instead of a heavy glow/ring around the whole button. */
+    ".fabdot{position:fixed;bottom:58px;right:24px;width:10px;height:10px;border-radius:50%;" +
+    "background:#22c55e;border:2px solid #fff;box-shadow:0 0 0 0 rgba(34,197,94,.5);" +
+    "animation:fabdot 2s ease-in-out infinite;z-index:2147483001;pointer-events:none;}" +
+    "@keyframes fabdot{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.45)}50%{box-shadow:0 0 0 4px rgba(34,197,94,0)}}" +
+    "@keyframes dotpulse{0%,100%{opacity:1}50%{opacity:.45}}" +
     ".panel{position:fixed;bottom:96px;right:22px;width:360px;max-width:calc(100vw - 32px);height:520px;" +
     "max-height:calc(100vh - 140px);background:#faf9ff;border-radius:22px;" +
     "box-shadow:0 24px 60px -12px rgba(83,52,201,.35),0 8px 24px rgba(0,0,0,.12);" +
     "display:none;flex-direction:column;overflow:hidden;z-index:2147483000;border:1px solid #e6e2fb;}" +
     ".panel.open{display:flex}" +
-    ".fab.hidden,.fabglow.hidden,.fabring.hidden{display:none}" +
+    ".fab.hidden,.fabdot.hidden{display:none}" +
     ".hd{background:linear-gradient(135deg,#8b7bf7 0%,#6d4de0 55%,#5334c9 100%);color:#fff;padding:16px 18px;" +
     "display:flex;align-items:center;gap:10px;position:relative;overflow:hidden;}" +
     ".hd::after{content:'';position:absolute;top:-40%;right:-10%;width:120px;height:120px;border-radius:50%;" +
     "background:radial-gradient(circle,rgba(255,255,255,.25) 0%,rgba(255,255,255,0) 70%);pointer-events:none}" +
-    ".hd .dot{width:9px;height:9px;border-radius:50%;background:#c9f56b;box-shadow:0 0 0 3px rgba(201,245,107,.3)}" +
+    ".hd .dot{width:9px;height:9px;border-radius:50%;background:#c9f56b;box-shadow:0 0 0 3px rgba(201,245,107,.3);animation:dotpulse 2s ease-in-out infinite}" +
     ".hd .t{flex:1}" +
     ".hd .t b{display:block;font-size:14px;font-weight:800}" +
     ".hd .t span{display:block;font-size:11px;color:#e3ddff}" +
@@ -76,10 +73,9 @@
 
   var wrap = document.createElement("div");
   wrap.innerHTML =
-    '<span class="fabglow"></span>' +
-    '<span class="fabring"></span>' +
+    '<span class="fabdot"></span>' +
     '<button class="fab" aria-label="AI ile sohbet et">' +
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>' +
     '</button>' +
     '<div class="panel">' +
       '<div class="hd"><span class="dot"></span><div class="t"><b>seelynow destek</b><span>AI asistanı</span></div>' +
@@ -96,8 +92,7 @@
   root.appendChild(wrap);
 
   var fab = root.querySelector(".fab");
-  var fabglow = root.querySelector(".fabglow");
-  var fabring = root.querySelector(".fabring");
+  var fabdot = root.querySelector(".fabdot");
   var panel = root.querySelector(".panel");
   var closeBtn = root.querySelector(".close");
   var msgsEl = root.querySelector(".msgs");
@@ -128,8 +123,7 @@
   function openPanel() {
     panel.classList.add("open");
     fab.classList.add("hidden");
-    fabglow.classList.add("hidden");
-    fabring.classList.add("hidden");
+    fabdot.classList.add("hidden");
     if (!greeted) {
       greeted = true;
       addMsg("bot", "Merhaba! Ben Seely, seelynow ajansının AI asistanıyım. Otomasyon ihtiyaçların hakkında soru sorabilir ya da direkt bir görüşme ayarlayabilirsin. Nasıl yardımcı olabilirim?");
@@ -140,8 +134,7 @@
   function closePanel() {
     panel.classList.remove("open");
     fab.classList.remove("hidden");
-    fabglow.classList.remove("hidden");
-    fabring.classList.remove("hidden");
+    fabdot.classList.remove("hidden");
   }
 
   fab.addEventListener("click", function () {
