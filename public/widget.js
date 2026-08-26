@@ -29,11 +29,21 @@
     "animation:fabdot 2s ease-in-out infinite;z-index:2147483001;pointer-events:none;}" +
     "@keyframes fabdot{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.45)}50%{box-shadow:0 0 0 4px rgba(34,197,94,0)}}" +
     "@keyframes dotpulse{0%,100%{opacity:1}50%{opacity:.45}}" +
+    /* Apple/macOS-Sonoma-style frosted glass: translucent white over a blurred
+       backdrop of whatever page sits behind the widget, plus a soft inset
+       highlight along the top edge for the "light catching glass" look. Stays
+       always in the layout (position:fixed, so no reflow) and opens/closes via
+       opacity+scale+visibility instead of display:none so the transition is a
+       smooth fade/lift rather than a hard cut. */
     ".panel{position:fixed;bottom:96px;right:22px;width:360px;max-width:calc(100vw - 32px);height:520px;" +
-    "max-height:calc(100vh - 140px);background:#faf9ff;border-radius:22px;" +
-    "box-shadow:0 24px 60px -12px rgba(83,52,201,.35),0 8px 24px rgba(0,0,0,.12);" +
-    "display:none;flex-direction:column;overflow:hidden;z-index:2147483000;border:1px solid #e6e2fb;}" +
-    ".panel.open{display:flex}" +
+    "max-height:calc(100vh - 140px);background:rgba(255,255,255,.72);" +
+    "backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);border-radius:22px;" +
+    "box-shadow:0 24px 60px -12px rgba(83,52,201,.28),0 8px 24px rgba(0,0,0,.10),inset 0 1px 0 rgba(255,255,255,.7);" +
+    "display:flex;flex-direction:column;overflow:hidden;z-index:2147483000;border:1px solid rgba(255,255,255,.55);" +
+    "opacity:0;visibility:hidden;pointer-events:none;transform:translateY(16px) scale(.96);" +
+    "transition:opacity .28s cubic-bezier(.22,1,.36,1),transform .28s cubic-bezier(.22,1,.36,1),visibility 0s linear .28s;}" +
+    ".panel.open{opacity:1;visibility:visible;pointer-events:auto;transform:translateY(0) scale(1);" +
+    "transition:opacity .28s cubic-bezier(.22,1,.36,1),transform .28s cubic-bezier(.22,1,.36,1),visibility 0s linear 0s;}" +
     ".fab.hidden,.fabdot.hidden{display:none}" +
     ".hd{background:linear-gradient(135deg,#8b7bf7 0%,#6d4de0 55%,#5334c9 100%);color:#fff;padding:16px 18px;" +
     "display:flex;align-items:center;gap:10px;position:relative;overflow:hidden;}" +
@@ -45,7 +55,7 @@
     ".hd .t span{display:block;font-size:11px;color:#e3ddff}" +
     ".hd button{background:none;border:none;color:#e3ddff;cursor:pointer;padding:4px;border-radius:8px;}" +
     ".hd button:hover{background:rgba(255,255,255,.15)}" +
-    ".msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:#faf9ff}" +
+    ".msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:rgba(255,255,255,.32)}" +
     ".msg{max-width:82%;padding:10px 13px;border-radius:14px;font-size:13.5px;line-height:1.5;white-space:pre-wrap}" +
     ".msg.bot{background:#fff;border:1px solid #ece8fb;color:#221c3d;align-self:flex-start;border-bottom-left-radius:4px;" +
     "box-shadow:0 1px 2px rgba(83,52,201,.06)}" +
@@ -60,7 +70,8 @@
     "background:linear-gradient(135deg,#c9f56b,#a9e23d);color:#3a4d0a;white-space:nowrap;" +
     "box-shadow:0 2px 6px rgba(169,226,61,.4)}" +
     ".cta a.secondary{background:#fff;border:1px solid #e0dcf5;color:#5b5470;box-shadow:none}" +
-    ".ft{padding:12px;border-top:1px solid #ece8fb;display:flex;gap:8px;background:#fff}" +
+    ".ft{padding:12px;border-top:1px solid rgba(230,226,251,.6);display:flex;gap:8px;background:rgba(255,255,255,.55);" +
+    "backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}" +
     ".ft input{flex:1;border:1px solid #e0dcf5;border-radius:12px;padding:10px 12px;font-size:13.5px;outline:none;color:#221c3d}" +
     ".ft input:focus{border-color:#8b7bf7;box-shadow:0 0 0 3px rgba(139,123,247,.15)}" +
     ".ft button{background:linear-gradient(135deg,#8b7bf7,#6741e0);color:#fff;border:none;border-radius:12px;width:40px;cursor:pointer;" +
@@ -99,6 +110,36 @@
   var input = root.querySelector(".ft input");
   var sendBtn = root.querySelector(".ft button");
 
+  // iOS Safari doesn't resize `position:fixed` elements when the software
+  // keyboard opens — it keeps them pinned to the *layout* viewport, so the
+  // panel (and the CTA row above the input) ends up partly hidden behind the
+  // keyboard, and Safari's compositor leaves a smeared/ghosted frame of that
+  // stale content floating above the keyboard's own accessory bar. Track the
+  // real visible area via visualViewport and push the panel above the
+  // keyboard instead of trusting the CSS `bottom` alone.
+  var mqMobile = window.matchMedia("(max-width:480px)");
+  function repositionForKeyboard() {
+    if (!window.visualViewport) return;
+    var vv = window.visualViewport;
+    var keyboardInset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    var baseBottom = mqMobile.matches ? 88 : 96;
+    panel.style.bottom = baseBottom + keyboardInset + "px";
+    panel.style.maxHeight = "calc(" + vv.height + "px - " + (baseBottom + keyboardInset + 24) + "px)";
+  }
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", repositionForKeyboard);
+    window.visualViewport.addEventListener("scroll", repositionForKeyboard);
+  }
+  input.addEventListener("focus", function () {
+    repositionForKeyboard();
+    // iOS reports the shrunk viewport a beat after focus fires — resample.
+    setTimeout(repositionForKeyboard, 60);
+    setTimeout(repositionForKeyboard, 350);
+  });
+  input.addEventListener("blur", function () {
+    setTimeout(repositionForKeyboard, 60);
+  });
+
   var history = [];
   var greeted = false;
 
@@ -124,6 +165,7 @@
     panel.classList.add("open");
     fab.classList.add("hidden");
     fabdot.classList.add("hidden");
+    repositionForKeyboard();
     if (!greeted) {
       greeted = true;
       addMsg("bot", "Merhaba! Ben Seely, seelynow ajansının AI asistanıyım. Otomasyon ihtiyaçların hakkında soru sorabilir ya da direkt bir görüşme ayarlayabilirsin. Nasıl yardımcı olabilirim?");

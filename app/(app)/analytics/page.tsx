@@ -150,7 +150,7 @@ export default function AnalyticsPage() {
       </div>
 
       {stats.total === 0 ? (
-        <div className="rounded-2xl border border-border bg-card p-10 text-center text-sm text-muted-foreground">
+        <div className="glass-card p-10 text-center text-sm text-muted-foreground">
           {lang === "tr"
             ? "Henüz teklif yok — ilk teklifini oluşturunca burada istatistiklerini göreceksin."
             : "No proposals yet — create your first one to see stats here."}
