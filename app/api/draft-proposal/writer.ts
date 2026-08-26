@@ -83,23 +83,22 @@ export async function* streamDraft(opts: {
       { signal: opts.signal },
     );
 
-    // Text deltas go straight to the client as they're generated — this is
+    // Text deltas go straight to the client AS Anthropic emits them — this is
     // the actual latency win over v1's `messages.create` (blocks until the
-    // full response, including any trailing json/brand/... fences, is done).
-    const textChunks: string[] = [];
-    const finalMessage = await new Promise<Anthropic.Message>((resolve, reject) => {
-      stream.on("text", (delta) => textChunks.push(delta));
-      stream.on("message", (msg) => resolve(msg));
-      stream.on("error", (err) => reject(err));
-    });
-
-    // Emit text deltas in order now that we have them — for a true
-    // char-by-char UI feel, swap this loop for yielding inside the "text"
-    // listener via an async queue (left as a follow-up; the SSE contract in
-    // stream.ts already supports it, this is a streaming-transport detail).
-    for (const delta of textChunks) {
-      if (delta) yield { type: "text", delta };
+    // full response is done). Previously this loop buffered every delta into
+    // an array and only yielded them after `stream.on("message")` fired,
+    // i.e. after the ENTIRE turn had finished generating — for a long
+    // proposal that's 20-60s+ with zero bytes going out over the SSE
+    // connection. Mobile networks (and some proxies) silently drop an HTTP
+    // connection that idle that long, which surfaced to users as a generic
+    // "Connection error" mid-generation. Iterating the stream's own raw
+    // events yields each delta the moment it arrives instead.
+    for await (const streamEvent of stream) {
+      if (streamEvent.type === "content_block_delta" && streamEvent.delta.type === "text_delta") {
+        yield { type: "text", delta: streamEvent.delta.text };
+      }
     }
+    const finalMessage = await stream.finalMessage();
 
     if (finalMessage.stop_reason !== "tool_use") {
       return;

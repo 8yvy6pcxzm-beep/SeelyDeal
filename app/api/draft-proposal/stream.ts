@@ -36,6 +36,19 @@ export function sseResponse(gen: (signal: AbortSignal) => AsyncGenerator<DraftEv
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      // Belt-and-suspenders against any other silent gap (a tool-call round
+      // trip, a slow DB query between turns, the brief window before the
+      // Writer's first token) — a comment-only SSE frame keeps bytes flowing
+      // so mobile carriers/proxies never see the connection go idle long
+      // enough to reap it. parseSseChunk already ignores non-"data:" lines.
+      const heartbeat = setInterval(() => {
+        try {
+          controller.enqueue(encoder.encode(": ping\n\n"));
+        } catch {
+          // Controller may already be closing — the interval is cleared
+          // right after in `finally`; this just avoids a race-y throw.
+        }
+      }, 15_000);
       try {
         for await (const event of gen(abortController.signal)) {
           controller.enqueue(encoder.encode(formatEvent(event)));
@@ -46,6 +59,7 @@ export function sseResponse(gen: (signal: AbortSignal) => AsyncGenerator<DraftEv
         const message = err instanceof Error ? err.message : "AI yanıt veremedi.";
         controller.enqueue(encoder.encode(formatEvent({ type: "error", message })));
       } finally {
+        clearInterval(heartbeat);
         controller.close();
       }
     },
