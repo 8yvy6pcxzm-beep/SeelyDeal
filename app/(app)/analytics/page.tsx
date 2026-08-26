@@ -158,38 +158,38 @@ export default function AnalyticsPage() {
       ) : (
         <>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <div className="glass-card p-4">
-              <div className="flex items-center gap-2 text-muted-foreground">
+            <div className="glass-card card-hover p-4">
+              <span className="badge-icon tone-info h-8 w-8">
                 <FileText className="h-4 w-4" />
-                <p className="text-[12.5px] font-medium">{lang === "tr" ? "Toplam teklif" : "Total proposals"}</p>
-              </div>
-              <p className="tnum mt-2 text-2xl font-bold">{stats.total}</p>
+              </span>
+              <p className="mt-3 text-[12.5px] font-medium text-muted-foreground">{lang === "tr" ? "Toplam teklif" : "Total proposals"}</p>
+              <p className="tnum mt-1 text-2xl font-bold">{stats.total}</p>
             </div>
-            <div className="glass-card p-4">
-              <div className="flex items-center gap-2 text-muted-foreground">
+            <div className="glass-card card-hover p-4">
+              <span className="badge-icon tone-violet h-8 w-8">
                 <Target className="h-4 w-4" />
-                <p className="text-[12.5px] font-medium">{lang === "tr" ? "Kazanma oranı" : "Win rate"}</p>
-              </div>
-              <p className="tnum mt-2 text-2xl font-bold">{stats.decided > 0 ? `${stats.winRate}%` : "—"}</p>
+              </span>
+              <p className="mt-3 text-[12.5px] font-medium text-muted-foreground">{lang === "tr" ? "Kazanma oranı" : "Win rate"}</p>
+              <p className="tnum mt-1 text-2xl font-bold">{stats.decided > 0 ? `${stats.winRate}%` : "—"}</p>
               {stats.decided === 0 && (
                 <p className="mt-1 text-[11px] text-muted-foreground">
                   {lang === "tr" ? "Henüz sonuçlanan teklif yok" : "No decided proposals yet"}
                 </p>
               )}
             </div>
-            <div className="glass-card p-4">
-              <div className="flex items-center gap-2 text-muted-foreground">
+            <div className="glass-card card-hover p-4">
+              <span className="badge-icon tone-success h-8 w-8">
                 <DollarSign className="h-4 w-4" />
-                <p className="text-[12.5px] font-medium">{lang === "tr" ? "Kabul edilen değer" : "Accepted value"}</p>
-              </div>
-              <p className="tnum mt-2 text-2xl font-bold">{formatUsd(stats.acceptedValue)}</p>
+              </span>
+              <p className="mt-3 text-[12.5px] font-medium text-muted-foreground">{lang === "tr" ? "Kabul edilen değer" : "Accepted value"}</p>
+              <p className="tnum mt-1 text-2xl font-bold">{formatUsd(stats.acceptedValue)}</p>
             </div>
-            <div className="glass-card p-4">
-              <div className="flex items-center gap-2 text-muted-foreground">
+            <div className="glass-card card-hover p-4">
+              <span className="badge-icon tone-warning h-8 w-8">
                 <TrendingUp className="h-4 w-4" />
-                <p className="text-[12.5px] font-medium">{lang === "tr" ? "Ortalama anlaşma" : "Avg. deal size"}</p>
-              </div>
-              <p className="tnum mt-2 text-2xl font-bold">{stats.byStatus.accepted > 0 ? formatUsd(stats.avgDeal) : "—"}</p>
+              </span>
+              <p className="mt-3 text-[12.5px] font-medium text-muted-foreground">{lang === "tr" ? "Ortalama anlaşma" : "Avg. deal size"}</p>
+              <p className="tnum mt-1 text-2xl font-bold">{stats.byStatus.accepted > 0 ? formatUsd(stats.avgDeal) : "—"}</p>
             </div>
           </div>
 
