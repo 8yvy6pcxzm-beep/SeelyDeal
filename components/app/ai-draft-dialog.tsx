@@ -261,7 +261,7 @@ const SECTOR_IMAGE_QUERY: Record<string, string> = {
 
 /** Cover/section image panel. Renders a real stock photo (via Unsplash Source,
  * keyed by the proposal's sector) when one can be fetched; otherwise falls back
- * to a deterministic gradient + geometric pattern derived from the theme. */
+ * to a smooth, pattern-free gradient + soft ambient light derived from the theme. */
 function PhotoBlock({
   seed,
   color,
@@ -296,14 +296,9 @@ function PhotoBlock({
           onError={() => setImgFailed(true)}
         />
       ) : (
-        <svg className="absolute inset-0 h-full w-full opacity-25" preserveAspectRatio="xMidYMid slice">
-          <defs>
-            <pattern id={`grid-${hash}`} width="28" height="28" patternUnits="userSpaceOnUse">
-              <circle cx="2" cy="2" r="1.4" fill="white" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill={`url(#grid-${hash})`} />
-        </svg>
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-slate-100/60 to-slate-50" aria-hidden>
+          <div className="absolute inset-0 bg-blue-500/5 blur-3xl pointer-events-none" />
+        </div>
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-white/10" />
     </div>
@@ -1388,7 +1383,7 @@ export function AiDraftDialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-[#0b0d12]"
+      className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-100/60"
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
@@ -1430,7 +1425,7 @@ export function AiDraftDialog({
       </div>
 
       <div
-        className="relative flex min-h-0 flex-1 flex-col bg-card"
+        className="relative m-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/80 shadow-[0_20px_60px_rgba(0,0,0,0.08)] ring-1 ring-black/5 backdrop-blur-xl transition-shadow duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         {showLibraryUpsell && (
@@ -1474,9 +1469,9 @@ export function AiDraftDialog({
             </div>
           </div>
         )}
-        <div className="flex items-center justify-between border-b border-border/70 bg-gradient-to-r from-primary/[0.06] via-transparent to-transparent px-6 py-4">
+        <div className="flex items-center justify-between border-b border-white/60 bg-white/50 px-6 py-4 backdrop-blur-md">
           <div className="flex items-center gap-2.5">
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[image:var(--grad-brand)] text-primary-foreground shadow-sm">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[image:var(--grad-brand)] text-primary-foreground shadow-[0_4px_14px_rgba(99,102,241,0.35)] ring-4 ring-primary/10">
               <Sparkles className="h-4 w-4" />
             </span>
             <div>
@@ -1527,7 +1522,7 @@ export function AiDraftDialog({
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         <div
           className={cn(
-            "flex min-h-0 flex-col bg-card md:w-[30%] md:min-w-[340px] md:max-w-[460px] md:flex-none md:border-r md:border-border",
+            "flex min-h-0 flex-col bg-white/40 md:w-[30%] md:min-w-[340px] md:max-w-[460px] md:flex-none md:border-r md:border-white/60",
             mobilePanel === "preview" && "hidden md:flex",
           )}
         >
@@ -1553,10 +1548,10 @@ export function AiDraftDialog({
                       type="button"
                       onClick={() => setActiveTemplateId(chip.templateId)}
                       className={cn(
-                        "shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                        "shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-200",
                         activeTemplateId === chip.templateId
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border/70 bg-muted/30 text-muted-foreground hover:bg-muted",
+                          ? "border-primary/40 bg-primary/10 text-primary shadow-[0_0_0_4px_rgba(99,102,241,0.08)]"
+                          : "border-white/70 bg-white/60 text-muted-foreground shadow-sm hover:-translate-y-0.5 hover:border-primary/30 hover:bg-white hover:text-foreground hover:shadow-[0_4px_16px_rgba(99,102,241,0.15)]",
                       )}
                     >
                       {chip.emoji} {lang === "tr" ? chip.tr : chip.en}
@@ -1582,7 +1577,7 @@ export function AiDraftDialog({
                     key={prompt}
                     type="button"
                     onClick={() => send(prompt)}
-                    className="group flex items-start gap-2 rounded-xl border border-border/70 bg-muted/20 px-3.5 py-2.5 text-left text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
+                    className="group flex items-start gap-2 rounded-xl border border-white/70 bg-white/60 px-3.5 py-2.5 text-left text-xs text-muted-foreground shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-primary/30 hover:bg-white hover:text-foreground hover:shadow-[0_8px_24px_rgba(99,102,241,0.12)]"
                   >
                     <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/60 transition-colors group-hover:text-primary" />
                     <span>{prompt}</span>
@@ -1636,8 +1631,10 @@ export function AiDraftDialog({
             <div
               key={i}
               className={cn(
-                "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm",
-                m.role === "user" ? "ml-auto bg-primary text-primary-foreground" : "bg-muted text-foreground",
+                "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm shadow-sm transition-shadow",
+                m.role === "user"
+                  ? "ml-auto bg-[image:var(--grad-brand)] text-primary-foreground shadow-[0_6px_18px_rgba(99,102,241,0.25)]"
+                  : "border border-white/70 bg-white/70 text-foreground backdrop-blur-sm",
               )}
             >
               {m.attachmentNames && m.attachmentNames.length > 0 && (
@@ -1743,7 +1740,7 @@ export function AiDraftDialog({
           <div ref={endRef} />
         </div>
 
-        <div className="space-y-2 border-t border-border/70 bg-muted/10 p-4">
+        <div className="space-y-2 border-t border-white/60 bg-white/40 p-4 backdrop-blur-md">
             {attachments.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {attachments.map((a, i) => (
@@ -1788,7 +1785,7 @@ export function AiDraftDialog({
             {/* Command bar — full-width composer with inline actions on both ends. */}
             <div
               className={cn(
-                "flex items-end gap-2 rounded-2xl border border-input bg-card px-2 py-2 shadow-sm transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40",
+                "flex items-end gap-2 rounded-[1.75rem] border border-white/70 bg-white/80 px-2 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.06)] ring-1 ring-black/5 backdrop-blur-xl transition-all duration-300 focus-within:border-primary/30 focus-within:shadow-[0_10px_34px_rgba(99,102,241,0.16)] focus-within:ring-2 focus-within:ring-primary/20",
                 loading && "opacity-70",
               )}
             >
@@ -1804,7 +1801,7 @@ export function AiDraftDialog({
                 onClick={() => fileInputRef.current?.click()}
                 disabled={loading}
                 title={lang === "tr" ? "Dosya ekle (PDF, resim)" : "Attach a file (PDF, image)"}
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted-foreground transition-all duration-200 hover:bg-primary/10 hover:text-primary hover:ring-4 hover:ring-primary/10 disabled:opacity-50"
               >
                 <Paperclip className="h-4 w-4" />
               </button>
@@ -1903,16 +1900,16 @@ export function AiDraftDialog({
 
         <div
           className={cn(
-            "relative min-h-0 flex-col overflow-y-auto bg-gradient-to-br from-slate-50 via-slate-100/60 to-slate-50 md:flex md:w-[70%] md:flex-1",
+            "relative min-h-0 flex-col overflow-y-auto bg-gradient-to-br from-slate-50 via-white to-slate-100/50 md:flex md:w-[70%] md:flex-1",
             mobilePanel === "chat" ? "hidden md:flex" : "flex",
           )}
         >
           {/* Soft ambient light behind the preview card — no pattern, just a blurred glow. */}
-          <div className="pointer-events-none absolute inset-0 bg-blue-500/5 blur-3xl" aria-hidden />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/[0.06] via-transparent to-blue-400/[0.05] blur-3xl" aria-hidden />
 
           {/* Floating "Seely is writing" indicator — the canvas equivalent of a live cursor. */}
           {canvasTyping && (
-            <div className="pointer-events-none sticky top-4 z-30 mx-auto flex w-fit items-center gap-1.5 self-center rounded-full border border-primary/30 bg-card/95 px-3 py-1.5 text-[11px] font-medium text-primary shadow-pop backdrop-blur animate-in fade-in slide-in-from-top-2">
+            <div className="pointer-events-none sticky top-4 z-30 mx-auto flex w-fit items-center gap-1.5 self-center rounded-full border border-primary/25 bg-white/90 px-3 py-1.5 text-[11px] font-medium text-primary shadow-[0_8px_24px_rgba(99,102,241,0.2)] ring-4 ring-primary/10 backdrop-blur animate-in fade-in slide-in-from-top-2">
               <PenLine className="h-3.5 w-3.5 animate-pulse" />
               {lang === "tr" ? "Seely canlı olarak yazıyor…" : "Seely is writing live…"}
             </div>
@@ -1927,7 +1924,18 @@ export function AiDraftDialog({
             const sectorImageQuery = activeSector ? SECTOR_IMAGE_QUERY[activeSector] : SECTOR_IMAGE_QUERY.general;
             return (
             <div className="mx-auto w-full max-w-3xl px-4 pb-24 pt-8 md:px-8">
-            <div className="overflow-hidden rounded-2xl border border-border/70 bg-white shadow-[0_30px_80px_-30px_rgba(0,0,0,0.35)]">
+            <div className="group/card relative overflow-hidden rounded-2xl border border-white/70 bg-white/90 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.18)] ring-1 ring-black/5 backdrop-blur-md transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.28)]">
+              {typing && (
+                <div
+                  aria-hidden
+                  className="shimmer pointer-events-none absolute inset-0 z-20"
+                  style={{
+                    background:
+                      "linear-gradient(100deg, transparent 35%, rgba(255,255,255,0.6) 50%, transparent 65%)",
+                    backgroundSize: "200% 100%",
+                  }}
+                />
+              )}
               {/* ── Magazine cover: color block + photo panel + typed title ── */}
               <div className="relative grid grid-cols-5 overflow-hidden" style={{ background: primary }}>
                 <div className="col-span-3 flex flex-col justify-between p-8 text-white/95 sm:p-10">
