@@ -139,6 +139,12 @@ export async function POST(req: Request) {
 
     return Response.json({ reply }, { headers });
   } catch (err) {
+    // Log the real cause (e.g. Anthropic credit balance exhausted, rate limit,
+    // invalid key) to the server console so it shows up in Vercel logs —
+    // otherwise a billing/quota failure silently looks like a generic "AI
+    // couldn't reply" to the visitor and nobody notices until someone checks.
+    const status = err && typeof err === "object" && "status" in err ? (err as { status?: number }).status : undefined;
+    console.error("[site-assistant] Anthropic call failed", { status, err });
     const message = err instanceof Error ? err.message : "AI yanıt veremedi.";
     return Response.json({ error: message }, { status: 502, headers });
   }
