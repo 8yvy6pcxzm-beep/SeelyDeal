@@ -142,7 +142,7 @@ export const appConfig: AppConfig = {
     en: "Build beautiful, interactive sales proposals and quotes in minutes with AI, send them, track every view, and close with e-signature. From draft to signature, all in one panel.",
   },
   domain: "seelydeal.seelynow.com",
-  contactEmail: "destek@seelydeal.com",
+  contactEmail: "elif@seelynow.ink",
   logoText: "S",
   accentName: "violet",
 
