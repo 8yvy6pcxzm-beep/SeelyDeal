@@ -144,7 +144,7 @@ const DEEP_DIVE: { eyebrow: L; title: L; body: L; points: L[]; reverse?: boolean
 type IntegrationStatus = "ready" | "included" | "soon";
 const INTEGRATIONS: { name: string; glyph: "sign" | "pay" | "ai" | "hubspot" | "zoho" | "pipedrive" | "salesforce" | "dropboxsign"; subtitle: L; status: IntegrationStatus }[] = [
   { name: "Anthropic", glyph: "ai", subtitle: { tr: "AI taslak", en: "AI drafting" }, status: "ready" },
-  { name: "Stripe", glyph: "pay", subtitle: { tr: "Ödeme", en: "Payment" }, status: "included" },
+  { name: "Stripe", glyph: "pay", subtitle: { tr: "Ödeme", en: "Payment" }, status: "soon" },
   { name: "Dropbox Sign", glyph: "dropboxsign", subtitle: { tr: "E-imza", en: "E-signature" }, status: "soon" },
   { name: "HubSpot", glyph: "hubspot", subtitle: { tr: "CRM", en: "CRM" }, status: "included" },
   { name: "Zoho CRM", glyph: "zoho", subtitle: { tr: "CRM", en: "CRM" }, status: "included" },
@@ -191,7 +191,7 @@ export default function LandingPage() {
     trackTitle: { tr: "Teklifin gözlerinin önünde açılıyor", en: "Watch your proposal open in real time" } as L,
     trackSub: { tr: "Kim açtı, hangi bölümde ne kadar kaldı, hangi cihazdan — hepsi canlı.", en: "Who opened it, time on each section, on what device — all live." } as L,
     integrationsTitle: { tr: "Sevdiğin araçlarla çalışır", en: "Works with the tools you love" } as L,
-    integrationsSub: { tr: "Supabase ve Anthropic'i dakikalar içinde bağla.", en: "Wire Supabase and Anthropic in minutes." } as L,
+    integrationsSub: { tr: "CRM'ini, ödeme ve e-imza altyapını dakikalar içinde bağla.", en: "Wire your CRM, payment and e-signature stack in minutes." } as L,
     compareTitle: { tr: "Neden SeelyDeal?", en: "Why SeelyDeal?" } as L,
     compareSub: { tr: "Word/PDF ve genel araçlarla karşılaştır.", en: "Compared to Word/PDF and generic tools." } as L,
     pricingTitle: { tr: "Sade, kullanıcı bazlı fiyatlandırma", en: "Simple, user-based pricing" } as L,
