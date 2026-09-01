@@ -772,7 +772,10 @@ export default function LandingPage() {
                 )}
               >
                 {tier.featured && (
-                  <span className="mb-3 inline-flex w-fit items-center gap-1 rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-semibold text-primary-foreground">
+                  <span
+                    className="mb-3 inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-primary-foreground"
+                    style={{ background: "var(--grad-brand)", boxShadow: "0 0 0 1px rgba(79,70,229,.3), 0 4px 20px rgba(79,70,229,.55), 0 0 20px rgba(34,211,238,.25)" }}
+                  >
                     <Star className="h-3 w-3 fill-current" />
                     {tt(sectionCopy.popular)}
                   </span>
