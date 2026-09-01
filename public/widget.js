@@ -3,9 +3,14 @@
 
   var API_URL = (document.currentScript && document.currentScript.getAttribute("data-api")) ||
     "https://seely-deal.vercel.app/api/site-assistant";
+  // Site-bazlı tema: script tagine data-theme="dark" eklenen sitelerde widget
+  // koyu/neon (mor #8B5CF6 → siyan #06B6D4) görünür. Eklenmezse (varsayılan
+  // SeelyDeal müşterileri) mevcut açık/glass tasarım hiç değişmeden kalır.
+  var theme = (document.currentScript && document.currentScript.getAttribute("data-theme")) || "light";
 
   var host = document.createElement("div");
   host.id = "seely-widget-host";
+  if (theme !== "light") host.className = theme;
   document.body.appendChild(host);
   var root = host.attachShadow({ mode: "open" });
 
@@ -14,12 +19,12 @@
     ":host{all:initial}" +
     "*{box-sizing:border-box;font-family:'Hanken Grotesk',system-ui,-apple-system,sans-serif}" +
     ".fab{position:fixed;bottom:22px;right:22px;width:52px;height:52px;border-radius:16px;" +
-    "background:#fff;color:#5334c9;border:1px solid #e6e2f0;cursor:pointer;" +
-    "box-shadow:0 1px 2px rgba(30,20,60,.04),0 12px 28px -8px rgba(30,20,60,.16);" +
+    "background:#fff;color:#4B3DE0;border:1px solid #E3DFFA;cursor:pointer;" +
+    "box-shadow:0 1px 2px rgba(32,27,61,.04),0 12px 28px -8px rgba(32,27,61,.16);" +
     "z-index:2147483000;display:flex;align-items:center;justify-content:center;" +
     "transition:transform .22s cubic-bezier(.22,1,.36,1),box-shadow .22s ease,border-color .22s ease;}" +
-    ".fab:hover{transform:translateY(-2px);border-color:#c9c0f0;" +
-    "box-shadow:0 1px 2px rgba(30,20,60,.05),0 16px 32px -8px rgba(30,20,60,.2);}" +
+    ".fab:hover{transform:translateY(-2px);border-color:#C9BFFF;" +
+    "box-shadow:0 1px 2px rgba(32,27,61,.05),0 16px 32px -8px rgba(32,27,61,.2);}" +
     ".fab:active{transform:translateY(0) scale(.97)}" +
     ".fab svg{width:22px;height:22px}" +
     /* small live status dot, top-right of the bubble — quiet "we're online" signal
@@ -38,48 +43,109 @@
     ".panel{position:fixed;bottom:96px;right:22px;width:360px;max-width:calc(100vw - 32px);height:520px;" +
     "max-height:calc(100vh - 140px);background:rgba(255,255,255,.72);" +
     "backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);border-radius:22px;" +
-    "box-shadow:0 24px 60px -12px rgba(83,52,201,.28),0 8px 24px rgba(0,0,0,.10),inset 0 1px 0 rgba(255,255,255,.7);" +
+    "box-shadow:0 24px 60px -12px rgba(75,61,224,.28),0 8px 24px rgba(0,0,0,.10),inset 0 1px 0 rgba(255,255,255,.7);" +
     "display:flex;flex-direction:column;overflow:hidden;z-index:2147483000;border:1px solid rgba(255,255,255,.55);" +
     "opacity:0;visibility:hidden;pointer-events:none;transform:translateY(16px) scale(.96);" +
     "transition:opacity .28s cubic-bezier(.22,1,.36,1),transform .28s cubic-bezier(.22,1,.36,1),visibility 0s linear .28s;}" +
     ".panel.open{opacity:1;visibility:visible;pointer-events:auto;transform:translateY(0) scale(1);" +
     "transition:opacity .28s cubic-bezier(.22,1,.36,1),transform .28s cubic-bezier(.22,1,.36,1),visibility 0s linear 0s;}" +
     ".fab.hidden,.fabdot.hidden{display:none}" +
-    ".hd{background:linear-gradient(135deg,#8b7bf7 0%,#6d4de0 55%,#5334c9 100%);color:#fff;padding:16px 18px;" +
-    "display:flex;align-items:center;gap:10px;position:relative;overflow:hidden;}" +
+    ".hd{background:rgba(255,255,255,.7);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);" +
+    "color:#201B3D;padding:16px 18px;display:flex;align-items:center;gap:10px;position:relative;overflow:hidden;" +
+    "border-bottom:1px solid rgba(75,61,224,.08);}" +
     ".hd::after{content:'';position:absolute;top:-40%;right:-10%;width:120px;height:120px;border-radius:50%;" +
-    "background:radial-gradient(circle,rgba(255,255,255,.25) 0%,rgba(255,255,255,0) 70%);pointer-events:none}" +
-    ".hd .dot{width:9px;height:9px;border-radius:50%;background:#c9f56b;box-shadow:0 0 0 3px rgba(201,245,107,.3);animation:dotpulse 2s ease-in-out infinite}" +
+    "background:radial-gradient(circle,rgba(75,61,224,.10) 0%,rgba(75,61,224,0) 70%);pointer-events:none}" +
+    ".hd .dot{width:9px;height:9px;border-radius:50%;background:#6C5CE8;box-shadow:0 0 0 3px rgba(108,92,232,.25);animation:dotpulse 2s ease-in-out infinite}" +
     ".hd .t{flex:1}" +
-    ".hd .t b{display:block;font-size:14px;font-weight:800}" +
-    ".hd .t span{display:block;font-size:11px;color:#e3ddff}" +
-    ".hd button{background:none;border:none;color:#e3ddff;cursor:pointer;padding:4px;border-radius:8px;}" +
-    ".hd button:hover{background:rgba(255,255,255,.15)}" +
+    ".hd .t b{display:block;font-size:14px;font-weight:800;color:#201B3D}" +
+    ".hd .t span{display:block;font-size:11px;color:#5B5480}" +
+    ".hd button{background:none;border:none;color:#5B5480;cursor:pointer;padding:4px;border-radius:8px;transition:background .15s ease;}" +
+    ".hd button:hover{background:rgba(75,61,224,.08)}" +
     ".msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:rgba(255,255,255,.32)}" +
-    ".msg{max-width:82%;padding:10px 13px;border-radius:14px;font-size:13.5px;line-height:1.5;white-space:pre-wrap}" +
-    ".msg.bot{background:#fff;border:1px solid #ece8fb;color:#221c3d;align-self:flex-start;border-bottom-left-radius:4px;" +
-    "box-shadow:0 1px 2px rgba(83,52,201,.06)}" +
-    ".msg.user{background:linear-gradient(135deg,#8b7bf7,#6741e0);color:#fff;align-self:flex-end;border-bottom-right-radius:4px;" +
-    "box-shadow:0 2px 6px rgba(103,65,224,.3)}" +
-    ".msg.typing{background:#fff;border:1px solid #ece8fb;align-self:flex-start;border-bottom-left-radius:4px;padding:12px 16px}" +
-    ".typing span{display:inline-block;width:6px;height:6px;margin:0 1px;background:#a99cee;border-radius:50%;animation:b 1.2s infinite}" +
+    ".msg{max-width:82%;padding:10px 13px;border-radius:18px;font-size:13.5px;line-height:1.5;white-space:pre-wrap}" +
+    ".msg.bot{background:#fff;border:none;color:#201B3D;align-self:flex-start;border-bottom-left-radius:6px;" +
+    "box-shadow:0 4px 20px rgba(32,27,61,.06)}" +
+    ".msg.user{background:linear-gradient(135deg,#6C5CE8,#4B3DE0);color:#fff;align-self:flex-end;border-bottom-right-radius:6px;" +
+    "box-shadow:0 2px 6px rgba(75,61,224,.3)}" +
+    ".msg.typing{background:#fff;border:none;align-self:flex-start;border-bottom-left-radius:6px;padding:12px 16px;" +
+    "box-shadow:0 4px 20px rgba(32,27,61,.06)}" +
+    ".typing span{display:inline-block;width:6px;height:6px;margin:0 1px;background:#9C8CE0;border-radius:50%;animation:b 1.2s infinite}" +
     ".typing span:nth-child(2){animation-delay:.2s}.typing span:nth-child(3){animation-delay:.4s}" +
     "@keyframes b{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}" +
     ".cta{padding:0 16px 10px;display:flex;gap:8px;flex-wrap:wrap}" +
     ".cta a{font-size:12px;font-weight:700;text-decoration:none;padding:7px 12px;border-radius:999px;" +
-    "background:linear-gradient(135deg,#c9f56b,#a9e23d);color:#3a4d0a;white-space:nowrap;" +
-    "box-shadow:0 2px 6px rgba(169,226,61,.4)}" +
-    ".cta a.secondary{background:#fff;border:1px solid #e0dcf5;color:#5b5470;box-shadow:none}" +
-    ".ft{padding:12px;border-top:1px solid rgba(230,226,251,.6);display:flex;gap:8px;background:rgba(255,255,255,.55);" +
+    "background:linear-gradient(135deg,#6C5CE8,#4B3DE0);color:#fff;white-space:nowrap;" +
+    "box-shadow:0 2px 6px rgba(75,61,224,.35)}" +
+    ".cta a.secondary{background:#fff;border:1px solid #E3DFFA;color:#5B5480;box-shadow:none}" +
+    ".ft{padding:12px;border-top:1px solid rgba(75,61,224,.08);display:flex;gap:8px;background:rgba(255,255,255,.55);" +
     "backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}" +
-    ".ft input{flex:1;border:1px solid #e0dcf5;border-radius:12px;padding:10px 12px;font-size:13.5px;outline:none;color:#221c3d}" +
-    ".ft input:focus{border-color:#8b7bf7;box-shadow:0 0 0 3px rgba(139,123,247,.15)}" +
-    ".ft button{background:linear-gradient(135deg,#8b7bf7,#6741e0);color:#fff;border:none;border-radius:12px;width:40px;cursor:pointer;" +
-    "display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(103,65,224,.35);" +
+    ".ft input{flex:1;background:rgba(241,245,249,.6);border:1px solid transparent;border-radius:12px;padding:10px 12px;" +
+    "font-size:13.5px;outline:none;color:#201B3D;transition:background .15s ease,box-shadow .15s ease;}" +
+    ".ft input:focus{background:#fff;box-shadow:0 0 0 3px rgba(75,61,224,.15)}" +
+    ".ft button{background:linear-gradient(135deg,#6C5CE8,#4B3DE0);color:#fff;border:none;border-radius:12px;width:40px;cursor:pointer;" +
+    "display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(75,61,224,.35);" +
     "transition:transform .15s ease;}" +
     ".ft button:hover:not(:disabled){transform:scale(1.05)}" +
     ".ft button:disabled{opacity:.4;cursor:default}" +
-    "@media (max-width:480px){.panel{right:16px;left:16px;width:auto;bottom:88px}}";
+    "@media (max-width:480px){.panel{right:16px;left:16px;width:auto;bottom:88px}}" +
+    // ---- dark/neon tema (site-bazlı, host.dark) — leinDigital referanslı
+    // koyu tema (#030305 zemin, mor #8B5CF6 / siyan #06B6D4 aksan) ile aynı dil.
+    ":host(.dark) .fab{background:#0A0A0C;color:#06B6D4;border:1px solid rgba(255,255,255,.12);" +
+    "box-shadow:0 1px 2px rgba(0,0,0,.3),0 12px 28px -8px rgba(139,92,246,.35);}" +
+    ":host(.dark) .fab:hover{border-color:rgba(139,92,246,.5);" +
+    "box-shadow:0 1px 2px rgba(0,0,0,.3),0 16px 32px -8px rgba(6,182,212,.45);}" +
+    ":host(.dark) .panel{background:rgba(10,10,12,.82);" +
+    "box-shadow:0 24px 60px -12px rgba(139,92,246,.35),0 8px 24px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.08);" +
+    "border:1px solid rgba(255,255,255,.1);}" +
+    ":host(.dark) .hd{background:rgba(255,255,255,.04);color:#F2F1F5;border-bottom:1px solid rgba(255,255,255,.1);}" +
+    ":host(.dark) .hd::after{background:radial-gradient(circle,rgba(139,92,246,.22) 0%,rgba(139,92,246,0) 70%);}" +
+    ":host(.dark) .hd .dot{background:#06B6D4;box-shadow:0 0 0 3px rgba(6,182,212,.25);}" +
+    ":host(.dark) .hd .t b{color:#F2F1F5}" +
+    ":host(.dark) .hd .t span{color:#9B99A8}" +
+    ":host(.dark) .hd button{color:#9B99A8}" +
+    ":host(.dark) .hd button:hover{background:rgba(255,255,255,.08)}" +
+    ":host(.dark) .msgs{background:rgba(255,255,255,.02)}" +
+    ":host(.dark) .msg.bot{background:rgba(255,255,255,.06);color:#F2F1F5;box-shadow:none;border:1px solid rgba(255,255,255,.08)}" +
+    ":host(.dark) .msg.user{background:linear-gradient(135deg,#8B5CF6,#06B6D4);color:#fff;box-shadow:0 2px 10px rgba(139,92,246,.35)}" +
+    ":host(.dark) .msg.typing{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);box-shadow:none}" +
+    ":host(.dark) .typing span{background:#8B5CF6}" +
+    ":host(.dark) .cta a{background:linear-gradient(135deg,#8B5CF6,#06B6D4);box-shadow:0 2px 10px rgba(139,92,246,.35)}" +
+    ":host(.dark) .cta a.secondary{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#F2F1F5}" +
+    ":host(.dark) .ft{background:rgba(255,255,255,.03);border-top:1px solid rgba(255,255,255,.1)}" +
+    ":host(.dark) .ft input{background:rgba(255,255,255,.06);color:#F2F1F5}" +
+    ":host(.dark) .ft input::placeholder{color:#9B99A8}" +
+    ":host(.dark) .ft input:focus{background:rgba(255,255,255,.09);box-shadow:0 0 0 3px rgba(139,92,246,.25)}" +
+    ":host(.dark) .ft button{background:linear-gradient(135deg,#8B5CF6,#06B6D4);box-shadow:0 2px 10px rgba(139,92,246,.35)}" +
+    // ---- seelydeal tema (host.seelydeal) — SeelyDeal'in 2026 "Glassmorphism
+    // Techwave" landing page'iyle aynı dil: koyu lacivert zemin (#080C14),
+    // frosted glass yüzeyler, indigo→violet marka gradyanı, siyan AI vurgusu.
+    ":host(.seelydeal) .fabdot{background:#10B981;box-shadow:0 0 0 0 rgba(16,185,129,.5)}" +
+    ":host(.seelydeal) .fab{background:linear-gradient(135deg,#4F46E5,#7C3AED);color:#fff;border:1px solid rgba(255,255,255,.12);" +
+    "box-shadow:0 1px 2px rgba(0,0,0,.3),0 12px 28px -8px rgba(79,70,229,.45);}" +
+    ":host(.seelydeal) .fab:hover{border-color:rgba(34,211,238,.5);" +
+    "box-shadow:0 1px 2px rgba(0,0,0,.3),0 16px 32px -8px rgba(34,211,238,.4);}" +
+    ":host(.seelydeal) .panel{background:rgba(8,12,20,.85);" +
+    "box-shadow:0 24px 60px -12px rgba(79,70,229,.35),0 8px 24px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.08);" +
+    "border:1px solid rgba(255,255,255,.08);}" +
+    ":host(.seelydeal) .hd{background:rgba(255,255,255,.04);color:#F8FAFC;border-bottom:1px solid rgba(255,255,255,.08);}" +
+    ":host(.seelydeal) .hd::after{background:radial-gradient(circle,rgba(79,70,229,.24) 0%,rgba(79,70,229,0) 70%);}" +
+    ":host(.seelydeal) .hd .dot{background:#22D3EE;box-shadow:0 0 0 3px rgba(34,211,238,.25);}" +
+    ":host(.seelydeal) .hd .t b{color:#F8FAFC}" +
+    ":host(.seelydeal) .hd .t span{color:#94A3B8}" +
+    ":host(.seelydeal) .hd button{color:#94A3B8}" +
+    ":host(.seelydeal) .hd button:hover{background:rgba(255,255,255,.08)}" +
+    ":host(.seelydeal) .msgs{background:rgba(255,255,255,.02)}" +
+    ":host(.seelydeal) .msg.bot{background:rgba(255,255,255,.06);color:#F8FAFC;box-shadow:none;border:1px solid rgba(255,255,255,.08)}" +
+    ":host(.seelydeal) .msg.user{background:linear-gradient(135deg,#4F46E5,#7C3AED);color:#fff;box-shadow:0 2px 10px rgba(79,70,229,.4)}" +
+    ":host(.seelydeal) .msg.typing{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);box-shadow:none}" +
+    ":host(.seelydeal) .typing span{background:#818CF8}" +
+    ":host(.seelydeal) .cta a{background:linear-gradient(135deg,#4F46E5,#7C3AED);box-shadow:0 2px 10px rgba(79,70,229,.4)}" +
+    ":host(.seelydeal) .cta a.secondary{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#F8FAFC}" +
+    ":host(.seelydeal) .ft{background:rgba(255,255,255,.03);border-top:1px solid rgba(255,255,255,.08)}" +
+    ":host(.seelydeal) .ft input{background:rgba(255,255,255,.06);color:#F8FAFC}" +
+    ":host(.seelydeal) .ft input::placeholder{color:#94A3B8}" +
+    ":host(.seelydeal) .ft input:focus{background:rgba(255,255,255,.09);box-shadow:0 0 0 3px rgba(79,70,229,.3)}" +
+    ":host(.seelydeal) .ft button{background:linear-gradient(135deg,#4F46E5,#7C3AED);box-shadow:0 2px 10px rgba(79,70,229,.4)}";
   root.appendChild(style);
 
   var wrap = document.createElement("div");

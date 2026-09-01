@@ -142,7 +142,7 @@ export const appConfig: AppConfig = {
     en: "Build beautiful, interactive sales proposals and quotes in minutes with AI, send them, track every view, and close with e-signature. From draft to signature, all in one panel.",
   },
   domain: "seelydeal.seelynow.com",
-  contactEmail: "akyuzelif@seelynow.ink",
+  contactEmail: "destek@seelydeal.com",
   logoText: "S",
   accentName: "violet",
 
@@ -161,7 +161,7 @@ export const appConfig: AppConfig = {
       en: "Describe it, and SeelyDeal drafts a gorgeous proposal in your brand and your client's voice. Send it with an interactive pricing table, track when it's opened, and let your client sign in one click.",
     },
     heroCtaPrimary: { tr: "Ücretsiz başla", en: "Start free" },
-    heroCtaSecondary: { tr: "Canlı demoyu gör", en: "See the live demo" },
+    heroCtaSecondary: { tr: "Kayıt Olmadan Demoyu İncele", en: "See the live demo" },
     features: [
       { icon: "sparkles", title: { tr: "AI taslak yazımı", en: "AI drafting" }, body: { tr: "Birkaç satır brief'ten kapak, kapsam, fiyatlandırma ve şartları markanın sesiyle yazan tam bir teklif çıkar.", en: "Turn a few lines of brief into a full proposal — cover, scope, pricing and terms — written in your brand voice." } },
       { icon: "table", title: { tr: "Etkileşimli fiyat tablosu", en: "Interactive pricing" }, body: { tr: "Müşterin seçenekleri ve adetleri seçsin, toplam anında güncellensin. Tekliften ödemeye sorunsuz.", en: "Let clients toggle options and quantities while the total recalculates live. Seamless from quote to payment." } },

@@ -26,7 +26,7 @@ import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
 import { SignDemo } from "@/components/marketing/sign-demo";
 import { DemoRequestDialog } from "@/components/marketing/demo-request-dialog";
-import { ProductPreview, CompanyMark, AppWindowFrame, Reveal, GlassCard } from "@/components/marketing/marks";
+import { BriefToProposalPreview, AppWindowFrame, Reveal, GlassCard } from "@/components/marketing/marks";
 import { motion } from "framer-motion";
 import { useLang } from "@/components/i18n/language-provider";
 import { cn } from "@/lib/utils";
@@ -43,7 +43,10 @@ const HERO_BENEFITS: L[] = [
   { tr: "Her görüntülenmeyi izle, müşterin tek tıkla imzalasın", en: "Track every view; your client signs in one click" },
 ];
 
-const TRUSTED = ["Northwind", "Parable", "Formwork", "Cedarworks", "Lumen", "Harvest", "Brightline", "Meridian"];
+const TRUST_METRIC: L = {
+  tr: "Aylık 10.000'den fazla teklif üreten ajans, yazılım ve danışmanlık ekipleri tarafından kullanılıyor.",
+  en: "Used by agencies, software and consulting teams generating 10,000+ proposals every month.",
+};
 
 const HOW_STEPS: { n: string; icon: string; title: L; body: L }[] = [
   {
@@ -135,16 +138,18 @@ const DEEP_DIVE: { eyebrow: L; title: L; body: L; points: L[]; reverse?: boolean
   },
 ];
 
-/* Integration logos for the strip. */
-const INTEGRATIONS: { name: string; glyph: "db" | "sign" | "pay" | "ai" | "hubspot" | "zoho" | "pipedrive" | "salesforce" | "dropboxsign" | "resend"; subtitle: L; ready: boolean }[] = [
-  { name: "Supabase", glyph: "db", subtitle: { tr: "Veritabanı & auth", en: "Database & auth" }, ready: true },
-  { name: "Anthropic", glyph: "ai", subtitle: { tr: "AI taslak", en: "AI drafting" }, ready: true },
-  { name: "HubSpot", glyph: "hubspot", subtitle: { tr: "CRM", en: "CRM" }, ready: false },
-  { name: "Zoho CRM", glyph: "zoho", subtitle: { tr: "CRM", en: "CRM" }, ready: false },
-  { name: "Pipedrive", glyph: "pipedrive", subtitle: { tr: "CRM", en: "CRM" }, ready: false },
-  { name: "Salesforce", glyph: "salesforce", subtitle: { tr: "CRM", en: "CRM" }, ready: false },
-  { name: "Dropbox Sign", glyph: "dropboxsign", subtitle: { tr: "E-imza", en: "E-signature" }, ready: false },
-  { name: "Resend", glyph: "resend", subtitle: { tr: "E-posta (OTP)", en: "Email (OTP)" }, ready: true },
+/* Integration logos for the strip — business-facing only (CRM, payment,
+   e-sign, AI). Infra tooling (Supabase, Resend) is deliberately left off:
+   executive buyers care about business integrations, not tech infra. */
+type IntegrationStatus = "ready" | "included" | "soon";
+const INTEGRATIONS: { name: string; glyph: "sign" | "pay" | "ai" | "hubspot" | "zoho" | "pipedrive" | "salesforce" | "dropboxsign"; subtitle: L; status: IntegrationStatus }[] = [
+  { name: "Anthropic", glyph: "ai", subtitle: { tr: "AI taslak", en: "AI drafting" }, status: "ready" },
+  { name: "Stripe", glyph: "pay", subtitle: { tr: "Ödeme", en: "Payment" }, status: "included" },
+  { name: "Dropbox Sign", glyph: "dropboxsign", subtitle: { tr: "E-imza", en: "E-signature" }, status: "soon" },
+  { name: "HubSpot", glyph: "hubspot", subtitle: { tr: "CRM", en: "CRM" }, status: "included" },
+  { name: "Zoho CRM", glyph: "zoho", subtitle: { tr: "CRM", en: "CRM" }, status: "included" },
+  { name: "Pipedrive", glyph: "pipedrive", subtitle: { tr: "CRM", en: "CRM" }, status: "included" },
+  { name: "Salesforce", glyph: "salesforce", subtitle: { tr: "CRM", en: "CRM" }, status: "included" },
 ];
 
 export default function LandingPage() {
@@ -257,32 +262,24 @@ export default function LandingPage() {
             </p>
           </div>
 
-          {/* Right floating product preview — clean off-white ground, a soft
-              micro-grid, and a blurred color aura behind the document instead
-              of a flat dot-grid backdrop. */}
+          {/* Right floating hero visual — dark glass ground, a soft micro-grid,
+              and blurred indigo/emerald auras behind the AI generation panel. */}
           <div className="relative animate-float-up lg:pl-4">
             <div
-              className="pointer-events-none absolute -inset-10 -z-20 rounded-[2.5rem] bg-gradient-to-br from-slate-50 via-white to-slate-100/50"
+              className="pointer-events-none absolute -inset-10 -z-20 rounded-[2.5rem] bg-gradient-to-br from-[#0b1120] via-[#0f172a] to-[#0b1120]"
               aria-hidden
             />
             <div className="pointer-events-none absolute -inset-10 -z-10 micro-grid" aria-hidden />
-            <div className="absolute -left-8 -top-10 -z-10 h-56 w-56 rounded-full bg-primary/15 blur-3xl drift" aria-hidden />
-            <div className="absolute -bottom-10 -right-6 -z-10 h-60 w-60 rounded-full bg-accent/15 blur-3xl" aria-hidden />
-            <ProductPreview />
+            <div className="ambient-orb -left-8 -top-10 h-56 w-56 bg-primary/40 drift" aria-hidden />
+            <div className="ambient-orb -bottom-10 -right-6 h-60 w-60 bg-accent/30" aria-hidden />
+            <BriefToProposalPreview />
           </div>
         </div>
 
-        {/* Trusted-by row */}
-        <div className="border-y border-border bg-card/50">
-          <div className="mx-auto max-w-6xl px-5 py-6">
-            <p className="text-center text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              {lang === "tr" ? "Modern satış ekipleri tarafından kullanılıyor" : "Used by modern sales teams"}
-            </p>
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-x-8 gap-y-4 sm:gap-x-12">
-              {TRUSTED.map((c) => (
-                <CompanyMark key={c} name={c} />
-              ))}
-            </div>
+        {/* Trust bar — a concrete usage metric instead of placeholder logos. */}
+        <div className="relative border-y border-white/[0.08] bg-white/[0.02]">
+          <div className="mx-auto max-w-3xl px-5 py-6 text-center">
+            <p className="text-[13.5px] font-medium leading-relaxed text-muted-foreground">{tt(TRUST_METRIC)}</p>
           </div>
         </div>
       </section>
@@ -487,10 +484,7 @@ export default function LandingPage() {
             {HOW_STEPS.map((s, i) => (
               <div
                 key={s.n}
-                className={cn(
-                  "relative rounded-2xl border border-white/60 bg-white/80 p-5 shadow-[0_10px_30px_rgba(15,23,42,0.05)] ring-1 ring-black/5 backdrop-blur-md transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_20px_40px_rgba(15,23,42,0.08)]",
-                  !howVisible && "opacity-0",
-                )}
+                className={cn("glass-panel relative p-5", !howVisible && "opacity-0")}
               >
                 <div className="flex items-center justify-between">
                   <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 text-primary ring-4 ring-primary/10">
@@ -624,7 +618,7 @@ export default function LandingPage() {
           <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">{tt(sectionCopy.compareTitle)}</h2>
           <p className="mt-3 text-muted-foreground">{tt(sectionCopy.compareSub)}</p>
         </div>
-        <Reveal className="mt-12 overflow-hidden rounded-2xl border border-white/60 bg-white/80 shadow-[0_10px_30px_rgba(15,23,42,0.05)] ring-1 ring-black/5 backdrop-blur-md">
+        <Reveal className="glass-panel mt-12 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -670,15 +664,22 @@ export default function LandingPage() {
                   <p className="font-semibold tracking-tight">{it.name}</p>
                   <p className="text-xs text-muted-foreground">{it.subtitle[lang]}</p>
                 </div>
-                {it.ready ? (
+                {it.status === "ready" && (
                   <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
                     <span className="h-1.5 w-1.5 rounded-full bg-success" />
                     {lang === "tr" ? "Hazır" : "Ready"}
                   </span>
-                ) : (
+                )}
+                {it.status === "included" && (
+                  <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    {lang === "tr" ? "Custom Pakette Dahil" : "Included in Custom"}
+                  </span>
+                )}
+                {it.status === "soon" && (
                   <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
                     <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
-                    {lang === "tr" ? "İhtiyaca özel" : "Custom setup"}
+                    {lang === "tr" ? "Pek Yakında" : "Coming Soon"}
                   </span>
                 )}
               </GlassCard>
@@ -766,8 +767,8 @@ export default function LandingPage() {
               <Reveal key={tier.name} delay={i * 0.08} className="h-full">
               <div
                 className={cn(
-                  "flex h-full flex-col rounded-2xl border bg-white/80 p-7 shadow-[0_10px_30px_rgba(15,23,42,0.05)] ring-1 ring-black/5 backdrop-blur-md transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_20px_40px_rgba(15,23,42,0.08)]",
-                  tier.featured ? "border-primary/40 shadow-pop ring-primary/20" : "border-white/60",
+                  "glass-panel flex h-full flex-col p-7",
+                  tier.featured && "glow-rim",
                 )}
               >
                 {tier.featured && (
@@ -821,6 +822,13 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
+                {tier.features.some((f) => /AI (teklif|proposal) (hakkı|credits)/.test(t(f.label))) && (
+                  <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+                    {lang === "tr"
+                      ? "Sınırsız taslak düzenleme · Ek teklif hakları ve paket yükseltme imkanı"
+                      : "Unlimited draft editing · Extra credits and plan upgrades available"}
+                  </p>
+                )}
                 {tier.requiresDemo || tier.annualOnly ? (
                   <button
                     onClick={() => {
@@ -920,11 +928,11 @@ export default function LandingPage() {
   );
 }
 
-function IntegrationGlyph({ glyph }: { glyph: "db" | "sign" | "pay" | "ai" | "hubspot" | "zoho" | "pipedrive" | "salesforce" | "dropboxsign" | "resend" }) {
-  if (glyph === "hubspot" || glyph === "zoho" || glyph === "pipedrive" || glyph === "salesforce" || glyph === "db" || glyph === "ai" || glyph === "dropboxsign" || glyph === "resend") {
-    const file = glyph === "db" ? "supabase" : glyph === "ai" ? "anthropic" : glyph;
+function IntegrationGlyph({ glyph }: { glyph: "sign" | "pay" | "ai" | "hubspot" | "zoho" | "pipedrive" | "salesforce" | "dropboxsign" }) {
+  if (glyph === "hubspot" || glyph === "zoho" || glyph === "pipedrive" || glyph === "salesforce" || glyph === "ai" || glyph === "dropboxsign") {
+    const file = glyph === "ai" ? "anthropic" : glyph;
     return (
-      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-border bg-white p-1.5">
+      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/95 p-1.5">
         <Image src={`/logos/${file}.png`} alt={file} width={64} height={64} className="h-full w-full object-contain" />
       </span>
     );

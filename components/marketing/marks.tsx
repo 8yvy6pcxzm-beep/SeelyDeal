@@ -1,7 +1,8 @@
 "use client";
 
-import { motion, type Variants } from "framer-motion";
-import { Check, Eye, PenLine } from "lucide-react";
+import { useEffect, useState } from "react";
+import { AnimatePresence, motion, type Variants } from "framer-motion";
+import { Check, Loader2, PenLine, Sparkles } from "lucide-react";
 import { useLang } from "@/components/i18n/language-provider";
 import { cn, formatUsd } from "@/lib/utils";
 
@@ -41,38 +42,9 @@ export function Reveal({
    pricing, use-case and metric cards on the landing page. ─────────────────── */
 export function GlassCard({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div
-      className={cn(
-        "rounded-2xl border border-white/60 bg-white/80 shadow-[0_10px_30px_rgba(15,23,42,0.05)] ring-1 ring-black/5 backdrop-blur-md",
-        "transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_20px_40px_rgba(15,23,42,0.08)]",
-        className,
-      )}
-      {...props}
-    >
+    <div className={cn("glass-panel", className)} {...props}>
       {children}
     </div>
-  );
-}
-
-/* ── Inline-SVG fake-company wordmarks for the trusted-by row ───────────────── */
-export function CompanyMark({ name }: { name: string }) {
-  const glyphs: Record<string, React.ReactNode> = {
-    Northwind: <path d="M3 17 L9 4 L12 11 L15 4 L21 17" />,
-    Parable: <circle cx="12" cy="11" r="7" />,
-    Formwork: <path d="M4 5 h16 v4 h-6 v9 h-4 v-9 h-6 z" />,
-    Cedarworks: <path d="M12 3 L20 18 H4 Z M12 9 L16 17 H8 Z" />,
-    Lumen: <path d="M6 4 v14 h10" />,
-    Harvest: <path d="M12 4 c5 4 5 10 0 14 c-5 -4 -5 -10 0 -14 z" />,
-    Brightline: <path d="M4 12 h16 M12 5 v14" />,
-    Meridian: <path d="M4 18 L9 6 L12 14 L15 6 L20 18" />,
-  };
-  return (
-    <span className="inline-flex items-center gap-2 text-muted-foreground/70">
-      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-        {glyphs[name]}
-      </svg>
-      <span className="text-[15px] font-semibold tracking-tight">{name}</span>
-    </span>
   );
 }
 
@@ -91,73 +63,155 @@ export function AppWindowFrame({ label, children }: { label?: string; children: 
   );
 }
 
-/* ── Hero product-preview card: a beautiful proposal + pricing table ───────── */
-export function ProductPreview() {
+/* ── Hero product-preview: a live "Brief → AI generation → Proposal" loop.
+   Three phases cycle automatically so the hero visual sells the actual
+   differentiator (AI drafting from a brief) instead of a static mockup. ───── */
+type BriefStep = "input" | "generating" | "output";
+const STEP_MS: Record<BriefStep, number> = { input: 2400, generating: 2600, output: 3400 };
+
+export function BriefToProposalPreview() {
   const { lang } = useLang();
+  const [step, setStep] = useState<BriefStep>("input");
+
+  useEffect(() => {
+    const order: BriefStep[] = ["input", "generating", "output"];
+    const t = setTimeout(() => {
+      setStep((s) => order[(order.indexOf(s) + 1) % order.length]);
+    }, STEP_MS[step]);
+    return () => clearTimeout(t);
+  }, [step]);
+
+  const briefText =
+    lang === "tr"
+      ? "Acme Corp için 15.000$ bütçeli bir marka stratejisi ve web sitesi teklifi yaz"
+      : "Write a brand strategy & web design proposal for Acme Corp with a $15k budget";
+
+  const genRows =
+    lang === "tr"
+      ? ["Brief analiz ediliyor…", "Marka tonu eşleştiriliyor…", "Kapsam & fiyatlandırma yazılıyor…"]
+      : ["Analyzing brief…", "Matching brand tone…", "Drafting scope & pricing…"];
+
   const items = [
-    { name: lang === "tr" ? "Marka sistemi" : "Brand system", amount: 7600 },
-    { name: lang === "tr" ? "Web sitesi · 8 sayfa" : "Website · 8 pages", amount: 7600 },
-    { name: lang === "tr" ? "Keşif & strateji" : "Discovery & strategy", amount: 3200 },
+    { name: lang === "tr" ? "Marka stratejisi" : "Brand strategy", amount: 5200 },
+    { name: lang === "tr" ? "Web sitesi · 6 sayfa" : "Website · 6 pages", amount: 8300 },
+    { name: lang === "tr" ? "Lansman kiti" : "Launch kit", amount: 1500 },
   ];
   const total = items.reduce((s, i) => s + i.amount, 0);
 
   return (
     <div className="relative w-full">
-      <AppWindowFrame label={lang === "tr" ? "seelydeal.app · teklif önizleme" : "seelydeal.app · proposal preview"}>
-      {/* proposal cover band with gradient */}
-      <div className="relative overflow-hidden px-5 pb-4 pt-5" style={{ backgroundImage: "var(--grad-brand)" }}>
-        <span className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-white/15 blur-2xl" aria-hidden />
-        <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-white/70">
-          {lang === "tr" ? "Northwind için teklif" : "Proposal for Northwind"}
-        </p>
-        <p className="mt-1.5 font-display text-[19px] font-bold leading-tight text-white">
-          {lang === "tr" ? "Marka yenileme & web sitesi" : "Brand refresh & website"}
-        </p>
-        <div className="mt-3 flex items-center gap-2">
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-medium text-white">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#c9f56b] pulse-dot" />
-            <Eye className="h-3 w-3" /> {lang === "tr" ? "3× görüntülendi" : "Viewed 3×"}
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-medium text-white">
-            PRO-2048
-          </span>
-        </div>
-      </div>
+      <div className="glow-rim rounded-[1.15rem]">
+        <AppWindowFrame label={lang === "tr" ? "seelydeal.app · AI ile taslak" : "seelydeal.app · AI drafting"}>
+          <div className="relative min-h-[280px] p-5">
+            <AnimatePresence mode="wait">
+              {step === "input" && (
+                <motion.div
+                  key="input"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                  className="space-y-3"
+                >
+                  <p className="label-mono text-muted-foreground">{lang === "tr" ? "Brief" : "Brief"}</p>
+                  <div className="rounded-xl border border-border bg-muted/40 p-4">
+                    <div className="flex items-start gap-2.5">
+                      <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      <p className="text-[13.5px] leading-relaxed">{briefText}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                      <motion.span
+                        className="block h-full rounded-full"
+                        style={{ background: "var(--grad-brand)" }}
+                        initial={{ width: "0%" }}
+                        animate={{ width: "100%" }}
+                        transition={{ duration: 2, ease: "linear" }}
+                      />
+                    </span>
+                    <span className="shrink-0 rounded-lg bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground">
+                      {lang === "tr" ? "Oluştur" : "Generate"}
+                    </span>
+                  </div>
+                </motion.div>
+              )}
 
-      {/* pricing table */}
-      <div className="p-4">
-        <p className="label-mono pb-2 text-muted-foreground">{lang === "tr" ? "Fiyatlandırma" : "Pricing"}</p>
-        <div className="overflow-hidden rounded-xl border border-border">
-          {items.map((it, i) => (
-            <div key={it.name} className={`flex items-center justify-between px-3 py-2.5 text-[12.5px] ${i < items.length - 1 ? "border-b border-border/60" : ""}`}>
-              <span className="truncate font-medium">{it.name}</span>
-              <span className="tnum font-semibold">{formatUsd(it.amount)}</span>
-            </div>
-          ))}
-        </div>
-        <div className="mt-3 flex items-center justify-between rounded-xl bg-muted/50 px-3.5 py-2.5">
-          <span className="text-[12.5px] font-semibold">{lang === "tr" ? "Toplam" : "Total"}</span>
-          <span className="tnum text-lg font-bold text-primary">{formatUsd(total)}</span>
-        </div>
+              {step === "generating" && (
+                <motion.div
+                  key="generating"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                  className="space-y-2.5"
+                >
+                  <p className="label-mono text-primary">{lang === "tr" ? "AI çalışıyor" : "AI at work"}</p>
+                  {genRows.map((row, i) => (
+                    <motion.div
+                      key={row}
+                      initial={{ opacity: 0, x: -6 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.35, duration: 0.4 }}
+                      className="flex items-center gap-2.5 rounded-xl border border-border bg-muted/40 p-3"
+                    >
+                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      </span>
+                      <span className="flex-1 text-[13px]">{row}</span>
+                      <span className="h-2 w-14 overflow-hidden rounded-full bg-muted shimmer" />
+                    </motion.div>
+                  ))}
+                </motion.div>
+              )}
 
-        {/* signature row */}
-        <div className="mt-3 flex items-center gap-2.5 rounded-xl border border-border bg-card p-3">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-success/12 text-success">
-            <Check className="h-4 w-4" strokeWidth={3} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-[12px] font-semibold leading-tight">{lang === "tr" ? "Kabul edildi & imzalandı" : "Accepted & signed"}</p>
-            <p className="text-[10.5px] text-muted-foreground">Maria Gomez · Northwind</p>
+              {step === "output" && (
+                <motion.div
+                  key="output"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <div className="relative overflow-hidden rounded-xl px-4 pb-3.5 pt-4" style={{ backgroundImage: "var(--grad-brand)" }}>
+                    <span className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-white/15 blur-2xl" aria-hidden />
+                    <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-white/70">
+                      {lang === "tr" ? "Acme Corp için teklif" : "Proposal for Acme Corp"}
+                    </p>
+                    <p className="mt-1 font-display text-[17px] font-bold leading-tight text-white">
+                      {lang === "tr" ? "Marka stratejisi & web sitesi" : "Brand strategy & website"}
+                    </p>
+                  </div>
+                  <div className="mt-3 overflow-hidden rounded-xl border border-border">
+                    {items.map((it, i) => (
+                      <div key={it.name} className={cn("flex items-center justify-between px-3 py-2 text-[12.5px]", i < items.length - 1 && "border-b border-border/60")}>
+                        <span className="truncate font-medium">{it.name}</span>
+                        <span className="tnum font-semibold">{formatUsd(it.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-2.5 flex items-center justify-between rounded-xl bg-muted/50 px-3.5 py-2">
+                    <span className="text-[12.5px] font-semibold">{lang === "tr" ? "Toplam" : "Total"}</span>
+                    <span className="tnum text-base font-bold text-primary">{formatUsd(total)}</span>
+                  </div>
+                  <div className="mt-2.5 flex items-center gap-2.5 rounded-xl border border-border bg-card p-2.5">
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-success/12 text-success">
+                      <Check className="h-4 w-4" strokeWidth={3} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11.5px] font-semibold leading-tight">{lang === "tr" ? "Hazır — imzaya gönderilebilir" : "Ready — send for signature"}</p>
+                    </div>
+                    <PenLine className="h-4 w-4 text-primary" />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-          <svg viewBox="0 0 64 22" className="h-5 w-16 text-primary" aria-hidden>
-            <path d="M3 16 C12 5 16 18 25 12 C32 7 38 17 47 10 C53 6 58 14 61 7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </div>
+        </AppWindowFrame>
       </div>
-      </AppWindowFrame>
 
       {/* floating "opened" chip */}
-      <div className="glass-card absolute -bottom-3 left-5 hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold sm:inline-flex">
+      <div className="glass-panel absolute -bottom-3 left-5 hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold sm:inline-flex">
         <PenLine className="h-3 w-3 text-primary" />
         {lang === "tr" ? "tek tıkla imza" : "one-click sign"}
       </div>

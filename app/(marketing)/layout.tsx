@@ -13,11 +13,11 @@ export default function MarketingLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const { ui, lang } = useLang();
   return (
-    <div className="flex min-h-dvh flex-col overflow-x-clip">
-      <header className="sticky top-0 z-30 border-b border-white/60 bg-white/70 shadow-[0_1px_0_rgba(15,23,42,0.03)] backdrop-blur-xl">
+    <div className="marketing-dark flex min-h-dvh flex-col overflow-x-clip">
+      <header className="sticky top-0 z-30 border-b border-white/[0.08] bg-[#080c14]/70 shadow-[0_1px_0_rgba(0,0,0,0.3)] backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center px-5">
           <Link href="/">
-            <Logo />
+            <Logo onDark />
           </Link>
           <nav className="hidden flex-1 items-center justify-center gap-7 text-sm font-medium text-muted-foreground md:flex">
             <a href="#features" className="transition-colors hover:text-foreground">{ui.features}</a>
@@ -42,11 +42,11 @@ export default function MarketingLayout({
 
       <div className="flex-1">{children}</div>
 
-      <footer className="border-t border-border">
+      <footer className="border-t border-white/[0.08]">
         <div className="mx-auto max-w-6xl px-5 py-12">
           <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
             <div className="max-w-xs">
-              <Logo />
+              <Logo onDark />
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                 {lang === "tr"
                   ? "AI ile yazılan, tek tıkla imzalanan teklifler. Güzel, etkileşimli, izlenebilir."
@@ -88,7 +88,7 @@ export default function MarketingLayout({
         </div>
       </footer>
 
-      <Script src="/widget.js" strategy="lazyOnload" />
+      <Script src="/widget.js" data-theme="seelydeal" strategy="lazyOnload" />
     </div>
   );
 }
