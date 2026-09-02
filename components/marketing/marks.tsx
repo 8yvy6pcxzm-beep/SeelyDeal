@@ -48,6 +48,64 @@ export function GlassCard({ className, children, ...props }: React.HTMLAttribute
   );
 }
 
+/* ── Mock-up video: plays an mp4/webm loop inside the app-window chrome once
+   it scrolls into view (instead of a static screenshot), for sections that
+   show the live product in motion (AI drafting, pricing, tracking). Falls
+   back to `poster` if no sources are given so the layout never breaks while
+   real capture files are still being produced. ────────────────────────────── */
+export function MockupVideo({
+  sources,
+  poster,
+  label,
+}: {
+  sources?: { src: string; type: "video/mp4" | "video/webm" }[];
+  poster?: string;
+  label?: string;
+}) {
+  const [inView, setInView] = useState(false);
+  const ref = (node: HTMLDivElement | null) => {
+    if (!node || inView) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setInView(true);
+          io.disconnect();
+        }
+      },
+      { threshold: 0.35 },
+    );
+    io.observe(node);
+  };
+
+  return (
+    <div ref={ref} className="mockup-video" aria-label={label}>
+      {sources && sources.length > 0 ? (
+        <video autoPlay={inView} loop muted playsInline poster={poster}>
+          {sources.map((s) => (
+            <source key={s.src} src={s.src} type={s.type} />
+          ))}
+        </video>
+      ) : (
+        <div className="grid h-full w-full place-items-center bg-gradient-to-br from-primary/10 to-accent/10">
+          <span className="glow-loader grid h-12 w-12 place-items-center rounded-full bg-primary/15 text-primary">
+            <Loader2 className="h-5 w-5 animate-spin" />
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Typewriter text: reveals a line of copy with a blinking caret, used to
+   sell "AI is writing this right now" instead of a pasted static string. ──── */
+export function TypewriterLine({ text, className }: { text: string; className?: string }) {
+  return (
+    <span key={text} className={cn("typewriter", className)}>
+      {text}
+    </span>
+  );
+}
+
 /* ── App-window frame: gives static preview cards a live-product feel ──────── */
 export function AppWindowFrame({ label, children }: { label?: string; children: React.ReactNode }) {
   return (

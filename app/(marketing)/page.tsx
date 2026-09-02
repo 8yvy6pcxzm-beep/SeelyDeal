@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import {
   ArrowRight,
   Check,
@@ -26,7 +26,7 @@ import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
 import { SignDemo } from "@/components/marketing/sign-demo";
 import { DemoRequestDialog } from "@/components/marketing/demo-request-dialog";
-import { BriefToProposalPreview, AppWindowFrame, Reveal, GlassCard } from "@/components/marketing/marks";
+import { BriefToProposalPreview, AppWindowFrame, Reveal, GlassCard, MockupVideo, TypewriterLine } from "@/components/marketing/marks";
 import { motion } from "framer-motion";
 import { useLang } from "@/components/i18n/language-provider";
 import { cn } from "@/lib/utils";
@@ -40,46 +40,13 @@ import type { L } from "@/lib/i18n/config";
 const HERO_BENEFITS: L[] = [
   { tr: "AI ilk taslağı dakikalar içinde yazar — sen son rötuşu yaparsın", en: "AI writes the first draft in minutes — you do the final polish" },
   { tr: "Etkileşimli fiyat tablosu, müşteri seçince toplamı canlı günceller", en: "Interactive pricing recomputes live as your client picks options" },
-  { tr: "Her görüntülenmeyi izle, müşterin tek tıkla imzalasın", en: "Track every view; your client signs in one click" },
+  { tr: "Kim baktı, ne kadar kaldı — gerçek zamanlı gör", en: "See who's looking and how long they stay, in real time" },
 ];
 
 const TRUST_METRIC: L = {
   tr: "Aylık 10.000'den fazla teklif üreten ajans, yazılım ve danışmanlık ekipleri tarafından kullanılıyor.",
   en: "Used by agencies, software and consulting teams generating 10,000+ proposals every month.",
 };
-
-const HOW_STEPS: { n: string; icon: string; title: L; body: L }[] = [
-  {
-    n: "01",
-    icon: "layout-template",
-    title: { tr: "Şablon seç", en: "Pick a template" },
-    body: { tr: "Onaylı, markaya uygun bir şablondan başla. Boş sayfa yok — en iyi işinden başla.", en: "Start from an on-brand, approved template. No blank page — begin from your best work." },
-  },
-  {
-    n: "02",
-    icon: "sparkles",
-    title: { tr: "AI taslak yazsın", en: "AI drafts it" },
-    body: { tr: "Kısa bir brief gir; AI kapak, kapsam, fiyatlandırma ve şartları markanın sesiyle yazar.", en: "Enter a short brief; AI writes the cover, scope, pricing and terms in your brand voice." },
-  },
-  {
-    n: "03",
-    icon: "send",
-    title: { tr: "Gönder", en: "Send" },
-    body: { tr: "Güzel, etkileşimli bir bağlantı gönder. PDF eki yok, indirme yok.", en: "Send a gorgeous, interactive link. No PDF attachment, no download." },
-  },
-  {
-    n: "04",
-    icon: "eye",
-    title: { tr: "İzle", en: "Track" },
-    body: { tr: "Açılışları, hangi bölümde ne kadar kalındığını gör. Tam doğru anda takip et.", en: "See opens and time-on-section. Follow up at the perfect moment." },
-  },
-  {
-    n: "05",
-    icon: "pen-line",
-    title: { tr: "İmzala", en: "Sign" },
-    body: { tr: "Müşterin tek tıkla imzalar; kabul edilen tutar anında tahsil edilebilir.", en: "Your client signs in one click; the accepted amount can be charged instantly." },
-  },
-];
 
 type CompareValue = boolean | L | string;
 const COMPARE: { feature: L; word: CompareValue; generic: CompareValue; tender: CompareValue }[] = [
@@ -100,12 +67,15 @@ const USE_CASES: { icon: string; title: L; body: L }[] = [
   { icon: "building-2", title: { tr: "Satış ekipleri", en: "Sales teams" }, body: { tr: "Onay akışları, CRM senkronu ve kazanma oranı analitiği ile ölçekle.", en: "Scale with approval flows, CRM sync, and win-rate analytics." } },
 ];
 
-/* Deep-dive feature blocks (alternating). */
-const DEEP_DIVE: { eyebrow: L; title: L; body: L; points: L[]; reverse?: boolean; panel: "ai" | "pricing" | "track" }[] = [
+/* The three-step "how it works" narrative (alternating layout). Each step's
+   title, body and bullet points are written to match its panel 1:1 — no step
+   shares a visual or a phrase with another. */
+const HOW_IT_WORKS: { step: string; icon: string; title: L; body: L; points: L[]; reverse?: boolean; panel: "ai" | "pricing" | "track" }[] = [
   {
-    eyebrow: { tr: "AI yazımı", en: "AI drafting" },
-    title: { tr: "Boş sayfa yok, sadece harika ilk taslaklar", en: "No blank page, just great first drafts" },
-    body: { tr: "Birkaç satırlık brief'ten kapak, kapsam, fiyatlandırma ve şartları markanın sesiyle yazar. Tonu ve uzunluğu sen ayarlarsın.", en: "From a few lines of brief, it writes the cover, scope, pricing and terms in your brand voice. You tune the tone and length." },
+    step: "01",
+    icon: "sparkles",
+    title: { tr: "AI ile brief'ten taslak oluştur", en: "Draft it from a brief with AI" },
+    body: { tr: "Kime, ne için, hangi bütçeyle — birkaç cümle yaz. AI kapağı, kapsamı ve şartları markanın sesiyle dolduruyor.", en: "Who it's for, what it's for, what budget — a few sentences is enough. AI fills in the cover, scope and terms in your brand voice." },
     points: [
       { tr: "Marka sesi & ton kontrolü", en: "Brand-voice & tone control" },
       { tr: "Bölüm bölüm yeniden yazım", en: "Section-by-section rewrites" },
@@ -114,9 +84,10 @@ const DEEP_DIVE: { eyebrow: L; title: L; body: L; points: L[]; reverse?: boolean
     panel: "ai",
   },
   {
-    eyebrow: { tr: "Etkileşimli fiyatlandırma", en: "Interactive pricing" },
-    title: { tr: "Müşteri kendi paketini kurar", en: "Clients build their own package" },
-    body: { tr: "Opsiyonel kalemler, adet seçimi ve katmanlı paketler — toplam canlı güncellenir. Kabul edilen tutar doğrudan Stripe ile tahsil edilir.", en: "Optional line items, quantity pickers and tiered packages — the total recomputes live. The accepted amount charges straight through Stripe." },
+    step: "02",
+    icon: "table",
+    title: { tr: "Etkileşimli paket ve fiyatlandırma ekle", en: "Add interactive packages & pricing" },
+    body: { tr: "Opsiyonel kalemleri, adetleri ve katmanları yerleştir. Müşteri kendi paketini kurdukça toplam anında güncellenir.", en: "Drop in optional line items, quantities and tiers. As your client builds their own package, the total updates instantly." },
     points: [
       { tr: "Aç/kapat kalemler & adetler", en: "Toggle items & quantities" },
       { tr: "Katmanlı & tekrarlayan paketler", en: "Tiered & recurring packages" },
@@ -126,13 +97,14 @@ const DEEP_DIVE: { eyebrow: L; title: L; body: L; points: L[]; reverse?: boolean
     panel: "pricing",
   },
   {
-    eyebrow: { tr: "Görüntüleme takibi", en: "View tracking" },
-    title: { tr: "Tam doğru anda takip et", en: "Follow up at the perfect moment" },
-    body: { tr: "Teklifin ne zaman açıldığını, hangi bölümde ne kadar kalındığını ve kimin baktığını gör. Görüntülendi-ama-imzalanmadı uyarıları gelsin.", en: "See when a proposal opens, time-on-section, and who's viewing. Get viewed-but-not-signed alerts." },
+    step: "03",
+    icon: "pen-line",
+    title: { tr: "Gönder, takip et, e-imza al", en: "Send, track, and get it signed" },
+    body: { tr: "Bağlantıyı paylaş; kim baktı, hangi bölümde ne kadar kaldı gerçek zamanlı gör. Müşterin tek tıkla imzalar.", en: "Share the link; watch who's looking and how long they linger on each section, live. Your client signs in one click." },
     points: [
       { tr: "Bölüm bazlı süre takibi", en: "Time-on-section tracking" },
       { tr: "Açılışta gerçek zamanlı bildirim", en: "Real-time open notifications" },
-      { tr: "Otomatik hatırlatma dizileri", en: "Automated reminder sequences" },
+      { tr: "Tek tıkla e-imza", en: "One-click e-signature" },
     ],
     panel: "track",
   },
@@ -158,36 +130,16 @@ export default function LandingPage() {
   const tt = (v: L) => v[lang];
   const [annual, setAnnual] = useState(true);
   const [demoTier, setDemoTier] = useState<string | null>(null);
-  const [howVisible, setHowVisible] = useState(false);
-  const howRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = howRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setHowVisible(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.25 },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
 
   const sectionCopy = {
     demoTitle: { tr: "Müşteri gibi dene", en: "Try it like a client" } as L,
     demoSub: { tr: "Seçenekleri aç/kapat, adetleri ayarla; toplam canlı güncellensin. Sonra kabul et ve imzayı izle.", en: "Toggle options, adjust quantities, watch the total update live. Then accept and watch the signature animate in." } as L,
     featuresTitle: { tr: "Kazanan teklifler için ihtiyacın olan her şey", en: "Everything you need to win proposals" } as L,
     featuresSub: { tr: "Taslaktan imzaya, takipten ödemeye — tek panel.", en: "From draft to signature, tracking to payment — in one panel." } as L,
-    howTitle: { tr: "Beş adımda kapanan teklif", en: "A closed deal in five steps" } as L,
-    howSub: { tr: "Şablon seç, AI yazsın, gönder, izle, imzala.", en: "Pick a template, let AI draft, send, track, sign." } as L,
+    howTitle: { tr: "Brief'ten imzaya, üç adım", en: "From brief to signature, three steps" } as L,
+    howSub: { tr: "Yaz, fiyatla, kapat — hepsi tek akışta.", en: "Draft it, price it, close it — one continuous flow." } as L,
     useCasesTitle: { tr: "SeelyDeal kimler için?", en: "Who SeelyDeal is for" } as L,
     useCasesSub: { tr: "Teklif gönderen her ekip için güzel bir akış.", en: "A beautiful flow for every team that sends proposals." } as L,
-    deepTitle: { tr: "Taslaktan imzaya", en: "From draft to signature" } as L,
-    deepSub: { tr: "Üç katman, tek panel: yaz, fiyatla, izle ve kapat.", en: "Three layers, one panel: draft, price, track and close." } as L,
     trackTitle: { tr: "Teklifin gözlerinin önünde açılıyor", en: "Watch your proposal open in real time" } as L,
     trackSub: { tr: "Kim açtı, hangi bölümde ne kadar kaldı, hangi cihazdan — hepsi canlı.", en: "Who opened it, time on each section, on what device — all live." } as L,
     integrationsTitle: { tr: "Sevdiğin araçlarla çalışır", en: "Works with the tools you love" } as L,
@@ -262,22 +214,22 @@ export default function LandingPage() {
             </p>
           </div>
 
-          {/* Right floating hero visual — dark glass ground, a soft micro-grid,
-              and blurred indigo/emerald auras behind the AI generation panel. */}
+          {/* Right floating hero visual — soft off-white glass ground, a faint
+              micro-grid, and blurred indigo/violet auras behind the AI panel. */}
           <div className="relative animate-float-up lg:pl-4">
             <div
-              className="pointer-events-none absolute -inset-10 -z-20 rounded-[2.5rem] bg-gradient-to-br from-[#0b1120] via-[#0f172a] to-[#0b1120]"
+              className="pointer-events-none absolute -inset-10 -z-20 rounded-[2.5rem] border border-border/60 bg-gradient-to-br from-white via-[#f7f7fc] to-white shadow-soft"
               aria-hidden
             />
             <div className="pointer-events-none absolute -inset-10 -z-10 micro-grid" aria-hidden />
-            <div className="ambient-orb -left-8 -top-10 h-56 w-56 bg-primary/40 drift" aria-hidden />
-            <div className="ambient-orb -bottom-10 -right-6 h-60 w-60 bg-accent/30" aria-hidden />
+            <div className="ambient-orb -left-8 -top-10 h-56 w-56 bg-primary/25 drift" aria-hidden />
+            <div className="ambient-orb -bottom-10 -right-6 h-60 w-60 bg-accent/20" aria-hidden />
             <BriefToProposalPreview />
           </div>
         </div>
 
         {/* Trust bar — a concrete usage metric instead of placeholder logos. */}
-        <div className="relative border-y border-white/[0.08] bg-white/[0.02]">
+        <div className="relative border-y border-border bg-muted/30">
           <div className="mx-auto max-w-3xl px-5 py-6 text-center">
             <p className="text-[13.5px] font-medium leading-relaxed text-muted-foreground">{tt(TRUST_METRIC)}</p>
           </div>
@@ -361,21 +313,26 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── DEEP-DIVE FEATURE BLOCKS ──────────────────────────────── */}
-      <section className="mx-auto max-w-6xl px-5 py-20">
+      {/* ── HOW IT WORKS — three steps, each with its own matching visual ─── */}
+      <section id="how" className="mx-auto max-w-6xl px-5 py-20">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">{tt(sectionCopy.deepTitle)}</h2>
-          <p className="mt-3 text-muted-foreground">{tt(sectionCopy.deepSub)}</p>
+          <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">{tt(sectionCopy.howTitle)}</h2>
+          <p className="mt-3 text-muted-foreground">{tt(sectionCopy.howSub)}</p>
         </div>
         <div className="mt-14 space-y-16">
-          {DEEP_DIVE.map((d) => (
+          {HOW_IT_WORKS.map((d) => (
             <div
               key={tt(d.title)}
               className={cn("grid items-center gap-10 lg:grid-cols-2", d.reverse && "lg:[&>*:first-child]:order-2")}
             >
               <div>
-                <p className="label-mono text-primary">{tt(d.eyebrow)}</p>
-                <h3 className="mt-2 max-w-md font-display text-2xl font-bold tracking-tight sm:text-3xl">{tt(d.title)}</h3>
+                <span className="inline-flex items-center gap-2">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/15 to-accent/15 text-primary ring-4 ring-primary/10">
+                    <Icon name={d.icon} className="h-4 w-4" />
+                  </span>
+                  <span className="label-mono text-primary">{lang === "tr" ? `Adım ${d.step}` : `Step ${d.step}`}</span>
+                </span>
+                <h3 className="mt-3 max-w-md font-display text-2xl font-bold tracking-tight sm:text-3xl">{tt(d.title)}</h3>
                 <p className="mt-3 max-w-md text-muted-foreground">{tt(d.body)}</p>
                 <ul className="mt-5 space-y-2.5">
                   {d.points.map((p) => (
@@ -394,9 +351,15 @@ export default function LandingPage() {
               <div className="p-5">
                 {d.panel === "ai" && (
                   <div className="space-y-3">
+                    <MockupVideo
+                      label={lang === "tr" ? "AI taslak oluşturma canlı önizleme" : "AI drafting live preview"}
+                    />
                     <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 p-3">
-                      <Sparkles className="h-4 w-4 text-primary" />
-                      <span className="text-[13px] font-medium">{lang === "tr" ? "Brief: Northwind için marka + web" : "Brief: brand + web for Northwind"}</span>
+                      <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+                      <TypewriterLine
+                        className="text-[13px] font-medium"
+                        text={lang === "tr" ? "Brief: Northwind için marka + web" : "Brief: brand + web for Northwind"}
+                      />
                     </div>
                     <div className="space-y-2 rounded-xl border border-border p-3">
                       {[
@@ -417,6 +380,9 @@ export default function LandingPage() {
                 )}
                 {d.panel === "pricing" && (
                   <div className="space-y-2.5">
+                    <MockupVideo
+                      label={lang === "tr" ? "Etkileşimli fiyatlandırma canlı önizleme" : "Interactive pricing live preview"}
+                    />
                     {[
                       { l: lang === "tr" ? "Marka sistemi" : "Brand system", v: "$7,600", on: true },
                       { l: lang === "tr" ? "Web sitesi · 8 sayfa" : "Website · 8 pages", v: "$7,600", on: true },
@@ -439,24 +405,30 @@ export default function LandingPage() {
                 )}
                 {d.panel === "track" && (
                   <div className="space-y-2.5">
+                    <MockupVideo
+                      label={lang === "tr" ? "Görüntüleme takibi canlı önizleme" : "View tracking live preview"}
+                    />
                     {[
                       { icon: Send, l: lang === "tr" ? "Gönderildi" : "Sent", t: "11 Jun · 09:20" },
                       { icon: Eye, l: lang === "tr" ? "İlk kez açıldı · Kapak" : "First open · Cover", t: "11 Jun · 14:02" },
                       { icon: Clock, l: lang === "tr" ? "Fiyatlandırmada 4dk" : "4m on Pricing", t: "12 Jun · 08:46" },
-                      { icon: PenLine, l: lang === "tr" ? "İmza bekleniyor" : "Awaiting signature", t: lang === "tr" ? "şimdi" : "now" },
-                    ].map((r, i) => {
+                    ].map((r) => {
                       const I = r.icon;
                       return (
                         <div key={r.l} className="flex items-center gap-3 rounded-xl border border-border bg-muted/40 p-3">
-                          <span className={cn("grid h-7 w-7 place-items-center rounded-lg", i === 3 ? "bg-accent/15 text-accent" : "bg-primary/10 text-primary")}>
+                          <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary/10 text-primary">
                             <I className="h-3.5 w-3.5" />
                           </span>
                           <span className="flex-1 text-[13px] font-medium">{r.l}</span>
-                          {i === 3 && <span className="h-1.5 w-1.5 rounded-full bg-accent pulse-dot" />}
                           <span className="tnum text-[11px] text-muted-foreground">{r.t}</span>
                         </div>
                       );
                     })}
+                    {/* explicit e-sign CTA — the literal "click to sign" moment this step promises */}
+                    <button className="flex w-full items-center justify-center gap-2 rounded-xl px-3.5 py-3 text-[13px] font-semibold text-primary-foreground" style={{ background: "var(--grad-brand)" }}>
+                      <PenLine className="h-4 w-4" />
+                      {lang === "tr" ? "Tek tıkla imzala" : "Sign with one click"}
+                    </button>
                   </div>
                 )}
               </div>
@@ -464,49 +436,6 @@ export default function LandingPage() {
               </Reveal>
             </div>
           ))}
-        </div>
-      </section>
-
-      {/* ── HOW IT WORKS ──────────────────────────────────────────── */}
-      <section id="how" className="border-y border-border bg-muted/30">
-        <div className="mx-auto max-w-6xl px-5 py-20">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">{tt(sectionCopy.howTitle)}</h2>
-            <p className="mt-3 text-muted-foreground">{tt(sectionCopy.howSub)}</p>
-          </div>
-          <div ref={howRef} className={cn("relative mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-5", howVisible && "stagger")}>
-            {/* Connecting line — draws in left-to-right once the row scrolls into view. */}
-            <div
-              className="pointer-events-none absolute left-[10%] right-[10%] top-[38px] hidden h-px origin-left bg-border transition-transform duration-[1100ms] ease-out motion-reduce:transition-none lg:block"
-              style={{ transform: howVisible ? "scaleX(1)" : "scaleX(0)" }}
-              aria-hidden
-            />
-            {HOW_STEPS.map((s, i) => (
-              <div
-                key={s.n}
-                className={cn("glass-panel relative p-5", !howVisible && "opacity-0")}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 text-primary ring-4 ring-primary/10">
-                    <Icon name={s.icon} className="h-[18px] w-[18px]" />
-                  </span>
-                  <span className="font-display text-2xl font-bold text-primary/15">{s.n}</span>
-                </div>
-                <h3 className="mt-3.5 font-semibold tracking-tight">{tt(s.title)}</h3>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">{tt(s.body)}</p>
-                {i < HOW_STEPS.length - 1 && (
-                  <span
-                    className={cn(
-                      "absolute -right-3 top-1/2 z-10 hidden h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-opacity duration-500 lg:flex",
-                      howVisible ? "opacity-100 delay-500" : "opacity-0",
-                    )}
-                  >
-                    <ArrowRight className="h-3 w-3" />
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
         </div>
       </section>
 

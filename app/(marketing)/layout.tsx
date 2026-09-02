@@ -13,11 +13,11 @@ export default function MarketingLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const { ui, lang } = useLang();
   return (
-    <div className="marketing-dark flex min-h-dvh flex-col overflow-x-clip">
-      <header className="sticky top-0 z-30 border-b border-white/[0.08] bg-[#080c14]/70 shadow-[0_1px_0_rgba(0,0,0,0.3)] backdrop-blur-xl">
+    <div className="flex min-h-dvh flex-col overflow-x-clip">
+      <header className="sticky top-0 z-50 border-b border-border bg-background/75 shadow-[0_1px_0_rgba(15,23,42,0.04)] backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center px-5">
           <Link href="/">
-            <Logo onDark />
+            <Logo />
           </Link>
           <nav className="hidden flex-1 items-center justify-center gap-7 text-sm font-medium text-muted-foreground md:flex">
             <a href="#features" className="transition-colors hover:text-foreground">{ui.features}</a>
@@ -32,7 +32,7 @@ export default function MarketingLayout({
             </Link>
             <Link
               href="/signup"
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[image:var(--grad-brand)] px-4 text-[13px] font-semibold text-primary-foreground shadow-[0_4px_16px_oklch(55%_0.2_290/0.25)] transition-all duration-150 hover:scale-[1.03] hover:shadow-[0_8px_22px_oklch(55%_0.2_290/0.38)]"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[image:var(--grad-brand)] px-4 text-[13px] font-semibold text-primary-foreground shadow-glow transition-all duration-150 hover:scale-[1.03] hover:shadow-[0_10px_24px_oklch(55%_0.2_290/0.35)]"
             >
               {ui.getStarted}
             </Link>
@@ -42,11 +42,11 @@ export default function MarketingLayout({
 
       <div className="flex-1">{children}</div>
 
-      <footer className="border-t border-white/[0.08]">
+      <footer className="border-t border-border bg-muted/30">
         <div className="mx-auto max-w-6xl px-5 py-12">
           <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
             <div className="max-w-xs">
-              <Logo onDark />
+              <Logo />
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                 {lang === "tr"
                   ? "AI ile yazılan, tek tıkla imzalanan teklifler. Güzel, etkileşimli, izlenebilir."
