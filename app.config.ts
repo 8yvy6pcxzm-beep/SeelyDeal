@@ -147,7 +147,7 @@ export const appConfig: AppConfig = {
   accentName: "violet",
 
   marketing: {
-    badge: { tr: "AI destekli teklif platformu", en: "AI-assisted proposal platform" },
+    badge: { tr: "Ajanslar & danışmanlar için, kapanış odaklı", en: "For agencies & consultants, built to close" },
     heroTitle: {
       tr: "Kazanan teklifler",
       en: "Proposals that",
