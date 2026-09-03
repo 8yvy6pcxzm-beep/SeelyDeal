@@ -13,6 +13,7 @@ export const ui = {
     faq: "S.S.S.",
     signIn: "Giriş yap",
     getStarted: "Başla",
+    viewDemo: "Demoyu İncele",
     // auth
     welcomeBack: "Tekrar hoş geldin",
     createAccount: "Hesap oluştur",
@@ -54,6 +55,7 @@ export const ui = {
     faq: "FAQ",
     signIn: "Sign in",
     getStarted: "Get started",
+    viewDemo: "View Demo",
     welcomeBack: "Welcome back",
     createAccount: "Create your account",
     email: "Email",

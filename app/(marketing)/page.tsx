@@ -781,7 +781,7 @@ export default function LandingPage() {
                   </button>
                 ) : (
                   <Link
-                    href="/signup"
+                    href="/demo/dashboard"
                     className={cn(
                       "mt-7 inline-flex h-11 items-center justify-center rounded-xl text-sm font-semibold transition-all",
                       tier.featured

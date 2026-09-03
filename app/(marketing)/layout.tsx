@@ -27,6 +27,9 @@ export default function MarketingLayout({
           </nav>
           <div className="ml-auto flex items-center gap-2">
             <LanguageToggle className="mr-1" />
+            <Link href="/demo/dashboard" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline">
+              {ui.viewDemo}
+            </Link>
             <Link href="/login" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline">
               {ui.signIn}
             </Link>
