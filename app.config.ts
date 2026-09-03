@@ -147,7 +147,7 @@ export const appConfig: AppConfig = {
   accentName: "violet",
 
   marketing: {
-    badge: { tr: "Ajanslar & danışmanlar için, kapanış odaklı", en: "For agencies & consultants, built to close" },
+    badge: { tr: "Ajanslar, danışmanlar ve taahhüt firmaları için, kapanış odaklı", en: "For agencies, consultants & contracting firms, built to close" },
     heroTitle: {
       tr: "Kazanan teklifler",
       en: "Proposals that",
